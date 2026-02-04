@@ -38,6 +38,15 @@ namespace projet0.API.Controllers
             if (user == null) return NotFound();
             return Ok(user);
         }
+        // GET api/users/roles
+        [HttpGet("roles")]
+        [Authorize(Policy = "AdminOnly")]
+        public async Task<IActionResult> GetAllWithRoles()
+        {
+            var users = await _userService.GetAllUsersWithRolesAsync();
+            return Ok(users);
+        }
+
 
         //  Admin seulement
         [HttpPost]

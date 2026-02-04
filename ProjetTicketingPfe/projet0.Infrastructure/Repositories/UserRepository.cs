@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using projet0.Application.Commun.DTOs;
 using projet0.Application.Interfaces;
 using projet0.Domain.Entities;
 using projet0.Infrastructure.Data;
@@ -44,7 +45,33 @@ namespace projet0.Infrastructure.Repositories
         public async Task<IEnumerable<ApplicationUser>> GetActiveUsersAsync()
         {
             return await _dbSet.OrderBy(u => u.Nom).ThenBy(u => u.Prenom).ToListAsync();
-        }     
+        }
+        public async Task<IEnumerable<UserWithRoleDto>> GetAllUsersWithRolesAsync()
+        {
+            var users = await _userManager.Users.ToListAsync();
+            var usersWithRoles = new List<UserWithRoleDto>();
+
+            foreach (var user in users)
+            {
+                // Récupère le rôle (on suppose un seul rôle)
+                var roles = await _userManager.GetRolesAsync(user);
+                var roleName = roles.FirstOrDefault() ?? "USER"; // fallback
+
+                usersWithRoles.Add(new UserWithRoleDto
+                {
+                    Id = user.Id,
+                    UserName = user.UserName,
+                    Nom = user.Nom,
+                    Prenom = user.Prenom,
+                    Email = user.Email,
+                    PhoneNumber = user.PhoneNumber,
+                    Image = user.Image,
+                    Role = roleName
+                });
+            }
+
+            return usersWithRoles;
+        }
 
         public async Task<IEnumerable<ApplicationUser>> SearchUsersAsync(string searchTerm)
         {

@@ -1,4 +1,5 @@
-﻿using projet0.Application.Commun.Ressources;
+﻿using projet0.Application.Commun.DTOs;
+using projet0.Application.Commun.Ressources;
 using projet0.Domain.Entities;
 using System;
 using System.Collections.Generic;
@@ -9,6 +10,8 @@ namespace projet0.Application.Services.User
     public interface IUserService
     {
         Task<IEnumerable<ApplicationUser>> GetAllAsync();
+        Task<IEnumerable<UserWithRoleDto>> GetAllUsersWithRolesAsync();
+
         Task<ApplicationUser> GetByIdAsync(Guid id);
         Task<ApiResponse<ApplicationUser>> CreateAsync(UserDto dto);
         Task<ApiResponse<ApplicationUser>> UpdateAsync(Guid id, UserDto dto);

@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using projet0.Application.Commun.DTOs;
 using projet0.Application.Commun.Ressources;
 using projet0.Application.Interfaces;
 using projet0.Domain.Entities;
@@ -73,6 +74,7 @@ namespace projet0.Application.Services.User
                 }
             }
         }
+       
 
         // ================= GET ALL =================
         public Task<IEnumerable<ApplicationUser>> GetAllAsync()
@@ -283,5 +285,15 @@ namespace projet0.Application.Services.User
                             );
                 });
 
+        public async Task<IEnumerable<UserWithRoleDto>> GetAllUsersWithRolesAsync()
+        {
+            // on utilise le repository qui utilise UserManager
+            var usersWithRoles = await _userRepository.GetAllUsersWithRolesAsync();
+
+            // optionnel : on peut logger
+            _logger.LogDebug("SUCCESS GetAllUsersWithRoles | Count = {Count}", usersWithRoles?.Count() ?? 0);
+
+            return usersWithRoles;
+        }
     }
 }
