@@ -22,6 +22,7 @@ namespace projet0.API.Controllers
         private readonly IOtpService _otpService;
         private readonly UserManager<ApplicationUser> _userManager;
 
+
         public AuthController(
             IAuthService authService,
             ITokenService tokenService,

@@ -16,14 +16,18 @@ namespace projet0.Application.Services.Auth
     {
         private readonly IConfiguration _config;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly RoleManager<IdentityRole<Guid>> _roleManager;
         private readonly ITokenService _tokenService;
         private readonly IOtpService _otpService;
         public AuthService(
             UserManager<ApplicationUser> userManager,
-            ITokenService tokenService,
+            ITokenService tokenService, RoleManager<IdentityRole<Guid>> roleManager
+,
             IConfiguration config, IOtpService otpService)
         {
             _userManager = userManager;
+            _roleManager = roleManager;
+
             _tokenService = tokenService;
             _config = config;
             _otpService = otpService;
@@ -32,6 +36,17 @@ namespace projet0.Application.Services.Auth
         // ================= REGISTER =================
         public async Task<ApiResponse<AuthResponseDTO>> RegisterAsync(RegisterDTO dto)
         {
+            var role = await _roleManager.FindByIdAsync(dto.RoleId);
+
+            if (role == null || role.Name == "Admin")
+            {
+                return ApiResponse<AuthResponseDTO>.Failure(
+                    message: "Rôle invalide",
+                    resultCode: 15
+                );
+            }
+
+
             var user = new ApplicationUser
             {
                 UserName = dto.UserName,
@@ -54,7 +69,7 @@ namespace projet0.Application.Services.Auth
             }
 
             // Assignation du rôle par défaut
-            await _userManager.AddToRoleAsync(user, "User");
+            await _userManager.AddToRoleAsync(user, role.Name);
 
             // ENVOYER UN OTP POUR CONFIRMER L'EMAIL
             var otpResult = await _otpService.GenerateAndSendOtpAsync(
@@ -92,12 +107,13 @@ namespace projet0.Application.Services.Auth
             resultCode: 10
                 );
             }
+            var roles = await _userManager.GetRolesAsync(user);
 
             // VÉRIFIER SI L'EMAIL EST CONFIRMÉ
-            if (!user.EmailConfirmed)
+            if (!user.EmailConfirmed && !roles.Contains("Admin"))
             {
                 // Option 1: Refuser le login
-             return ApiResponse<AuthResponseDTO>.Failure(
+                return ApiResponse<AuthResponseDTO>.Failure(
              message: "Veuillez confirmer votre email avant de vous connecter",
              resultCode: 11
                  );
@@ -113,9 +129,9 @@ namespace projet0.Application.Services.Auth
                 // );
             }
 
-            var roles = await _userManager.GetRolesAsync(user);
             var accessToken = _tokenService.GenerateAccessToken(user, roles);
             var refreshToken = _tokenService.GenerateRefreshToken(user);
+            var userRole = roles.FirstOrDefault(); // on prend le premier rôle (ou tu peux gérer plusieurs rôles)
 
             var response = new AuthResponseDTO
             {
@@ -124,7 +140,9 @@ namespace projet0.Application.Services.Auth
                 ExpiresAt = DateTime.UtcNow.AddMinutes(
                     int.Parse(_config["Jwt:AccessTokenExpirationMinutes"])
                 ),
-                UserName = user.UserName
+                UserName = user.UserName,
+                Role = userRole // <-- maintenant le frontend pourra récupérer le rôle
+
             };
             return ApiResponse<AuthResponseDTO>.Success(
                    data: response,
