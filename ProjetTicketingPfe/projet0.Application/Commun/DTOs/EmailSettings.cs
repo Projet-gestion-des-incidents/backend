@@ -12,6 +12,6 @@ namespace projet0.Application.Commun.DTOs
             public string Password { get; set; } = null!;
             public string From { get; set; } = null!;
         }
-    }
+ }
 
 

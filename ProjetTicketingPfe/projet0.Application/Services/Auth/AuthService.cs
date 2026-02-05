@@ -46,7 +46,6 @@ namespace projet0.Application.Services.Auth
                 );
             }
 
-
             var user = new ApplicationUser
             {
                 UserName = dto.UserName,

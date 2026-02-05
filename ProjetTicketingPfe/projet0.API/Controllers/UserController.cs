@@ -47,7 +47,6 @@ namespace projet0.API.Controllers
             return Ok(users);
         }
 
-
         //  Admin seulement
         [HttpPost]
         [Authorize(Policy = "AdminOnly")]

@@ -13,8 +13,7 @@ namespace projet0.Application.Commun.DTOs
         public string Prenom { get; set; }  
         public int Age { get; set; }      
         public bool EmailConfirmed { get; set; } = false;
-
-        public string RoleId { get; set; }  // Technicien | Commercant
+        public string RoleId { get; set; }
 
     }
 }

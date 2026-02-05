@@ -26,11 +26,9 @@
 		<PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
 	</ItemGroup>
 
-
 	<ItemGroup>
     <ProjectReference Include="..\projet0.Application\projet0.Application.csproj" />
     <ProjectReference Include="..\projet0.Infrastructure\projet0.Infrastructure.csproj" />
   </ItemGroup>
-
 
 </Project>

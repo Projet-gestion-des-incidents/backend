@@ -75,7 +75,6 @@ namespace projet0.Application.Services.User
             }
         }
        
-
         // ================= GET ALL =================
         public Task<IEnumerable<ApplicationUser>> GetAllAsync()
             => MeasureAsync(
@@ -161,7 +160,9 @@ namespace projet0.Application.Services.User
                         Email = dto.Email,
                         Nom = dto.Nom,
                         Prenom = dto.Prenom,
-                        Age = dto.Age
+                        //Age = dto.Age,
+                        Phone = dto.Phone,
+                        BirthDate = dto.BirthDate
                     };
 
                     var result = await _userRepository.CreateAsync(user, dto.Password);
@@ -214,7 +215,7 @@ namespace projet0.Application.Services.User
                     user.Email = dto.Email;
                     user.Nom = dto.Nom;
                     user.Prenom = dto.Prenom;
-                    user.Age = dto.Age;
+                    //user.Age = dto.Age;
 
                     var result = await _userRepository.UpdateAsync(user);
 

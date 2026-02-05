@@ -15,7 +15,7 @@ using projet0.Application.Services.User;
 using projet0.Domain.Entities;
 using projet0.Infrastructure.Data;
 using projet0.Infrastructure.Repositories;
-//using projet0.Infrastructure.Seed;
+using projet0.Infrastructure.Seed;
 using Serilog;
 using System.Security.Claims;
 using System.Text;
@@ -209,7 +209,7 @@ using (var scope = app.Services.CreateScope())
 
     var roleManager = services.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
 
-    //await IdentitySeeder.SeedRolesAsync(roleManager);
+    await IdentitySeeder.SeedRolesAsync(roleManager);
 }
 
 Log.Information("Application démarrée avec succès");

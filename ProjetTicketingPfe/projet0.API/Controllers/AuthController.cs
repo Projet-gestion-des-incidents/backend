@@ -21,8 +21,6 @@ namespace projet0.API.Controllers
         private readonly ITokenService _tokenService;
         private readonly IOtpService _otpService;
         private readonly UserManager<ApplicationUser> _userManager;
-
-
         public AuthController(
             IAuthService authService,
             ITokenService tokenService,
@@ -116,7 +114,6 @@ namespace projet0.API.Controllers
                 return Ok(result);
             }
         
-
         [HttpPost("validate-otp")]
         [AllowAnonymous]
         public async Task<IActionResult> ValidateOtp([FromBody] ValidateOtpDTO dto)

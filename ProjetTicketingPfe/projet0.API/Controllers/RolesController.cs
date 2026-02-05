@@ -17,7 +17,6 @@ namespace projet0.API.Controllers
             _roleManager = roleManager;
         }
 
-
         [HttpGet("register")]
         [AllowAnonymous]
         public IActionResult GetRolesForRegister()
@@ -30,7 +29,6 @@ namespace projet0.API.Controllers
          Name = r.Name
      })
      .ToList();
-
 
             return Ok(ApiResponse<List<RoleDto>>.Success(
                 data: roles,

@@ -53,7 +53,6 @@ namespace projet0.Application.Services.Otp
                     //     $"Votre code est : {code} (valide 5 minutes)"
                     // );
 
-
                     try
                     {
                         // Simulation en dev
@@ -92,7 +91,6 @@ namespace projet0.Application.Services.Otp
                 }
             }
             
-
         public async Task<ApiResponse<bool>> ValidateOtpAsync(
             Guid userId,
             string code,
