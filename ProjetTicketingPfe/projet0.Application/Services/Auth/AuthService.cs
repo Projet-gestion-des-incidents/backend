@@ -52,8 +52,10 @@ namespace projet0.Application.Services.Auth
                 Email = dto.Email,
                 Nom = dto.Nom,
                 Prenom = dto.Prenom,
-                Age = dto.Age,
-                EmailConfirmed = false // Explicitement false à l'inscription
+                
+                PhoneNumber = dto.PhoneNumber, 
+                BirthDate = dto.BirthDate,
+                EmailConfirmed = false 
             };
 
             var result = await _userManager.CreateAsync(user, dto.Password);
@@ -140,7 +142,7 @@ namespace projet0.Application.Services.Auth
                     int.Parse(_config["Jwt:AccessTokenExpirationMinutes"])
                 ),
                 UserName = user.UserName,
-                Role = userRole // <-- maintenant le frontend pourra récupérer le rôle
+                Role = userRole //  le frontend récupére le rôle
 
             };
             return ApiResponse<AuthResponseDTO>.Success(

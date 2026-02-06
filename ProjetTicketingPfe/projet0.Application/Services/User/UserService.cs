@@ -1,10 +1,15 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Logging;
 using projet0.Application.Commun.DTOs;
 using projet0.Application.Commun.Ressources;
 using projet0.Application.Interfaces;
 using projet0.Domain.Entities;
 using System;
+using Microsoft.Extensions.Hosting; 
+using System.Linq; 
+using System.IO;
 using System.Collections.Generic;
+using System.Data;
 using System.Diagnostics;
 using System.Threading.Tasks;
 
@@ -15,10 +20,18 @@ namespace projet0.Application.Services.User
         private readonly IUserRepository _userRepository;
         private readonly ILogger<UserService> _logger;
 
-        public UserService(IUserRepository userRepository, ILogger<UserService> logger)
+        private readonly RoleManager<IdentityRole<Guid>> _roleManager;
+        private readonly UserManager<ApplicationUser> _userManager;
+        private readonly IHostEnvironment _webHostEnvironment;
+
+
+        public UserService(IUserRepository userRepository, ILogger<UserService> logger, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole<Guid>> roleManager, IHostEnvironment webHostEnvironment) 
         {
             _userRepository = userRepository;
             _logger = logger;
+            _roleManager = roleManager;
+            _userManager = userManager;
+            _webHostEnvironment = webHostEnvironment; 
         }
 
         // ================= HELPER STOPWATCH =================
@@ -74,7 +87,7 @@ namespace projet0.Application.Services.User
                 }
             }
         }
-       
+
         // ================= GET ALL =================
         public Task<IEnumerable<ApplicationUser>> GetAllAsync()
             => MeasureAsync(
@@ -148,21 +161,55 @@ namespace projet0.Application.Services.User
                             dto.UserName
                         );
 
-                     return ApiResponse<ApplicationUser>.Failure(
-                     message: UserMessages.UserNameAlreadyUsed,
-                     resultCode: 11
-                 );
+                        return ApiResponse<ApplicationUser>.Failure(
+                        message: UserMessages.UserNameAlreadyUsed,
+                        resultCode: 11
+                    );
+                    }
+                    // Vérifier que le rôle existe
+                    var role = await _roleManager.FindByIdAsync(dto.RoleId.ToString());
+                    if (role == null)
+                    {
+                        return ApiResponse<ApplicationUser>.Failure(
+                            message: "Le rôle spécifié n'existe pas",
+                            resultCode: 13);
                     }
 
+                    // Optionnel : Empêcher la création d'Admin par ce service
+                    if (role.Name == "Admin")
+                    {
+                        return ApiResponse<ApplicationUser>.Failure(
+                            message: "Impossible de créer un utilisateur Admin via ce service",
+                            resultCode: 14);
+                    }
+
+                    string imageUrl = null;
+                    if (!string.IsNullOrEmpty(dto.Image))
+                    {
+                        try
+                        {
+                            // Appeler une méthode pour sauvegarder l'image Base64
+                            imageUrl = await SaveBase64ImageAsync(dto.Image);
+                            Console.WriteLine($"Image sauvegardée, URL: {imageUrl}");
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Erreur sauvegarde image: {ex.Message}");
+                            // Vous pouvez décider de continuer sans image ou retourner une erreur
+                        }
+                    }
                     var user = new ApplicationUser
                     {
                         UserName = dto.UserName,
                         Email = dto.Email,
                         Nom = dto.Nom,
                         Prenom = dto.Prenom,
-                        //Age = dto.Age,
-                        Phone = dto.Phone,
-                        BirthDate = dto.BirthDate
+
+                        PhoneNumber = dto.PhoneNumber,
+                        BirthDate = dto.BirthDate,
+                        Image = imageUrl // ICI : ASSIGNER L'URL DE L'IMAGE
+
+
                     };
 
                     var result = await _userRepository.CreateAsync(user, dto.Password);
@@ -179,15 +226,59 @@ namespace projet0.Application.Services.User
                                            resultCode: 12);
                     }
 
+
+
+                    var roleResult = await _userManager.AddToRoleAsync(user, role.Name);
+                    if (!roleResult.Succeeded)
+                    {
+                        _logger.LogWarning(
+                            "Role assignment failed for user {UserId} | Role: {RoleName}",
+                            user.Id,
+                            role.Name
+                        );
+                    }
+
+
+
+                    var roleAssignmentResult = await _userManager.AddToRoleAsync(user, role.Name);
+
+                    if (!roleAssignmentResult.Succeeded)
+                    {
+                        _logger.LogWarning(
+                            "Role assignment failed for user {UserId} | Role: {RoleName} | Errors: {@Errors}",
+                            user.Id,
+                            role.Name,
+                            roleAssignmentResult.Errors
+                        );
+
+                        // Option 1: Supprimer l'utilisateur si le rôle échoue
+                        // await _userManager.DeleteAsync(user);
+                        // return ApiResponse<ApplicationUser>.Failure(
+                        //     message: "Échec de l'assignation du rôle",
+                        //     errors: roleAssignmentResult.Errors.Select(e => e.Description).ToList(),
+                        //     resultCode: 15
+                        // );
+
+                        // Option 2: Continuer mais logger l'erreur (choisi celle-ci pour le moment)
+                        // L'utilisateur est créé mais sans rôle
+                    }
+
+                    // 3. Optionnel : Confirmer automatiquement l'email pour les utilisateurs créés par admin
+                    user.EmailConfirmed = true;
+                    await _userManager.UpdateAsync(user);
+
                     _logger.LogDebug(
-                        "SUCCESS CreateUser | UserId = {UserId}",
-                        user.Id
+                        "SUCCESS CreateUser | UserId = {UserId} | Email: {Email} | Role: {RoleName}",
+                        user.Id,
+                        user.Email,
+                        role.Name
                     );
+
                     return ApiResponse<ApplicationUser>.Success(
-                                  data: user,
-                                  message: "Utilisateur créé avec succès",
-                                  resultCode: 0
-                              );
+                        data: user,
+                        message: "Utilisateur créé avec succès",
+                        resultCode: 0
+                    );
                 });
 
         // ================= UPDATE =================
@@ -227,9 +318,9 @@ namespace projet0.Application.Services.User
                             result.Errors
                         );
 
-                      return ApiResponse<ApplicationUser>.Failure(
-                      message: UserMessages.UpdateUserError,
-                      resultCode: 21);
+                        return ApiResponse<ApplicationUser>.Failure(
+                        message: UserMessages.UpdateUserError,
+                        resultCode: 21);
                     }
                     return ApiResponse<ApplicationUser>.Success(
                                    data: user,
@@ -253,9 +344,9 @@ namespace projet0.Application.Services.User
                             id
                         );
 
-                     return ApiResponse<string>.Failure(
-                     message: UserMessages.UserNotFound,
-                     resultCode: 20);
+                        return ApiResponse<string>.Failure(
+                        message: UserMessages.UserNotFound,
+                        resultCode: 20);
                     }
 
                     var result = await _userRepository.DeleteAsync(user);
@@ -268,10 +359,10 @@ namespace projet0.Application.Services.User
                             result.Errors
                         );
 
-                    return ApiResponse<string>.Failure(
-                    message: UserMessages.DeleteUserError,
-                    resultCode: 22
-                );
+                        return ApiResponse<string>.Failure(
+                        message: UserMessages.DeleteUserError,
+                        resultCode: 22
+                    );
                     }
 
                     _logger.LogDebug(
@@ -296,5 +387,61 @@ namespace projet0.Application.Services.User
 
             return usersWithRoles;
         }
-    }
-}
+    
+private async Task<string> SaveBase64ImageAsync(string base64String)
+        {
+            try
+            {
+                Console.WriteLine($"Sauvegarde image Base64, longueur: {base64String.Length}");
+
+                if (string.IsNullOrEmpty(base64String))
+                    return null;
+
+                // Vérifier si c'est un Base64 valide
+                if (!base64String.Contains(","))
+                {
+                    // Si le frontend envoie déjà le Base64 propre (sans préfixe)
+                    base64String = "data:image/jpeg;base64," + base64String;
+                }
+
+                var base64Data = base64String.Split(',')[1];
+
+                // Déterminer l'extension
+                string extension = ".jpg";
+                if (base64String.Contains("data:image/png"))
+                    extension = ".png";
+                else if (base64String.Contains("data:image/gif"))
+                    extension = ".gif";
+                else if (base64String.Contains("data:image/webp"))
+                    extension = ".webp";
+
+                // Créer un nom unique
+                var fileName = $"{Guid.NewGuid()}{extension}";
+
+                // Chemin de sauvegarde
+                var webRootPath = _webHostEnvironment.ContentRootPath;
+                var uploadsFolder = Path.Combine(webRootPath, "uploads", "users");
+
+                // Créer le dossier s'il n'existe pas
+                if (!Directory.Exists(uploadsFolder))
+                {
+                    Console.WriteLine($"Création du dossier: {uploadsFolder}");
+                    Directory.CreateDirectory(uploadsFolder);
+                }
+
+                var filePath = Path.Combine(uploadsFolder, fileName);
+
+                // Convertir Base64 en bytes et sauvegarder
+                var imageBytes = Convert.FromBase64String(base64Data);
+                await System.IO.File.WriteAllBytesAsync(filePath, imageBytes);
+
+                // Retourner l'URL relative
+                return $"/uploads/users/{fileName}";
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erreur sauvegarde image: {ex.Message}");
+                throw;
+            }
+        }
+    } }

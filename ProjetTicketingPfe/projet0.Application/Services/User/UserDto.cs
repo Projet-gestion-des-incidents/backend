@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data.SqlTypes;
 using System.Text;
 
 namespace projet0.Application.Services.User
@@ -12,11 +13,9 @@ namespace projet0.Application.Services.User
         public string Nom { get; set; }
         public string Prenom { get; set; }
 
-        //public int Age { get; set; }
+        public string? PhoneNumber { get; set; }
 
-        public string? Phone { get; set; }
-
-        public string? Role { get; set; }
+        public Guid RoleId { get; set; }
 
         public string? Image { get; set; }
 

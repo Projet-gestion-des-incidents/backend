@@ -10,10 +10,11 @@ namespace projet0.Application.Commun.DTOs
         public string Email { get; set; }
         public string Password { get; set; }
         public string Nom { get; set; }     
-        public string Prenom { get; set; }  
-        public int Age { get; set; }      
+        public string Prenom { get; set; }           
         public bool EmailConfirmed { get; set; } = false;
         public string RoleId { get; set; }
+        public string? PhoneNumber { get; set; }
+        public DateTime? BirthDate { get; set; } 
 
     }
 }
