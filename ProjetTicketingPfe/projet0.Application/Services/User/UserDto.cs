@@ -21,6 +21,7 @@ namespace projet0.Application.Services.User
 
         public DateTime? BirthDate { get; set; }
 
+
     }
 
 }

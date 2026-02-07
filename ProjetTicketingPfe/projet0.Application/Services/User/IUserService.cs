@@ -9,6 +9,8 @@ namespace projet0.Application.Services.User
 {
     public interface IUserService
     {
+        Task<ApiResponse<string>> ActivateAsync(Guid id);
+
         Task<IEnumerable<ApplicationUser>> GetAllAsync();
         Task<IEnumerable<UserWithRoleDto>> GetAllUsersWithRolesAsync();
         Task<ApplicationUser> GetByIdAsync(Guid id);

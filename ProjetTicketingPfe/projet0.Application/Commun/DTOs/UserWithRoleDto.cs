@@ -15,5 +15,7 @@ namespace projet0.Application.Commun.DTOs
         public string Image { get; set; } 
         public string Role { get; set; }
         public Guid? RoleId { get; set; }
+        public bool IsDeleted { get; set; }
+
     }
 }

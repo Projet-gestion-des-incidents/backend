@@ -31,9 +31,18 @@ namespace projet0.Infrastructure.Repositories
         public Task<ApplicationUser> GetByUserNameAsync(string userName) => _userManager.FindByNameAsync(userName);
         public async Task<IdentityResult> CreateAsync(ApplicationUser user, string password) => await _userManager.CreateAsync(user, password);
 
-        public async Task<IdentityResult> DeleteAsync(ApplicationUser user)
+        public async Task<IdentityResult> SoftDeleteAsync(ApplicationUser user)
         {
-            return await _userManager.DeleteAsync(user);
+            user.IsDeleted = true;
+            user.DeletedAt = DateTime.UtcNow;
+
+            return await _userManager.UpdateAsync(user);
+        }
+        public async Task<IdentityResult> RestoreAsync(ApplicationUser user)
+        {
+            user.IsDeleted = false;
+            user.DeletedAt = null;
+            return await _userManager.UpdateAsync(user);
         }
 
         public async Task<IEnumerable<ApplicationUser>> GetUsersByRoleAsync(string roleName)
@@ -66,7 +75,8 @@ namespace projet0.Infrastructure.Repositories
                     Email = user.Email,
                     PhoneNumber = user.PhoneNumber,
                     Image = user.Image,
-                    Role = roleName
+                    Role = roleName,
+                    IsDeleted = user.IsDeleted,
                 });
             }
 

@@ -337,7 +337,7 @@ namespace projet0.Application.Services.User
                 {
                     var user = await _userRepository.GetByIdAsync(id);
 
-                    if (user == null)
+                    if (user == null || user.IsDeleted)
                     {
                         _logger.LogWarning(
                             "NOT_FOUND DeleteUser | UserId = {UserId}",
@@ -345,11 +345,11 @@ namespace projet0.Application.Services.User
                         );
 
                         return ApiResponse<string>.Failure(
-                        message: UserMessages.UserNotFound,
-                        resultCode: 20);
+                            message: UserMessages.UserNotFound,
+                            resultCode: 20);
                     }
 
-                    var result = await _userRepository.DeleteAsync(user);
+                    var result = await _userRepository.SoftDeleteAsync(user);
 
                     if (!result.Succeeded)
                     {
@@ -360,9 +360,9 @@ namespace projet0.Application.Services.User
                         );
 
                         return ApiResponse<string>.Failure(
-                        message: UserMessages.DeleteUserError,
-                        resultCode: 22
-                    );
+                            message: UserMessages.DeleteUserError,
+                            resultCode: 22
+                        );
                     }
 
                     _logger.LogDebug(
@@ -372,10 +372,35 @@ namespace projet0.Application.Services.User
                     );
 
                     return ApiResponse<string>.Success(
-                                message: "Utilisateur supprimé avec succès",
-                                resultCode: 0
-                            );
+                        message: "Utilisateur supprimé avec succès",
+                        resultCode: 0
+                    );
                 });
+        public async Task<ApiResponse<string>> ActivateAsync(Guid id)
+        {
+            var user = await _userRepository.GetByIdAsync(id);
+
+            if (user == null)
+                return ApiResponse<string>.Failure(
+    message: "Utilisateur introuvable",
+    errors: null,
+    resultCode: 20
+);
+
+
+            var result = await _userRepository.RestoreAsync(user);
+
+            if (!result.Succeeded)
+                return ApiResponse<string>.Failure(
+                     message: "Erreur activation", errors: null,
+    resultCode: 22);
+
+            return ApiResponse<string>.Success(
+    message: "Utilisateur activé",
+    resultCode: 0
+);
+
+        }
 
         public async Task<IEnumerable<UserWithRoleDto>> GetAllUsersWithRolesAsync()
         {

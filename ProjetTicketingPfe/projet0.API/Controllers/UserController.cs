@@ -64,6 +64,14 @@ namespace projet0.API.Controllers
             var result = await _userService.UpdateAsync(id, dto);
             return Ok(result);
         }
+        [HttpPut("{id}/activate")]
+        [Authorize(Policy = "AdminOnly")]
+
+        public async Task<IActionResult> Activate(Guid id)
+        {
+            var result = await _userService.ActivateAsync(id);
+            return Ok(result);
+        }
 
         //  Admin seulement
         [HttpDelete("{id}")]
