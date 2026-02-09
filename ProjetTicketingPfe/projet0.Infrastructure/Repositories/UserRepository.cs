@@ -29,7 +29,19 @@ namespace projet0.Infrastructure.Repositories
         public Task<ApplicationUser> GetByEmailAsync(string email) => _userManager.FindByEmailAsync(email);
 
         public Task<ApplicationUser> GetByUserNameAsync(string userName) => _userManager.FindByNameAsync(userName);
-        public async Task<IdentityResult> CreateAsync(ApplicationUser user, string password) => await _userManager.CreateAsync(user, password);
+        public async Task<IdentityResult> CreateAsync(ApplicationUser user, string password = null)
+        {
+            if (string.IsNullOrEmpty(password))
+            {
+                // Créer sans mot de passe (si jamais nécessaire)
+                return await _userManager.CreateAsync(user);
+            }
+            else
+            {
+                // Créer avec mot de passe
+                return await _userManager.CreateAsync(user, password);
+            }
+        }
 
         /*public async Task<IdentityResult> SoftDeleteAsync(ApplicationUser user)
         {
@@ -75,8 +87,7 @@ namespace projet0.Infrastructure.Repositories
                     Email = user.Email,
                     PhoneNumber = user.PhoneNumber,
                     Image = user.Image,
-                    Role = roleName,
-                   
+                    Role = roleName,                   
                 });
             }
 

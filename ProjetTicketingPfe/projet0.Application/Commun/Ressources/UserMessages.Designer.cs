@@ -106,11 +106,47 @@ namespace projet0.Application.Commun.Ressources {
         }
         
         /// <summary>
+        ///   Recherche une chaîne localisée semblable à Un email de confirmation a été envoyé à votre nouvelle adresse.
+        /// </summary>
+        internal static string EmailConfirmationSent {
+            get {
+                return ResourceManager.GetString("EmailConfirmationSent", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Recherche une chaîne localisée semblable à Le mot de passe actuel est incorrect.
+        /// </summary>
+        internal static string InvalidCurrentPassword {
+            get {
+                return ResourceManager.GetString("InvalidCurrentPassword", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Recherche une chaîne localisée semblable à Login invalide.
         /// </summary>
         internal static string InvalidLogin {
             get {
                 return ResourceManager.GetString("InvalidLogin", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Recherche une chaîne localisée semblable à Erreur lors du changement de mot de passe.
+        /// </summary>
+        internal static string PasswordChangeError {
+            get {
+                return ResourceManager.GetString("PasswordChangeError", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Recherche une chaîne localisée semblable à Le nouveau mot de passe et la confirmation ne correspondent pas.
+        /// </summary>
+        internal static string PasswordsDoNotMatch {
+            get {
+                return ResourceManager.GetString("PasswordsDoNotMatch", resourceCulture);
             }
         }
         

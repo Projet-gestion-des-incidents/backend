@@ -97,6 +97,7 @@ namespace projet0.API.Controllers
 
             return Ok(response.Data);
         }
+
         [HttpGet("me")]
         [Authorize] 
         public async Task<IActionResult> GetMyProfile()

@@ -132,8 +132,20 @@
   <data name="EmailAlreadyUsed" xml:space="preserve">
     <value>Email déjà utilisé</value>
   </data>
+  <data name="EmailConfirmationSent" xml:space="preserve">
+    <value>Un email de confirmation a été envoyé à votre nouvelle adresse</value>
+  </data>
+  <data name="InvalidCurrentPassword" xml:space="preserve">
+    <value>Le mot de passe actuel est incorrect</value>
+  </data>
   <data name="InvalidLogin" xml:space="preserve">
     <value>Login invalide</value>
+  </data>
+  <data name="PasswordChangeError" xml:space="preserve">
+    <value>Erreur lors du changement de mot de passe</value>
+  </data>
+  <data name="PasswordsDoNotMatch" xml:space="preserve">
+    <value>Le nouveau mot de passe et la confirmation ne correspondent pas</value>
   </data>
   <data name="UpdateUserError" xml:space="preserve">
     <value>Erreur lors de la mise à jour de l'utilisateur</value>

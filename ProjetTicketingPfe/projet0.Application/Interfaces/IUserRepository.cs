@@ -22,7 +22,7 @@ namespace projet0.Application.Interfaces
         Task<bool> IsEmailUniqueAsync(string email, Guid? excludeUserId = null);
         Task SaveChangesAsync();
         Task<bool> IsUserNameUniqueAsync(string userName, Guid? excludeUserId = null);
-        Task<IdentityResult> CreateAsync(ApplicationUser user, string password);
+        Task<IdentityResult> CreateAsync(ApplicationUser user, string password = null);
         Task<IList<string>> GetUserRolesAsync(Guid userId);
         Task<bool> AddUserToRoleAsync(Guid userId, string roleName);
         Task<bool> RemoveUserFromRoleAsync(Guid userId, string roleName);

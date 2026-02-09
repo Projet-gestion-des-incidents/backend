@@ -136,147 +136,193 @@ namespace projet0.Application.Services.User
 
         // ================= CREATE =================
         public Task<ApiResponse<ApplicationUser>> CreateAsync(UserDto dto)
-            => MeasureAsync(
-                actionName: "CreateUser",
-                input: dto,
-                async () =>
+    => MeasureAsync(
+        actionName: "CreateUser",
+        input: dto,
+        async () =>
+        {
+            // 1. Validation de l'email
+            if (!await _userRepository.IsEmailUniqueAsync(dto.Email))
+            {
+                _logger.LogWarning(
+                    "BUSINESS_RULE EmailAlreadyUsed | {Email}",
+                    dto.Email
+                );
+
+                return ApiResponse<ApplicationUser>.Failure(
+                    message: UserMessages.EmailAlreadyUsed,
+                    resultCode: 10);
+            }
+
+            // 2. Validation du nom d'utilisateur
+            if (!await _userRepository.IsUserNameUniqueAsync(dto.UserName))
+            {
+                _logger.LogWarning(
+                    "BUSINESS_RULE UserNameAlreadyUsed | {UserName}",
+                    dto.UserName
+                );
+
+                return ApiResponse<ApplicationUser>.Failure(
+                    message: UserMessages.UserNameAlreadyUsed,
+                    resultCode: 11
+                );
+            }
+
+            // 3. Vérification du rôle
+            var role = await _roleManager.FindByIdAsync(dto.RoleId.ToString());
+            if (role == null)
+            {
+                return ApiResponse<ApplicationUser>.Failure(
+                    message: "Le rôle spécifié n'existe pas",
+                    resultCode: 13);
+            }
+
+            // 4. Empêcher la création d'Admin
+            if (role.Name == "Admin")
+            {
+                return ApiResponse<ApplicationUser>.Failure(
+                    message: "Impossible de créer un utilisateur Admin via ce service",
+                    resultCode: 14);
+            }
+
+            // 5. Gestion de l'image
+            string imageUrl = null;
+            if (!string.IsNullOrEmpty(dto.Image))
+            {
+                try
                 {
-                    if (!await _userRepository.IsEmailUniqueAsync(dto.Email))
+                    // Accepter soit Base64, soit URL existante
+                    if (dto.Image.StartsWith("data:image"))
                     {
-                        _logger.LogWarning(
-                            "BUSINESS_RULE EmailAlreadyUsed | {Email}",
-                            dto.Email
-                        );
-
-                        return ApiResponse<ApplicationUser>.Failure(
-                  message: UserMessages.EmailAlreadyUsed,
-                  resultCode: 10);
+                        imageUrl = await SaveBase64ImageAsync(dto.Image);
                     }
-
-                    if (!await _userRepository.IsUserNameUniqueAsync(dto.UserName))
+                    else
                     {
-                        _logger.LogWarning(
-                            "BUSINESS_RULE UserNameAlreadyUsed | {UserName}",
-                            dto.UserName
-                        );
+                        // Si c'est déjà une URL, l'utiliser directement
+                        imageUrl = dto.Image;
+                    }
+                    _logger.LogDebug("Image sauvegardée, URL: {ImageUrl}", imageUrl);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Erreur sauvegarde image: {Message}", ex.Message);
+                    // Continuer sans image
+                }
+            }
 
-                        return ApiResponse<ApplicationUser>.Failure(
-                        message: UserMessages.UserNameAlreadyUsed,
-                        resultCode: 11
+            // 6. Création de l'utilisateur
+            var user = new ApplicationUser
+            {
+                UserName = dto.UserName,
+                Email = dto.Email,
+                Nom = dto.Nom,
+                Prenom = dto.Prenom,
+                PhoneNumber = dto.PhoneNumber,
+                BirthDate = dto.BirthDate,
+                Image = imageUrl,
+                EmailConfirmed = true // Email confirmé automatiquement pour les utilisateurs créés par admin
+            };
+
+            // 7. Mot de passe par défaut
+            string defaultPassword = "Azerty123";
+
+            var result = await _userRepository.CreateAsync(user, defaultPassword);
+
+            if (!result.Succeeded)
+            {
+                _logger.LogError(
+                    "DB_ERROR CreateUser failed | {@Errors}",
+                    result.Errors
+                );
+
+                // Vérifier si l'erreur est liée au mot de passe
+                var passwordError = result.Errors.FirstOrDefault(e => e.Code.Contains("Password"));
+                if (passwordError != null)
+                {
+                    return ApiResponse<ApplicationUser>.Failure(
+                        message: $"Le mot de passe par défaut ne respecte pas les règles de sécurité. {passwordError.Description}",
+                        errors: result.Errors.Select(e => e.Description).ToList(),
+                        resultCode: 16
                     );
-                    }
-                    // Vérifier que le rôle existe
-                    var role = await _roleManager.FindByIdAsync(dto.RoleId.ToString());
-                    if (role == null)
-                    {
-                        return ApiResponse<ApplicationUser>.Failure(
-                            message: "Le rôle spécifié n'existe pas",
-                            resultCode: 13);
-                    }
+                }
 
-                    // Optionnel : Empêcher la création d'Admin par ce service
-                    if (role.Name == "Admin")
-                    {
-                        return ApiResponse<ApplicationUser>.Failure(
-                            message: "Impossible de créer un utilisateur Admin via ce service",
-                            resultCode: 14);
-                    }
+                return ApiResponse<ApplicationUser>.Failure(
+                    message: UserMessages.CreateUserError,
+                    errors: result.Errors.Select(e => e.Description).ToList(),
+                    resultCode: 12
+                );
+            }
 
-                    string imageUrl = null;
-                    if (!string.IsNullOrEmpty(dto.Image))
-                    {
-                        try
-                        {
-                            // Appeler une méthode pour sauvegarder l'image Base64
-                            imageUrl = await SaveBase64ImageAsync(dto.Image);
-                            Console.WriteLine($"Image sauvegardée, URL: {imageUrl}");
-                        }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine($"Erreur sauvegarde image: {ex.Message}");
-                            // Vous pouvez décider de continuer sans image ou retourner une erreur
-                        }
-                    }
-                    var user = new ApplicationUser
-                    {
-                        UserName = dto.UserName,
-                        Email = dto.Email,
-                        Nom = dto.Nom,
-                        Prenom = dto.Prenom,
+            // 8. Assignation du rôle
+            var roleResult = await _userManager.AddToRoleAsync(user, role.Name);
 
-                        PhoneNumber = dto.PhoneNumber,
-                        BirthDate = dto.BirthDate,
-                        Image = imageUrl // ICI : ASSIGNER L'URL DE L'IMAGE
+            if (!roleResult.Succeeded)
+            {
+                _logger.LogWarning(
+                    "Role assignment failed for user {UserId} | Role: {RoleName} | Errors: {@Errors}",
+                    user.Id,
+                    role.Name,
+                    roleResult.Errors
+                );
 
+                // Option: Vous pouvez décider de supprimer l'utilisateur si le rôle échoue
+                // await _userManager.DeleteAsync(user);
+                // return ApiResponse<ApplicationUser>.Failure(
+                //     message: "Échec de l'assignation du rôle",
+                //     errors: roleResult.Errors.Select(e => e.Description).ToList(),
+                //     resultCode: 15
+                // );
+            }
 
-                    };
+            _logger.LogInformation(
+                "SUCCESS CreateUser | UserId = {UserId} | Email: {Email} | Role: {RoleName} | DefaultPassword: {Password}",
+                user.Id,
+                user.Email,
+                role.Name,
+                defaultPassword
+            );
 
-                    var result = await _userRepository.CreateAsync(user, dto.Password);
+            // 9. Retourner la réponse avec des informations supplémentaires
+            var responseData = new
+            {
+                User = user,
+                DefaultPassword = defaultPassword,
+                Message = $"Utilisateur créé avec succès. Mot de passe par défaut: {defaultPassword}"
+            };
 
-                    if (!result.Succeeded)
-                    {
-                        _logger.LogError(
-                            "DB_ERROR CreateUser failed | {@Errors}",
-                            result.Errors
-                        );
-                        return ApiResponse<ApplicationUser>.Failure(
-                                           message: UserMessages.CreateUserError,
-                                           errors: result.Errors.Select(e => e.Description).ToList(),
-                                           resultCode: 12);
-                    }
+            return ApiResponse<ApplicationUser>.Success(
+                data: user,
+                message: $"Utilisateur créé avec succès. Mot de passe par défaut: {defaultPassword}",
+                resultCode: 0
+            );
 
+            // Dans CreateAsync, après la création réussie :
+            /*try
+            {
+                // Envoyer un email avec le mot de passe par défaut
+                var emailBody = $@"
+        Bonjour {user.Nom} {user.Prenom},
+        
+        Votre compte a été créé avec succès.
+        
+        Identifiants de connexion :
+        Email: {user.Email}
+        Mot de passe temporaire: {defaultPassword}
+        
+        Veuillez changer votre mot de passe dès votre première connexion.
+        
+        Cordialement,
+        L'équipe d'administration
+    ";
 
-
-                    var roleResult = await _userManager.AddToRoleAsync(user, role.Name);
-                    if (!roleResult.Succeeded)
-                    {
-                        _logger.LogWarning(
-                            "Role assignment failed for user {UserId} | Role: {RoleName}",
-                            user.Id,
-                            role.Name
-                        );
-                    }
-
-                    var roleAssignmentResult = await _userManager.AddToRoleAsync(user, role.Name);
-
-                    if (!roleAssignmentResult.Succeeded)
-                    {
-                        _logger.LogWarning(
-                            "Role assignment failed for user {UserId} | Role: {RoleName} | Errors: {@Errors}",
-                            user.Id,
-                            role.Name,
-                            roleAssignmentResult.Errors
-                        );
-
-                        // Option 1: Supprimer l'utilisateur si le rôle échoue
-                        // await _userManager.DeleteAsync(user);
-                        // return ApiResponse<ApplicationUser>.Failure(
-                        //     message: "Échec de l'assignation du rôle",
-                        //     errors: roleAssignmentResult.Errors.Select(e => e.Description).ToList(),
-                        //     resultCode: 15
-                        // );
-
-                        // Option 2: Continuer mais logger l'erreur (choisi celle-ci pour le moment)
-                        // L'utilisateur est créé mais sans rôle
-                    }
-
-                    // 3. Optionnel : Confirmer automatiquement l'email pour les utilisateurs créés par admin
-                    user.EmailConfirmed = true;
-                    await _userManager.UpdateAsync(user);
-
-                    _logger.LogDebug(
-                        "SUCCESS CreateUser | UserId = {UserId} | Email: {Email} | Role: {RoleName}",
-                        user.Id,
-                        user.Email,
-                        role.Name
-                    );
-
-                    return ApiResponse<ApplicationUser>.Success(
-                        data: user,
-                        message: "Utilisateur créé avec succès",
-                        resultCode: 0
-                    );
-                });
+                // _emailService.SendEmailAsync(user.Email, "Votre compte a été créé", emailBody);
+                _logger.LogInformation("Email de bienvenue envoyé à {Email}", user.Email);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Erreur lors de l'envoi de l'email de bienvenue");
+            }*/
+        });
 
         // ================= UPDATE =================
         public Task<ApiResponse<ApplicationUser>> UpdateAsync(Guid id, UserDto dto)
@@ -432,6 +478,7 @@ namespace projet0.Application.Services.User
                 new { userId, dto },
                 async () =>
                 {
+                    // 1. Récupérer l'utilisateur
                     var user = await _userRepository.GetByIdAsync(userId);
                     if (user == null)
                     {
@@ -442,36 +489,224 @@ namespace projet0.Application.Services.User
                         );
                     }
 
-                    // Mise à jour des champs modifiables
-                    user.UserName = dto.UserName ?? user.UserName;
-                    user.Email = dto.Email ?? user.Email;
-                    user.Nom = dto.Nom ?? user.Nom;
-                    user.Prenom = dto.Prenom ?? user.Prenom;
-                    user.PhoneNumber = dto.PhoneNumber ?? user.PhoneNumber;
-                    //user.BirthDate = dto.BirthDate ?? user.BirthDate;
+                    // 2. Journaliser la requête reçue (pour debug)
+                    _logger.LogDebug("EditProfile request received for user {UserId}", userId);
+                    _logger.LogDebug("Image data received (first 100 chars): {ImagePreview}",
+                        dto.Image?.Length > 100 ? dto.Image.Substring(0, 100) + "..." : dto.Image);
 
-                    // Gestion de l'image
-                    //if (!string.IsNullOrEmpty(dto.Image))
-                    //{
-                    //    user.Image = await SaveBase64ImageAsync(dto.Image);
-                    //}
-
-                    var result = await _userRepository.UpdateAsync(user);
-                    if (!result.Succeeded)
+                    // 3. Vérifier l'unicité de l'email si modifié
+                    if (!string.IsNullOrEmpty(dto.Email) && dto.Email != user.Email)
                     {
-                        _logger.LogError("DB_ERROR EditProfile | UserId = {UserId} | {@Errors}", userId, result.Errors);
-                        return ApiResponse<ApplicationUser>.Failure(
-                            message: UserMessages.UpdateUserError,
-                            resultCode: 21
-                        );
+                        if (!await _userRepository.IsEmailUniqueAsync(dto.Email, userId))
+                        {
+                            _logger.LogWarning("EmailAlreadyUsed EditProfile | UserId = {UserId} | Email: {Email}",
+                                userId, dto.Email);
+                            return ApiResponse<ApplicationUser>.Failure(
+                                message: UserMessages.EmailAlreadyUsed,
+                                resultCode: 10
+                            );
+                        }
                     }
+
+                    // 4. Vérifier l'unicité du nom d'utilisateur si modifié
+                    if (!string.IsNullOrEmpty(dto.UserName) && dto.UserName != user.UserName)
+                    {
+                        if (!await _userRepository.IsUserNameUniqueAsync(dto.UserName, userId))
+                        {
+                            _logger.LogWarning("UserNameAlreadyUsed EditProfile | UserId = {UserId} | UserName: {UserName}",
+                                userId, dto.UserName);
+                            return ApiResponse<ApplicationUser>.Failure(
+                                message: UserMessages.UserNameAlreadyUsed,
+                                resultCode: 11
+                            );
+                        }
+                    }
+
+                    // 5. Vérifier le mot de passe si fourni
+                    if (!string.IsNullOrEmpty(dto.CurrentPassword) &&
+                        !string.IsNullOrEmpty(dto.NewPassword))
+                    {
+                        // Vérifier l'ancien mot de passe
+                        var passwordValid = await _userManager.CheckPasswordAsync(user, dto.CurrentPassword);
+                        if (!passwordValid)
+                        {
+                            _logger.LogWarning("Invalid current password | UserId = {UserId}", userId);
+                            return ApiResponse<ApplicationUser>.Failure(
+                                message: "Le mot de passe actuel est incorrect",
+                                resultCode: 25
+                            );
+                        }
+
+                        // Vérifier que newPassword et confirmPassword correspondent
+                        if (dto.NewPassword != dto.ConfirmPassword)
+                        {
+                            _logger.LogWarning("Passwords don't match | UserId = {UserId}", userId);
+                            return ApiResponse<ApplicationUser>.Failure(
+                                message: "Le nouveau mot de passe et la confirmation ne correspondent pas",
+                                resultCode: 26
+                            );
+                        }
+
+                        // Changer le mot de passe
+                        var changePasswordResult = await _userManager.ChangePasswordAsync(
+                            user,
+                            dto.CurrentPassword,
+                            dto.NewPassword
+                        );
+
+                        if (!changePasswordResult.Succeeded)
+                        {
+                            _logger.LogError("Password change failed | UserId = {UserId} | Errors: {@Errors}",
+                                userId, changePasswordResult.Errors);
+                            return ApiResponse<ApplicationUser>.Failure(
+                                message: "Erreur lors du changement de mot de passe",
+                                errors: changePasswordResult.Errors.Select(e => e.Description).ToList(),
+                                resultCode: 27
+                            );
+                        }
+                    }
+
+                    // 6. Mise à jour des informations de base
+                    bool hasChanges = false;
+                    bool emailChanged = false;
+
+                    if (!string.IsNullOrEmpty(dto.UserName) && dto.UserName != user.UserName)
+                    {
+                        user.UserName = dto.UserName;
+                        hasChanges = true;
+                    }
+
+                    if (!string.IsNullOrEmpty(dto.Email) && dto.Email != user.Email)
+                    {
+                        user.Email = dto.Email;
+                        user.EmailConfirmed = false; // Réinitialiser la confirmation si email changé
+                        hasChanges = true;
+                        emailChanged = true;
+                    }
+
+                    if (!string.IsNullOrEmpty(dto.Nom) && dto.Nom != user.Nom)
+                    {
+                        user.Nom = dto.Nom;
+                        hasChanges = true;
+                    }
+
+                    if (!string.IsNullOrEmpty(dto.Prenom) && dto.Prenom != user.Prenom)
+                    {
+                        user.Prenom = dto.Prenom;
+                        hasChanges = true;
+                    }
+
+                    if (!string.IsNullOrEmpty(dto.PhoneNumber) && dto.PhoneNumber != user.PhoneNumber)
+                    {
+                        user.PhoneNumber = dto.PhoneNumber;
+                        hasChanges = true;
+                    }
+
+                    if (dto.BirthDate.HasValue && dto.BirthDate != user.BirthDate)
+                    {
+                        user.BirthDate = dto.BirthDate.Value;
+                        hasChanges = true;
+                    }
+
+                    // 7. Gestion de l'image de profil (version simplifiée)
+                    if (!string.IsNullOrEmpty(dto.Image) && dto.Image != user.Image)
+                    {
+                        // Accepter n'importe quelle chaîne non vide comme image
+                        user.Image = dto.Image;
+                        hasChanges = true;
+                        _logger.LogDebug("Profile image updated for user {UserId}", userId);
+                    }
+
+                    // 8. Sauvegarder les modifications si nécessaire
+                    if (hasChanges)
+                    {
+                        try
+                        {
+                            var result = await _userRepository.UpdateAsync(user);
+                            if (!result.Succeeded)
+                            {
+                                _logger.LogError("DB_ERROR EditProfile | UserId = {UserId} | {@Errors}",
+                                    userId, result.Errors);
+
+                                // Journaliser les erreurs spécifiques
+                                foreach (var error in result.Errors)
+                                {
+                                    _logger.LogError("Identity error: {Code} - {Description}",
+                                        error.Code, error.Description);
+                                }
+
+                                return ApiResponse<ApplicationUser>.Failure(
+                                    message: UserMessages.UpdateUserError,
+                                    errors: result.Errors.Select(e => e.Description).ToList(),
+                                    resultCode: 21
+                                );
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Exception during user update | UserId = {UserId}", userId);
+                            return ApiResponse<ApplicationUser>.Failure(
+                                message: "Erreur technique lors de la mise à jour du profil",
+                                resultCode: 28
+                            );
+                        }
+                    }
+
+                    // 9. Si l'email a été changé, envoyer un email de confirmation
+                    if (emailChanged)
+                    {
+                        try
+                        {
+                            // Générer un token de confirmation
+                            var emailToken = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+
+                            // Ici vous pouvez envoyer l'email de confirmation
+                            // _emailService.SendEmailConfirmationAsync(user.Email, emailToken);
+
+                            _logger.LogInformation("Email changed, confirmation required | UserId = {UserId}", userId);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Failed to generate email confirmation token | UserId = {UserId}", userId);
+                        }
+                    }
+
+                    _logger.LogInformation(
+                        "SUCCESS EditProfile | UserId = {UserId} | HasChanges: {HasChanges} | EmailChanged: {EmailChanged} | ImageUpdated: {ImageUpdated}",
+                        userId, hasChanges, emailChanged, !string.IsNullOrEmpty(dto.Image)
+                    );
 
                     return ApiResponse<ApplicationUser>.Success(
                         data: user,
-                        message: "Profil mis à jour avec succès",
+                        message: hasChanges
+                            ? "Profil mis à jour avec succès"
+                            : "Aucune modification détectée",
                         resultCode: 0
                     );
                 });
+        }
+
+        // Méthode pour supprimer l'ancienne image
+        private async Task DeleteOldImageAsync(string imageUrl)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(imageUrl) || imageUrl.Contains("default-avatar"))
+                    return;
+
+                var webRootPath = _webHostEnvironment.ContentRootPath;
+                var imagePath = Path.Combine(webRootPath, imageUrl.TrimStart('/'));
+
+                if (File.Exists(imagePath))
+                {
+                    File.Delete(imagePath);
+                    _logger.LogDebug("Old profile image deleted: {ImagePath}", imagePath);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting old profile image: {ImageUrl}", imageUrl);
+            }
         }
         private async Task<string> SaveBase64ImageAsync(string base64String)
         {
