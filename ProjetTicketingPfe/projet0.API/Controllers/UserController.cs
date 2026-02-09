@@ -1,9 +1,12 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.IdentityModel.JsonWebTokens;
+using projet0.Application.Commun.DTOs;
 using projet0.Application.Services.User;
 using projet0.Domain.Entities;
 using System;
 using System.Collections.Generic;
+using System.Security.Claims;
 using System.Threading.Tasks;
 
 namespace projet0.API.Controllers
@@ -81,5 +84,39 @@ namespace projet0.API.Controllers
             var result = await _userService.DeleteAsync(id);
             return Ok(result);
         }
+        [Authorize]
+        [HttpPut("me")]
+        public async Task<IActionResult> EditProfile([FromBody] EditProfileDto dto)
+        {
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+                return Unauthorized("Utilisateur non identifié");
+
+            var response = await _userService.EditProfileAsync(userId, dto);
+
+            if (response.ResultCode != 0) // <-- ici au lieu de IsSuccess
+                return BadRequest(response);
+
+            return Ok(response.Data);
+        }
+        [HttpGet("me")]
+        [Authorize] // tout utilisateur connecté
+        public async Task<IActionResult> GetMyProfile()
+        {
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)
+                             ?? User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub);
+
+            if (userIdClaim == null)
+                return Unauthorized();
+
+            var userId = Guid.Parse(userIdClaim.Value);
+
+            var user = await _userService.GetByIdAsync(userId);
+            if (user == null)
+                return NotFound();
+
+            return Ok(user);
+        }
     }
+
 }

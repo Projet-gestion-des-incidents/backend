@@ -9,8 +9,9 @@ namespace projet0.Application.Services.User
 {
     public interface IUserService
     {
+        Task<ApiResponse<ApplicationUser>> EditProfileAsync(Guid userId, EditProfileDto dto);
         Task<ApiResponse<string>> ActivateAsync(Guid id);
-
+        Task<UserProfileDto> GetMyProfileAsync(Guid userId);
         Task<IEnumerable<ApplicationUser>> GetAllAsync();
         Task<IEnumerable<UserWithRoleDto>> GetAllUsersWithRolesAsync();
         Task<ApplicationUser> GetByIdAsync(Guid id);

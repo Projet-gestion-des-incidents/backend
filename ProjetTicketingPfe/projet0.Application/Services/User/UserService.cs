@@ -306,6 +306,8 @@ namespace projet0.Application.Services.User
                     user.Email = dto.Email;
                     user.Nom = dto.Nom;
                     user.Prenom = dto.Prenom;
+                    user.PhoneNumber = dto.PhoneNumber;
+                    user.Image = dto.Image;
                     //user.Age = dto.Age;
 
                     var result = await _userRepository.UpdateAsync(user);
@@ -412,8 +414,56 @@ namespace projet0.Application.Services.User
 
             return usersWithRoles;
         }
-    
-private async Task<string> SaveBase64ImageAsync(string base64String)
+        public async Task<ApiResponse<ApplicationUser>> EditProfileAsync(Guid userId, EditProfileDto dto)
+        {
+            return await MeasureAsync(
+                "EditProfile",
+                new { userId, dto },
+                async () =>
+                {
+                    var user = await _userRepository.GetByIdAsync(userId);
+                    if (user == null)
+                    {
+                        _logger.LogWarning("User not found | UserId = {UserId}", userId);
+                        return ApiResponse<ApplicationUser>.Failure(
+                            message: UserMessages.UserNotFound,
+                            resultCode: 20
+                        );
+                    }
+
+                    // Mise à jour des champs modifiables
+                    user.UserName = dto.UserName ?? user.UserName;
+                    user.Email = dto.Email ?? user.Email;
+                    user.Nom = dto.Nom ?? user.Nom;
+                    user.Prenom = dto.Prenom ?? user.Prenom;
+                    user.PhoneNumber = dto.PhoneNumber ?? user.PhoneNumber;
+                    //user.BirthDate = dto.BirthDate ?? user.BirthDate;
+
+                    // Gestion de l'image
+                    //if (!string.IsNullOrEmpty(dto.Image))
+                    //{
+                    //    user.Image = await SaveBase64ImageAsync(dto.Image);
+                    //}
+
+                    var result = await _userRepository.UpdateAsync(user);
+                    if (!result.Succeeded)
+                    {
+                        _logger.LogError("DB_ERROR EditProfile | UserId = {UserId} | {@Errors}", userId, result.Errors);
+                        return ApiResponse<ApplicationUser>.Failure(
+                            message: UserMessages.UpdateUserError,
+                            resultCode: 21
+                        );
+                    }
+
+                    return ApiResponse<ApplicationUser>.Success(
+                        data: user,
+                        message: "Profil mis à jour avec succès",
+                        resultCode: 0
+                    );
+                });
+        }
+
+        private async Task<string> SaveBase64ImageAsync(string base64String)
         {
             try
             {
@@ -469,4 +519,23 @@ private async Task<string> SaveBase64ImageAsync(string base64String)
                 throw;
             }
         }
-    } }
+
+        public async Task<UserProfileDto> GetMyProfileAsync(Guid userId)
+        {
+            var user = await _userRepository.GetByIdAsync(userId);
+            if (user == null) return null;
+
+            return new UserProfileDto
+            {
+                Id = user.Id,
+                UserName = user.UserName,
+                Email = user.Email,
+                Nom = user.Nom,
+                Prenom = user.Prenom,
+                PhoneNumber = user.PhoneNumber,
+                BirthDate = user.BirthDate,
+                Image = user.Image
+            };
+        }
+    }
+}
