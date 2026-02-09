@@ -31,7 +31,7 @@ namespace projet0.Infrastructure.Repositories
         public Task<ApplicationUser> GetByUserNameAsync(string userName) => _userManager.FindByNameAsync(userName);
         public async Task<IdentityResult> CreateAsync(ApplicationUser user, string password) => await _userManager.CreateAsync(user, password);
 
-        public async Task<IdentityResult> SoftDeleteAsync(ApplicationUser user)
+        /*public async Task<IdentityResult> SoftDeleteAsync(ApplicationUser user)
         {
             user.IsDeleted = true;
             user.DeletedAt = DateTime.UtcNow;
@@ -43,7 +43,7 @@ namespace projet0.Infrastructure.Repositories
             user.IsDeleted = false;
             user.DeletedAt = null;
             return await _userManager.UpdateAsync(user);
-        }
+        }*/
 
         public async Task<IEnumerable<ApplicationUser>> GetUsersByRoleAsync(string roleName)
         {
@@ -76,7 +76,7 @@ namespace projet0.Infrastructure.Repositories
                     PhoneNumber = user.PhoneNumber,
                     Image = user.Image,
                     Role = roleName,
-                    IsDeleted = user.IsDeleted,
+                   
                 });
             }
 
@@ -139,6 +139,16 @@ namespace projet0.Infrastructure.Repositories
 
             var result = await _userManager.RemoveFromRoleAsync(user, roleName);
             return result.Succeeded;
+        }
+
+        public Task<IdentityResult> RestoreAsync(ApplicationUser user)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<IdentityResult> SoftDeleteAsync(ApplicationUser user)
+        {
+            throw new NotImplementedException();
         }
     }
 }

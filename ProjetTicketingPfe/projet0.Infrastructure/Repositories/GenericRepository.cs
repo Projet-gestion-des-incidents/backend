@@ -10,6 +10,7 @@ namespace projet0.Infrastructure.Repositories
 {
     public class GenericRepository<T> : IGenericRepository<T> where T : class
     {
+
         protected readonly ApplicationDbContext _context;
         protected readonly DbSet<T> _dbSet;
 
@@ -88,6 +89,5 @@ namespace projet0.Infrastructure.Repositories
         {
             await _context.SaveChangesAsync();
         }
-
     }
 }

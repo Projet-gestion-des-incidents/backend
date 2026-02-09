@@ -17,5 +17,6 @@ namespace projet0.Application.Services.Otp
                 Guid userId,
                 string code,
                 OtpPurpose purpose);
+
         }
 }

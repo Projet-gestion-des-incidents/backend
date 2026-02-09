@@ -13,7 +13,7 @@ namespace projet0.API.Controllers
 {
     [ApiController]
     [Route("api/users")]
-    [Authorize] //  Auth obligatoire par défaut
+    [Authorize]
     public class UserController : ControllerBase
     {
         private readonly IUserService _userService;
@@ -23,7 +23,6 @@ namespace projet0.API.Controllers
             _userService = userService;
         }
 
-        //  User / Manager / Admin
         [HttpGet]
         [Authorize(Policy = "UserRead")]
         public async Task<IActionResult> GetAll()
@@ -32,7 +31,6 @@ namespace projet0.API.Controllers
             return Ok(users);
         }
 
-        //  User / Manager / Admin
         [HttpGet("{id}")]
         [Authorize(Policy = "UserRead")]
         public async Task<IActionResult> GetById(Guid id)
@@ -41,6 +39,7 @@ namespace projet0.API.Controllers
             if (user == null) return NotFound();
             return Ok(user);
         }
+
         // GET api/users/roles
         [HttpGet("roles")]
         [Authorize(Policy = "AdminOnly")]
@@ -49,8 +48,7 @@ namespace projet0.API.Controllers
             var users = await _userService.GetAllUsersWithRolesAsync();
             return Ok(users);
         }
-
-        //  Admin seulement
+        
         [HttpPost]
         [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> Create(UserDto dto)
@@ -59,7 +57,6 @@ namespace projet0.API.Controllers
             return Ok(result);
         }
 
-        //  Admin seulement
         [HttpPut("{id}")]
         [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> Update(Guid id, UserDto dto)
@@ -67,23 +64,24 @@ namespace projet0.API.Controllers
             var result = await _userService.UpdateAsync(id, dto);
             return Ok(result);
         }
+
         [HttpPut("{id}/activate")]
         [Authorize(Policy = "AdminOnly")]
-
         public async Task<IActionResult> Activate(Guid id)
         {
             var result = await _userService.ActivateAsync(id);
             return Ok(result);
         }
 
-        //  Admin seulement
-        [HttpDelete("{id}")]
+        
+        [HttpDelete("desactivate/{id}")]
         [Authorize(Policy = "AdminOnly")]
-        public async Task<IActionResult> Delete(Guid id)
+        public async Task<IActionResult> Desactivate(Guid id)
         {
-            var result = await _userService.DeleteAsync(id);
+            var result = await _userService.DesactivateAsync(id);
             return Ok(result);
         }
+
         [Authorize]
         [HttpPut("me")]
         public async Task<IActionResult> EditProfile([FromBody] EditProfileDto dto)
@@ -94,13 +92,13 @@ namespace projet0.API.Controllers
 
             var response = await _userService.EditProfileAsync(userId, dto);
 
-            if (response.ResultCode != 0) // <-- ici au lieu de IsSuccess
+            if (response.ResultCode != 0) 
                 return BadRequest(response);
 
             return Ok(response.Data);
         }
         [HttpGet("me")]
-        [Authorize] // tout utilisateur connecté
+        [Authorize] 
         public async Task<IActionResult> GetMyProfile()
         {
             var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)
@@ -116,6 +114,14 @@ namespace projet0.API.Controllers
                 return NotFound();
 
             return Ok(user);
+        }
+
+        [HttpDelete("{id}")]
+        [Authorize(Policy = "AdminOnly")]
+        public async Task<IActionResult> Delete(Guid id)
+        {
+            var result = await _userService.DeleteAsync(id);
+            return Ok(result);
         }
     }
 

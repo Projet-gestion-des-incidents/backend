@@ -79,12 +79,14 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
     options.Password.RequireLowercase = false;
     options.User.RequireUniqueEmail = true;
 
-    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
-    options.Lockout.MaxFailedAccessAttempts = 5;
+    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+    options.Lockout.MaxFailedAccessAttempts = 3;
+    options.Lockout.AllowedForNewUsers = true;
 })
 .AddEntityFrameworkStores<ApplicationDbContext>()
 .AddRoles<IdentityRole<Guid>>()
-.AddDefaultTokenProviders();
+.AddDefaultTokenProviders()
+.AddSignInManager<SignInManager<ApplicationUser>>();
 #endregion
 
 #region 🔹 JWT Authentication

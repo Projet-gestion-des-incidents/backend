@@ -19,7 +19,6 @@ namespace projet0.Application.Services.User
     {
         private readonly IUserRepository _userRepository;
         private readonly ILogger<UserService> _logger;
-
         private readonly RoleManager<IdentityRole<Guid>> _roleManager;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IHostEnvironment _webHostEnvironment;
@@ -238,8 +237,6 @@ namespace projet0.Application.Services.User
                         );
                     }
 
-
-
                     var roleAssignmentResult = await _userManager.AddToRoleAsync(user, role.Name);
 
                     if (!roleAssignmentResult.Succeeded)
@@ -330,79 +327,93 @@ namespace projet0.Application.Services.User
                                    resultCode: 0);
                 });
 
-        // ================= DELETE =================
-        public Task<ApiResponse<string>> DeleteAsync(Guid id)
-            => MeasureAsync(
-                actionName: "DeleteUser",
-                input: new { UserId = id },
-                async () =>
+
+        // ================= DESACTIVATE (par admin) =================
+        public Task<ApiResponse<string>> DesactivateAsync(Guid id)
+            => MeasureAsync("DesactivateUser", new { UserId = id }, async () =>
+            {
+                var user = await _userRepository.GetByIdAsync(id);
+                if (user == null)
                 {
-                    var user = await _userRepository.GetByIdAsync(id);
+                    _logger.LogWarning("NOT_FOUND DesactivateUser | UserId = {UserId}", id);
+                    return ApiResponse<string>.Failure(
+                        message: UserMessages.UserNotFound,
+                        resultCode: 20);
+                }
 
-                    if (user == null || user.IsDeleted)
-                    {
-                        _logger.LogWarning(
-                            "NOT_FOUND DeleteUser | UserId = {UserId}",
-                            id
-                        );
+                // Vérifier si l'utilisateur est déjà désactivé
+                var isLockedOut = await _userManager.IsLockedOutAsync(user);
+                if (isLockedOut)
+                {
+                    _logger.LogWarning("ALREADY_DESACTIVATED DesactivateUser | UserId = {UserId}", id);
+                    return ApiResponse<string>.Failure(
+                        message: "L'utilisateur est déjà désactivé",
+                        resultCode: 23);
+                }
 
-                        return ApiResponse<string>.Failure(
-                            message: UserMessages.UserNotFound,
-                            resultCode: 20);
-                    }
+                // Désactiver l'utilisateur (lockout permanent)
+                var result = await _userManager.SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue);
+                if (!result.Succeeded)
+                {
+                    _logger.LogError("DB_ERROR DesactivateUser | UserId = {UserId} | {@Errors}", id, result.Errors);
+                    return ApiResponse<string>.Failure(
+                        message: "Erreur lors de la désactivation de l'utilisateur",
+                        resultCode: 22);
+                }
 
-                    var result = await _userRepository.SoftDeleteAsync(user);
+                _logger.LogInformation(
+                    "SUCCESS DesactivateUser | UserId = {UserId} | UserName = {UserName}",
+                    user.Id, user.UserName);
 
-                    if (!result.Succeeded)
-                    {
-                        _logger.LogError(
-                            "DB_ERROR DeleteUser | UserId = {UserId} | {@Errors}",
-                            id,
-                            result.Errors
-                        );
+                return ApiResponse<string>.Success(
+                    message: "Utilisateur désactivé avec succès",
+                    resultCode: 0);
+            });
 
-                        return ApiResponse<string>.Failure(
-                            message: UserMessages.DeleteUserError,
-                            resultCode: 22
-                        );
-                    }
+        // ================= ACTIVATE (par admin) =================
+        public Task<ApiResponse<string>> ActivateAsync(Guid id)
+            => MeasureAsync("ActivateUser", new { UserId = id }, async () =>
+            {
+                var user = await _userRepository.GetByIdAsync(id);
+                if (user == null)
+                {
+                    _logger.LogWarning("NOT_FOUND ActivateUser | UserId = {UserId}", id);
+                    return ApiResponse<string>.Failure(
+                        message: UserMessages.UserNotFound,
+                        resultCode: 20);
+                }
 
-                    _logger.LogDebug(
-                        "SUCCESS DeleteUser | UserId = {UserId} | UserName = {UserName}",
-                        user.Id,
-                        user.UserName
-                    );
+                // Vérifier si l'utilisateur est vraiment désactivé
+                var isLockedOut = await _userManager.IsLockedOutAsync(user);
+                if (!isLockedOut)
+                {
+                    _logger.LogWarning("ALREADY_ACTIVE ActivateUser | UserId = {UserId}", id);
+                    return ApiResponse<string>.Failure(
+                        message: "L'utilisateur est déjà actif",
+                        resultCode: 24);
+                }
 
-                    return ApiResponse<string>.Success(
-                        message: "Utilisateur supprimé avec succès",
-                        resultCode: 0
-                    );
-                });
-        public async Task<ApiResponse<string>> ActivateAsync(Guid id)
-        {
-            var user = await _userRepository.GetByIdAsync(id);
+                // Réactiver l'utilisateur
+                var result = await _userManager.SetLockoutEndDateAsync(user, null);
+                await _userManager.ResetAccessFailedCountAsync(user);
 
-            if (user == null)
-                return ApiResponse<string>.Failure(
-    message: "Utilisateur introuvable",
-    errors: null,
-    resultCode: 20
-);
+                if (!result.Succeeded)
+                {
+                    _logger.LogError("DB_ERROR ActivateUser | UserId = {UserId} | {@Errors}", id, result.Errors);
+                    return ApiResponse<string>.Failure(
+                        message: "Erreur lors de l'activation de l'utilisateur",
+                        resultCode: 22);
+                }
 
+                _logger.LogInformation(
+                    "SUCCESS ActivateUser | UserId = {UserId} | UserName = {UserName}",
+                    user.Id, user.UserName);
 
-            var result = await _userRepository.RestoreAsync(user);
+                return ApiResponse<string>.Success(
+                    message: "Utilisateur activé avec succès",
+                    resultCode: 0);
+            });
 
-            if (!result.Succeeded)
-                return ApiResponse<string>.Failure(
-                     message: "Erreur activation", errors: null,
-    resultCode: 22);
-
-            return ApiResponse<string>.Success(
-    message: "Utilisateur activé",
-    resultCode: 0
-);
-
-        }
 
         public async Task<IEnumerable<UserWithRoleDto>> GetAllUsersWithRolesAsync()
         {
@@ -462,7 +473,6 @@ namespace projet0.Application.Services.User
                     );
                 });
         }
-
         private async Task<string> SaveBase64ImageAsync(string base64String)
         {
             try
@@ -519,7 +529,6 @@ namespace projet0.Application.Services.User
                 throw;
             }
         }
-
         public async Task<UserProfileDto> GetMyProfileAsync(Guid userId)
         {
             var user = await _userRepository.GetByIdAsync(userId);
@@ -537,5 +546,56 @@ namespace projet0.Application.Services.User
                 Image = user.Image
             };
         }
+
+        // ================= DELETE (SUPPRESSION DÉFINITIVE) =================
+        public Task<ApiResponse<string>> DeleteAsync(Guid id)
+            => MeasureAsync(
+                actionName: "DeleteUser",
+                input: new { UserId = id },
+                async () =>
+                {
+                    var user = await _userRepository.GetByIdAsync(id);
+
+                    if (user == null)
+                    {
+                        _logger.LogWarning(
+                            "NOT_FOUND DeleteUser | UserId = {UserId}",
+                            id
+                        );
+
+                        return ApiResponse<string>.Failure(
+                            message: UserMessages.UserNotFound,
+                            resultCode: 20);
+                    }
+
+                    // OPTION 1: Suppression définitive (recommandée pour les admins)
+                    var result = await _userManager.DeleteAsync(user);
+
+                    if (!result.Succeeded)
+                    {
+                        _logger.LogError(
+                            "DB_ERROR DeleteUser | UserId = {UserId} | {@Errors}",
+                            id,
+                            result.Errors
+                        );
+
+                        return ApiResponse<string>.Failure(
+                            message: UserMessages.DeleteUserError,
+                            resultCode: 22
+                        );
+                    }
+
+                    _logger.LogInformation(
+                        "SUCCESS DeleteUser | UserId = {UserId} | UserName = {UserName} | Email = {Email}",
+                        user.Id,
+                        user.UserName,
+                        user.Email
+                    );
+
+                    return ApiResponse<string>.Success(
+                        message: "Utilisateur supprimé définitivement avec succès",
+                        resultCode: 0
+                    );
+                });
     }
 }

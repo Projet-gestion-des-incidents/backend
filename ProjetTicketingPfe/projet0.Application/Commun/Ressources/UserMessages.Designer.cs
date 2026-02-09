@@ -22,7 +22,7 @@ namespace projet0.Application.Commun.Ressources {
     [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "17.0.0.0")]
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
-    public class UserMessages {
+    internal class UserMessages {
         
         private static global::System.Resources.ResourceManager resourceMan;
         
@@ -61,6 +61,15 @@ namespace projet0.Application.Commun.Ressources {
         }
         
         /// <summary>
+        ///   Recherche une chaîne localisée semblable à Erreur Activation User.
+        /// </summary>
+        internal static string ActivateUserError {
+            get {
+                return ResourceManager.GetString("ActivateUserError", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Recherche une chaîne localisée semblable à Erreur lors de la création de l&apos;utilisateur.
         /// </summary>
         internal static string CreateUserError {
@@ -75,6 +84,15 @@ namespace projet0.Application.Commun.Ressources {
         internal static string DeleteUserError {
             get {
                 return ResourceManager.GetString("DeleteUserError", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Recherche une chaîne localisée semblable à Erreur désactivation utilisateur.
+        /// </summary>
+        internal static string DesactivateUserError {
+            get {
+                return ResourceManager.GetString("DesactivateUserError", resourceCulture);
             }
         }
         
@@ -106,6 +124,24 @@ namespace projet0.Application.Commun.Ressources {
         }
         
         /// <summary>
+        ///   Recherche une chaîne localisée semblable à Utilisateur déjà activé.
+        /// </summary>
+        internal static string UserAlreadyActive {
+            get {
+                return ResourceManager.GetString("UserAlreadyActive", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Recherche une chaîne localisée semblable à Utilisateur déjà désactivé.
+        /// </summary>
+        internal static string UserAlreadyDesactivated {
+            get {
+                return ResourceManager.GetString("UserAlreadyDesactivated", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Recherche une chaîne localisée semblable à Nom d&apos;utilisateur déjà utilisé.
         /// </summary>
         internal static string UserNameAlreadyUsed {
@@ -117,7 +153,7 @@ namespace projet0.Application.Commun.Ressources {
         /// <summary>
         ///   Recherche une chaîne localisée semblable à Utilisateur introuvable.
         /// </summary>
-        public static string UserNotFound {
+        internal static string UserNotFound {
             get {
                 return ResourceManager.GetString("UserNotFound", resourceCulture);
             }

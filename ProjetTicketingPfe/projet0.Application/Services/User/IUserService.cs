@@ -17,6 +17,7 @@ namespace projet0.Application.Services.User
         Task<ApplicationUser> GetByIdAsync(Guid id);
         Task<ApiResponse<ApplicationUser>> CreateAsync(UserDto dto);
         Task<ApiResponse<ApplicationUser>> UpdateAsync(Guid id, UserDto dto);
+        Task<ApiResponse<string>> DesactivateAsync(Guid id);
         Task<ApiResponse<string>> DeleteAsync(Guid id);
     }
 

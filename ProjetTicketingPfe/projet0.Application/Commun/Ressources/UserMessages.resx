@@ -117,11 +117,17 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
+  <data name="ActivateUserError" xml:space="preserve">
+    <value>Erreur Activation User</value>
+  </data>
   <data name="CreateUserError" xml:space="preserve">
     <value>Erreur lors de la création de l'utilisateur</value>
   </data>
   <data name="DeleteUserError" xml:space="preserve">
     <value>Erreur lors de la suppression de l'utilisateur</value>
+  </data>
+  <data name="DesactivateUserError" xml:space="preserve">
+    <value>Erreur désactivation utilisateur</value>
   </data>
   <data name="EmailAlreadyUsed" xml:space="preserve">
     <value>Email déjà utilisé</value>
@@ -131,6 +137,12 @@
   </data>
   <data name="UpdateUserError" xml:space="preserve">
     <value>Erreur lors de la mise à jour de l'utilisateur</value>
+  </data>
+  <data name="UserAlreadyActive" xml:space="preserve">
+    <value>Utilisateur déjà activé</value>
+  </data>
+  <data name="UserAlreadyDesactivated" xml:space="preserve">
+    <value>Utilisateur déjà désactivé</value>
   </data>
   <data name="UserNameAlreadyUsed" xml:space="preserve">
     <value>Nom d'utilisateur déjà utilisé</value>

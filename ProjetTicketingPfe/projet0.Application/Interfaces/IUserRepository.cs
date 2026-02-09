@@ -11,7 +11,6 @@ namespace projet0.Application.Interfaces
     public interface IUserRepository : IGenericRepository<ApplicationUser>
     {
         Task<IdentityResult> RestoreAsync(ApplicationUser user);
-
         Task<IEnumerable<UserWithRoleDto>> GetAllUsersWithRolesAsync();
         Task<IdentityResult> UpdateAsync(ApplicationUser user);
         Task<IdentityResult> SoftDeleteAsync(ApplicationUser user);
