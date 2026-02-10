@@ -20,7 +20,6 @@ namespace projet0.Application.Services.User
         Task<ApiResponse<ApplicationUser>> UpdateAsync(Guid id, UserDto dto);
         Task<ApiResponse<string>> DesactivateAsync(Guid id);
         Task<ApiResponse<string>> DeleteAsync(Guid id);
-        Task<ApiResponse<IEnumerable<UserWithRoleDto>>> SearchUsersAsync(string searchTerm);
         Task<ApiResponse<PagedResult<UserWithRoleDto>>> SearchUsersAsync(UserSearchRequest request);
 
     }

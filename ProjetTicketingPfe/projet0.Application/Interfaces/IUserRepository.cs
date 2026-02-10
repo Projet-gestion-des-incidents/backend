@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Identity;
+using projet0.Application.Common.Models.Pagination;
 using projet0.Application.Commun.DTOs;
 using projet0.Application.Commun.Ressources;
 using projet0.Domain.Entities;
@@ -18,7 +19,6 @@ namespace projet0.Application.Interfaces
         Task<ApplicationUser> GetByUserNameAsync(string userName);
         Task<IEnumerable<ApplicationUser>> GetUsersByRoleAsync(string roleName);
         Task<IEnumerable<ApplicationUser>> GetActiveUsersAsync();
-        Task<IEnumerable<ApplicationUser>> SearchUsersAsync(string searchTerm);
         Task<bool> IsEmailUniqueAsync(string email, Guid? excludeUserId = null);
         Task SaveChangesAsync();
         Task<bool> IsUserNameUniqueAsync(string userName, Guid? excludeUserId = null);
@@ -26,6 +26,7 @@ namespace projet0.Application.Interfaces
         Task<IList<string>> GetUserRolesAsync(Guid userId);
         Task<bool> AddUserToRoleAsync(Guid userId, string roleName);
         Task<bool> RemoveUserFromRoleAsync(Guid userId, string roleName);
-
+        Task<(IEnumerable<UserWithRoleDto> Users, int TotalCount)> SearchUsersAsync(
+            UserSearchRequest request);
     }
 }

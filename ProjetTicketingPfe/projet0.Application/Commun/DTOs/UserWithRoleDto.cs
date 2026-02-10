@@ -17,6 +17,7 @@ namespace projet0.Application.Commun.DTOs
         public string Role { get; set; }
         public Guid? RoleId { get; set; }
         public UserStatut Statut { get; set; } = UserStatut.Actif;
+        public DateTime? Birthdate { get; set; }
 
     }
 }

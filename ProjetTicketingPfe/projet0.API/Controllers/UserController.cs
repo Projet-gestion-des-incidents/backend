@@ -127,7 +127,7 @@ namespace projet0.API.Controllers
         }
 
         // ================= SEARCH USERS =================
-        // Dans UserController.cs
+        
         [HttpGet("search")]
         [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> SearchUsers([FromQuery] UserSearchRequest request)
