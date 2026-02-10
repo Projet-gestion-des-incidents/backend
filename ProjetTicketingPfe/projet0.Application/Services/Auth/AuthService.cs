@@ -360,8 +360,7 @@ namespace projet0.Application.Services.Auth
                 await _userManager.ResetAccessFailedCountAsync(user);
                 //_logger.LogDebug("Lockout temporaire expiré nettoyé pour {Email}", user.Email);
             }
-        }
-    
+        }    
 
         // Méthode utilitaire pour détecter un lockout permanent
         private bool IsPermanentLockout(DateTimeOffset lockoutEnd)
@@ -369,6 +368,5 @@ namespace projet0.Application.Services.Auth
             // Si lockoutEnd est très loin dans le futur (>= 1 an), considérer comme permanent
             return lockoutEnd > DateTimeOffset.UtcNow.AddYears(1);
         }
-
     }
 }

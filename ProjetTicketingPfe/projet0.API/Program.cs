@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using projet0.API.Filters;
 using projet0.Application.Commun.DTOs;
 using projet0.Application.Interfaces;
 using projet0.Application.Services;
@@ -47,7 +48,10 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
 
-
+builder.Services.AddControllers(options =>
+{
+    options.Filters.Add<ValidatePaginationFilter>();
+});
 #endregion
 
 #region 🔹 CORS

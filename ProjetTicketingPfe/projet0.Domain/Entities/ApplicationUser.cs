@@ -9,7 +9,7 @@ namespace projet0.Domain.Entities
         public string Prenom { get; set; }
         public string? Image { get; set; }
         public DateTime? BirthDate { get; set; }
-        
+        public UserStatut Statut { get; set; } = UserStatut.Actif;
 
     }
 }

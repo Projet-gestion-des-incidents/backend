@@ -1,17 +1,14 @@
 ﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using projet0.Application.Common.Models.Pagination;
 using projet0.Application.Commun.DTOs;
 using projet0.Application.Commun.Ressources;
 using projet0.Application.Interfaces;
 using projet0.Domain.Entities;
-using System;
-using Microsoft.Extensions.Hosting; 
-using System.Linq; 
-using System.IO;
-using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics;
-using System.Threading.Tasks;
 
 namespace projet0.Application.Services.User
 {
@@ -407,6 +404,10 @@ namespace projet0.Application.Services.User
                         resultCode: 22);
                 }
 
+                // Mettre à jour le statut
+                user.Statut = UserStatut.Inactif;
+                await _userRepository.UpdateAsync(user);
+
                 _logger.LogInformation(
                     "SUCCESS DesactivateUser | UserId = {UserId} | UserName = {UserName}",
                     user.Id, user.UserName);
@@ -450,6 +451,10 @@ namespace projet0.Application.Services.User
                         message: "Erreur lors de l'activation de l'utilisateur",
                         resultCode: 22);
                 }
+
+                // Mettre à jour le statut
+                user.Statut = UserStatut.Actif;
+                await _userRepository.UpdateAsync(user);
 
                 _logger.LogInformation(
                     "SUCCESS ActivateUser | UserId = {UserId} | UserName = {UserName}",
@@ -832,5 +837,187 @@ namespace projet0.Application.Services.User
                         resultCode: 0
                     );
                 });
+
+        // ================= SEARCH USERS (avec rôles) =================
+        public async Task<ApiResponse<PagedResult<UserWithRoleDto>>> SearchUsersAsync(UserSearchRequest request)
+        {
+            return await MeasureAsync(
+                actionName: "SearchUsers",
+                input: request,
+                async () =>
+                {
+                    try
+                    {
+                        // 1. Créer la query de base
+                        var query = _userManager.Users.AsQueryable();
+
+                        // 2. Recherche globale
+                        if (!string.IsNullOrWhiteSpace(request.SearchTerm))
+                        {
+                            var term = request.SearchTerm.ToLower();
+                            query = query.Where(u =>
+                                (u.Nom != null && u.Nom.ToLower().Contains(term)) ||
+                                (u.Prenom != null && u.Prenom.ToLower().Contains(term)) ||
+                                (u.Email != null && u.Email.ToLower().Contains(term)) ||
+                                (u.UserName != null && u.UserName.ToLower().Contains(term)));
+                        }
+
+                        // 3. Filtres additionnels
+                        if (request.Statut.HasValue)
+                            query = query.Where(u => u.Statut == request.Statut.Value);
+
+                        if (!string.IsNullOrWhiteSpace(request.UserName))
+                            query = query.Where(u => u.UserName.Contains(request.UserName));
+
+                        if (!string.IsNullOrWhiteSpace(request.Email))
+                            query = query.Where(u => u.Email.Contains(request.Email));
+
+                        if (!string.IsNullOrWhiteSpace(request.Nom))
+                            query = query.Where(u => u.Nom.Contains(request.Nom));
+
+                        if (!string.IsNullOrWhiteSpace(request.Prenom))
+                            query = query.Where(u => u.Prenom.Contains(request.Prenom));
+
+                        if (!string.IsNullOrWhiteSpace(request.PhoneNumber))
+                            query = query.Where(u => u.PhoneNumber != null && u.PhoneNumber.Contains(request.PhoneNumber));
+
+                        if (request.BirthDate.HasValue)
+                        {
+                             var year = request.BirthDate.Value.Year;
+                             query = query.Where(u => u.BirthDate.HasValue && 
+                                                    u.BirthDate.Value.Year == year);
+                        }
+
+                        // 4. APPLIQUER LE TRI AVANT PAGINATION
+                        query = ApplySorting(query, request.SortBy, request.SortDescending);
+
+                        // 5. Récupérer TOUS les utilisateurs filtrés
+                        var allFilteredUsers = await query.ToListAsync();
+
+                        // 6. Filtrer par rôle (insensible à la casse)
+                        var usersWithRoles = new List<(ApplicationUser User, string RoleName)>();
+
+                        foreach (var user in allFilteredUsers)
+                        {
+                            var roles = await _userManager.GetRolesAsync(user);
+                            var roleName = roles.FirstOrDefault() ?? "USER";
+
+                            // Filtre par rôle insensible à la casse
+                            if (string.IsNullOrWhiteSpace(request.Role) ||
+                                string.Equals(roleName, request.Role, StringComparison.OrdinalIgnoreCase))
+                            {
+                                usersWithRoles.Add((user, roleName));
+                            }
+                        }
+
+                        // 7. Pagination
+                        var totalCount = usersWithRoles.Count;
+                        var page = Math.Max(1, request.Page);
+                        var pageSize = Math.Clamp(request.PageSize, 1, 100);
+
+                        var skip = (page - 1) * pageSize;
+                        if (skip >= totalCount && totalCount > 0)
+                        {
+                            page = (int)Math.Ceiling(totalCount / (double)pageSize);
+                            skip = (page - 1) * pageSize;
+                        }
+
+                        var paginatedUsers = usersWithRoles
+                            .Skip(skip)
+                            .Take(pageSize)
+                            .ToList();
+
+                        // 8. Convertir en DTO
+                        var userDtos = paginatedUsers.Select(x => new UserWithRoleDto
+                        {
+                            Id = x.User.Id,
+                            UserName = x.User.UserName,
+                            Nom = x.User.Nom,
+                            Prenom = x.User.Prenom,
+                            Email = x.User.Email,
+                            PhoneNumber = x.User.PhoneNumber,
+                            Image = x.User.Image,
+                            Role = x.RoleName,
+                            Statut = x.User.Statut
+                        }).ToList();
+
+                        // 9. Créer le résultat
+                        var pagedResult = new PagedResult<UserWithRoleDto>
+                        {
+                            Items = userDtos,
+                            TotalCount = totalCount,
+                            Page = page,
+                            PageSize = pageSize
+                        };
+
+                        _logger.LogInformation(
+                            "SUCCESS SearchUsers | Role: {Role} | Sort: {SortBy} {SortDescending} | Total: {TotalCount}",
+                            request.Role, request.SortBy, request.SortDescending, totalCount
+                        );
+
+                        return ApiResponse<PagedResult<UserWithRoleDto>>.Success(
+                            data: pagedResult,
+                            message: totalCount > 0
+                                ? $"Recherche terminée. {totalCount} résultat(s) trouvé(s)."
+                                : "Aucun résultat trouvé avec les critères spécifiés.",
+                            resultCode: 0
+                        );
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "ERROR SearchUsers | Request = {@Request}", request);
+                        return ApiResponse<PagedResult<UserWithRoleDto>>.Failure(
+                            message: "Erreur lors de la recherche",
+                            resultCode: 31
+                        );
+                    }
+                });
+        }
+
+        // Méthode helper pour le tri
+        private IQueryable<ApplicationUser> ApplySorting(
+            IQueryable<ApplicationUser> query,
+            string sortBy,
+            bool sortDescending)
+        {
+            if (string.IsNullOrWhiteSpace(sortBy))
+                return query.OrderBy(u => u.Nom); // Tri par défaut
+
+            // Normaliser le nom du champ
+            var normalizedSortBy = sortBy.ToLower().Trim();
+
+            return normalizedSortBy switch
+            {
+                "username" or "user_name" or "username" =>
+                    sortDescending ? query.OrderByDescending(u => u.UserName) : query.OrderBy(u => u.UserName),
+
+                "email" =>
+                    sortDescending ? query.OrderByDescending(u => u.Email) : query.OrderBy(u => u.Email),
+
+                "nom" or "name" or "lastname" =>
+                    sortDescending ? query.OrderByDescending(u => u.Nom) : query.OrderBy(u => u.Nom),
+
+                "prenom" or "firstname" or "prenom" =>
+                    sortDescending ? query.OrderByDescending(u => u.Prenom) : query.OrderBy(u => u.Prenom),
+
+                "birthdate" or "birth_date" or "date" =>
+                    sortDescending ? query.OrderByDescending(u => u.BirthDate) : query.OrderBy(u => u.BirthDate),
+
+                "statut" or "status" =>
+                    sortDescending ? query.OrderByDescending(u => u.Statut) : query.OrderBy(u => u.Statut),
+
+                
+
+                _ => query.OrderBy(u => u.Nom) // Tri par défaut
+            };
+        }
+
+        public Task<ApiResponse<IEnumerable<UserWithRoleDto>>> SearchUsersAsync(string searchTerm)
+        {
+            throw new NotImplementedException();
+        }
+
+
     }
 }
+

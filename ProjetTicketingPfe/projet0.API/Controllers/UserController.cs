@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.JsonWebTokens;
+using projet0.Application.Common.Models.Pagination;
 using projet0.Application.Commun.DTOs;
 using projet0.Application.Services.User;
 using projet0.Domain.Entities;
@@ -48,7 +49,7 @@ namespace projet0.API.Controllers
             var users = await _userService.GetAllUsersWithRolesAsync();
             return Ok(users);
         }
-        
+
         [HttpPost]
         [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> Create(UserDto dto)
@@ -73,7 +74,7 @@ namespace projet0.API.Controllers
             return Ok(result);
         }
 
-        
+
         [HttpDelete("desactivate/{id}")]
         [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> Desactivate(Guid id)
@@ -92,14 +93,14 @@ namespace projet0.API.Controllers
 
             var response = await _userService.EditProfileAsync(userId, dto);
 
-            if (response.ResultCode != 0) 
+            if (response.ResultCode != 0)
                 return BadRequest(response);
 
             return Ok(response.Data);
         }
 
         [HttpGet("me")]
-        [Authorize] 
+        [Authorize]
         public async Task<IActionResult> GetMyProfile()
         {
             var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)
@@ -124,6 +125,22 @@ namespace projet0.API.Controllers
             var result = await _userService.DeleteAsync(id);
             return Ok(result);
         }
-    }
 
+        // ================= SEARCH USERS =================
+        // Dans UserController.cs
+        [HttpGet("search")]
+        [Authorize(Policy = "AdminOnly")]
+        public async Task<IActionResult> SearchUsers([FromQuery] UserSearchRequest request)
+        {
+            // La validation est faite automatiquement par le modèle
+            var result = await _userService.SearchUsersAsync(request);
+
+            if (!result.IsSuccess)
+                return BadRequest(result);
+
+            return Ok(result);
+        }
+    }
 }
+
+    
