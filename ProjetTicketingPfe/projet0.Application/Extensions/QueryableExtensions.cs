@@ -37,10 +37,7 @@ namespace projet0.Application.Extensions
             string sortBy,
             bool descending)
         {
-            // Pour un projet PFE, vous pouvez utiliser System.Linq.Dynamic.Core
-            // ou implémenter une version simple
-
-            return query; // À améliorer selon vos besoins
+            return query; 
         }
 
         // Version avec filtre

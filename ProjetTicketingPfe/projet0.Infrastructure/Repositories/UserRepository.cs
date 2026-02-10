@@ -90,7 +90,7 @@ namespace projet0.Infrastructure.Repositories
                     Image = user.Image,
                     Role = roleName,
                     Statut = user.Statut,
-                    Birthdate =user.BirthDate
+                    BirthDate =user.BirthDate
                 });
             }
 
@@ -148,7 +148,7 @@ namespace projet0.Infrastructure.Repositories
         {
             throw new NotImplementedException();
         }
-
+        
         public async Task<(IEnumerable<UserWithRoleDto> Users, int TotalCount)> SearchUsersAsync(
             UserSearchRequest request)
         {
@@ -194,7 +194,7 @@ namespace projet0.Infrastructure.Repositories
             }
 
             // 5. Appliquer le tri
-            query = ApplyRepositorySorting(query, request.SortBy, request.SortDescending);
+            query = ApplySorting(query, request.SortBy, request.SortDescending);
 
             // 6. Compter le total (avant pagination)
             var totalCount = await query.CountAsync();
@@ -236,7 +236,8 @@ namespace projet0.Infrastructure.Repositories
                         PhoneNumber = user.PhoneNumber,
                         Image = user.Image,
                         Role = roleName,
-                        Statut = user.Statut
+                        Statut = user.Statut,
+                        BirthDate = user.BirthDate
                     });
                 }
             }
@@ -248,58 +249,6 @@ namespace projet0.Infrastructure.Repositories
             }
 
             return (usersWithRoles, totalCount);
-        }
-
-        // RENOMMEZ cette méthode pour éviter le conflit
-        private IQueryable<ApplicationUser> ApplyRepositorySorting(
-            IQueryable<ApplicationUser> query,
-            string sortBy,
-            bool sortDescending)
-        {
-            if (string.IsNullOrWhiteSpace(sortBy))
-                return query.OrderBy(u => u.Nom);
-
-            var normalizedSortBy = sortBy.ToLower().Trim();
-
-            switch (normalizedSortBy)
-            {
-                case "username":
-                    return sortDescending
-                        ? query.OrderByDescending(u => u.UserName)
-                        : query.OrderBy(u => u.UserName);
-
-                case "email":
-                    return sortDescending
-                        ? query.OrderByDescending(u => u.Email)
-                        : query.OrderBy(u => u.Email);
-
-                case "nom":
-                    return sortDescending
-                        ? query.OrderByDescending(u => u.Nom)
-                        : query.OrderBy(u => u.Nom);
-
-                case "prenom":
-                    return sortDescending
-                        ? query.OrderByDescending(u => u.Prenom)
-                        : query.OrderBy(u => u.Prenom);
-
-                case "birthdate":
-                    // Pour les dates, trier d'abord par les valeurs non-null
-                    if (sortDescending)
-                        return query.OrderByDescending(u => u.BirthDate.HasValue)
-                                   .ThenByDescending(u => u.BirthDate);
-                    else
-                        return query.OrderBy(u => u.BirthDate.HasValue)
-                                   .ThenBy(u => u.BirthDate);
-
-                case "statut":
-                    return sortDescending
-                        ? query.OrderByDescending(u => u.Statut)
-                        : query.OrderBy(u => u.Statut);
-
-                default:
-                    return query.OrderBy(u => u.Nom);
-            }
         }
 
         // Méthode helper pour le tri (identique à celle de UserService)

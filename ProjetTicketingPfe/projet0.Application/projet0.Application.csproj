@@ -7,7 +7,6 @@
     <PackageReference Include="MimeKit" Version="4.14.0" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.15.0" />
 
-	  <!-- AJOUTEZ CES PACKAGES POUR IDENTITY -->
 	  <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.0" />
 	  <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.0" />
 	  <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.0" />
@@ -18,8 +17,6 @@
     <ProjectReference Include="..\projet0.Domain\projet0.Domain.csproj" />
 	 
   </ItemGroup>
-	
-	
 
   <ItemGroup>
     <Compile Update="Commun\Ressources\UserMessages.Designer.cs">

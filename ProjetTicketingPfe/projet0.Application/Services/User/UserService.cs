@@ -848,111 +848,22 @@ namespace projet0.Application.Services.User
                 {
                     try
                     {
-                        // 1. Créer la query de base
-                        var query = _userManager.Users.AsQueryable();
+                        // Utilisez directement le repository
+                        var (users, totalCount) = await _userRepository.SearchUsersAsync(request);
 
-                        // 2. Recherche globale
-                        if (!string.IsNullOrWhiteSpace(request.SearchTerm))
-                        {
-                            var term = request.SearchTerm.ToLower();
-                            query = query.Where(u =>
-                                (u.Nom != null && u.Nom.ToLower().Contains(term)) ||
-                                (u.Prenom != null && u.Prenom.ToLower().Contains(term)) ||
-                                (u.Email != null && u.Email.ToLower().Contains(term)) ||
-                                (u.UserName != null && u.UserName.ToLower().Contains(term)));
-                        }
-
-                        // 3. Filtres additionnels
-                        if (request.Statut.HasValue)
-                            query = query.Where(u => u.Statut == request.Statut.Value);
-
-                        if (!string.IsNullOrWhiteSpace(request.UserName))
-                            query = query.Where(u => u.UserName.Contains(request.UserName));
-
-                        if (!string.IsNullOrWhiteSpace(request.Email))
-                            query = query.Where(u => u.Email.Contains(request.Email));
-
-                        if (!string.IsNullOrWhiteSpace(request.Nom))
-                            query = query.Where(u => u.Nom.Contains(request.Nom));
-
-                        if (!string.IsNullOrWhiteSpace(request.Prenom))
-                            query = query.Where(u => u.Prenom.Contains(request.Prenom));
-
-                        if (!string.IsNullOrWhiteSpace(request.PhoneNumber))
-                            query = query.Where(u => u.PhoneNumber != null && u.PhoneNumber.Contains(request.PhoneNumber));
-
-                        if (request.BirthDate.HasValue)
-                        {
-                             var year = request.BirthDate.Value.Year;
-                             query = query.Where(u => u.BirthDate.HasValue && 
-                                                    u.BirthDate.Value.Year == year);
-                        }
-
-                        // 4. APPLIQUER LE TRI AVANT PAGINATION
-                        query = ApplySorting(query, request.SortBy, request.SortDescending);
-
-                        // 5. Récupérer TOUS les utilisateurs filtrés
-                        var allFilteredUsers = await query.ToListAsync();
-
-                        // 6. Filtrer par rôle (insensible à la casse)
-                        var usersWithRoles = new List<(ApplicationUser User, string RoleName)>();
-
-                        foreach (var user in allFilteredUsers)
-                        {
-                            var roles = await _userManager.GetRolesAsync(user);
-                            var roleName = roles.FirstOrDefault() ?? "USER";
-
-                            // Filtre par rôle insensible à la casse
-                            if (string.IsNullOrWhiteSpace(request.Role) ||
-                                string.Equals(roleName, request.Role, StringComparison.OrdinalIgnoreCase))
-                            {
-                                usersWithRoles.Add((user, roleName));
-                            }
-                        }
-
-                        // 7. Pagination
-                        var totalCount = usersWithRoles.Count;
-                        var page = Math.Max(1, request.Page);
-                        var pageSize = Math.Clamp(request.PageSize, 1, 100);
-
-                        var skip = (page - 1) * pageSize;
-                        if (skip >= totalCount && totalCount > 0)
-                        {
-                            page = (int)Math.Ceiling(totalCount / (double)pageSize);
-                            skip = (page - 1) * pageSize;
-                        }
-
-                        var paginatedUsers = usersWithRoles
-                            .Skip(skip)
-                            .Take(pageSize)
-                            .ToList();
-
-                        // 8. Convertir en DTO
-                        var userDtos = paginatedUsers.Select(x => new UserWithRoleDto
-                        {
-                            Id = x.User.Id,
-                            UserName = x.User.UserName,
-                            Nom = x.User.Nom,
-                            Prenom = x.User.Prenom,
-                            Email = x.User.Email,
-                            PhoneNumber = x.User.PhoneNumber,
-                            Image = x.User.Image,
-                            Role = x.RoleName,
-                            Statut = x.User.Statut
-                        }).ToList();
-
-                        // 9. Créer le résultat
-                        var pagedResult = new PagedResult<UserWithRoleDto>
-                        {
-                            Items = userDtos,
-                            TotalCount = totalCount,
-                            Page = page,
-                            PageSize = pageSize
-                        };
+                        // Utilisez la méthode statique Create
+                        var pagedResult = PagedResult<UserWithRoleDto>.Create(
+                            items: users.ToList(),
+                            totalCount: totalCount,
+                            page: Math.Max(1, request.Page),
+                            pageSize: Math.Clamp(request.PageSize, 1, 100)
+                        );
 
                         _logger.LogInformation(
-                            "SUCCESS SearchUsers | Role: {Role} | Sort: {SortBy} {SortDescending} | Total: {TotalCount}",
-                            request.Role, request.SortBy, request.SortDescending, totalCount
+                            "SUCCESS SearchUsers | Total: {TotalCount} | Page: {Page}/{TotalPages}",
+                            totalCount,
+                            pagedResult.Page,
+                            pagedResult.TotalPages
                         );
 
                         return ApiResponse<PagedResult<UserWithRoleDto>>.Success(
@@ -1004,20 +915,11 @@ namespace projet0.Application.Services.User
                     sortDescending ? query.OrderByDescending(u => u.BirthDate) : query.OrderBy(u => u.BirthDate),
 
                 "statut" or "status" =>
-                    sortDescending ? query.OrderByDescending(u => u.Statut) : query.OrderBy(u => u.Statut),
-
-                
+                    sortDescending ? query.OrderByDescending(u => u.Statut) : query.OrderBy(u => u.Statut),                
 
                 _ => query.OrderBy(u => u.Nom) // Tri par défaut
             };
         }
-
-        public Task<ApiResponse<IEnumerable<UserWithRoleDto>>> SearchUsersAsync(string searchTerm)
-        {
-            throw new NotImplementedException();
-        }
-
-
     }
 }
 
