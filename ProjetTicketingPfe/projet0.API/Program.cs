@@ -52,6 +52,8 @@ builder.Services.AddControllers(options =>
 {
     options.Filters.Add<ValidatePaginationFilter>();
 });
+
+builder.Services.AddScoped<ValidatePaginationFilter>();
 #endregion
 
 #region 🔹 CORS

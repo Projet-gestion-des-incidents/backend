@@ -20,6 +20,8 @@ namespace projet0.Application.Common.Models.Pagination
 
         public DateTime? BirthDate { get; set; }
 
+        public int? BirthYear { get; set; }
+
         // Tri spécifique
         public string? SortBy { get; set; } = "Nom"; // Par défaut tri par nom
         public bool SortDescending { get; set; } = false;

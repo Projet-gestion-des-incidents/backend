@@ -14,7 +14,7 @@ namespace projet0.Application.Services.User
         Task<ApiResponse<string>> ActivateAsync(Guid id);
         Task<UserProfileDto> GetMyProfileAsync(Guid userId);
         Task<IEnumerable<ApplicationUser>> GetAllAsync();
-        Task<IEnumerable<UserWithRoleDto>> GetAllUsersWithRolesAsync();
+        Task<ApiResponse<PagedResult<UserWithRoleDto>>> GetAllUsersWithRolesAsync(PagedRequest request);
         Task<ApplicationUser> GetByIdAsync(Guid id);
         Task<ApiResponse<ApplicationUser>> CreateAsync(UserDto dto);
         Task<ApiResponse<ApplicationUser>> UpdateAsync(Guid id, UserDto dto);

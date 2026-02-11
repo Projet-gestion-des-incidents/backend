@@ -68,16 +68,50 @@ namespace projet0.Infrastructure.Repositories
         {
             return await _dbSet.OrderBy(u => u.Nom).ThenBy(u => u.Prenom).ToListAsync();
         }
-        public async Task<IEnumerable<UserWithRoleDto>> GetAllUsersWithRolesAsync()
+        public async Task<PagedResult<UserWithRoleDto>> GetAllUsersWithRolesAsync(PagedRequest request)
         {
-            var users = await _userManager.Users.ToListAsync();
-            var usersWithRoles = new List<UserWithRoleDto>();
+            // 1. Créer la query de base
+            var query = _userManager.Users.AsQueryable();
 
-            foreach (var user in users)
+            // 2. Recherche globale si SearchTerm est fourni
+            if (!string.IsNullOrWhiteSpace(request.SearchTerm))
             {
-                // Récupère le rôle (on suppose un seul rôle)
+                var term = request.SearchTerm.ToLower();
+                query = query.Where(u =>
+                    u.Nom.ToLower().Contains(term) ||
+                    u.Prenom.ToLower().Contains(term) ||
+                    u.Email.ToLower().Contains(term) ||
+                    u.UserName.ToLower().Contains(term));
+            }
+
+            // 3. Appliquer le tri
+            query = ApplySorting(query, request.SortBy, request.SortDescending);
+
+            // 4. Compter le total (avant pagination)
+            var totalCount = await query.CountAsync();
+
+            // 5. Appliquer la pagination
+            var page = Math.Max(1, request.Page);
+            var pageSize = Math.Clamp(request.PageSize, 1, 100);
+
+            var skip = (page - 1) * pageSize;
+            if (skip >= totalCount && totalCount > 0)
+            {
+                page = (int)Math.Ceiling(totalCount / (double)pageSize);
+                skip = (page - 1) * pageSize;
+            }
+
+            var paginatedUsers = await query
+                .Skip(skip)
+                .Take(pageSize)
+                .ToListAsync();
+
+            // 6. Convertir en DTO avec rôles
+            var usersWithRoles = new List<UserWithRoleDto>();
+            foreach (var user in paginatedUsers)
+            {
                 var roles = await _userManager.GetRolesAsync(user);
-                var roleName = roles.FirstOrDefault() ?? "USER"; // fallback
+                var roleName = roles.FirstOrDefault() ?? "USER";
 
                 usersWithRoles.Add(new UserWithRoleDto
                 {
@@ -90,11 +124,17 @@ namespace projet0.Infrastructure.Repositories
                     Image = user.Image,
                     Role = roleName,
                     Statut = user.Statut,
-                    BirthDate =user.BirthDate
+                    BirthDate = user.BirthDate
                 });
             }
 
-            return usersWithRoles;
+            // 7. Retourner le résultat paginé
+            return PagedResult<UserWithRoleDto>.Create(
+                items: usersWithRoles,
+                totalCount: totalCount,
+                page: page,
+                pageSize: pageSize
+            );
         }
 
         public async Task<bool> IsEmailUniqueAsync(string email, Guid? excludeUserId = null)
@@ -185,12 +225,18 @@ namespace projet0.Infrastructure.Repositories
             if (!string.IsNullOrWhiteSpace(request.PhoneNumber))
                 query = query.Where(u => u.PhoneNumber != null && u.PhoneNumber.Contains(request.PhoneNumber));
 
-            // 4. Filtre par DATE de naissance (modifier pour accepter l'année)
+            // 4. MODIFICATION : Filtrer par année de naissance (NOUVEAU)
+            if (request.BirthYear.HasValue)
+            {
+                query = query.Where(u => u.BirthDate.HasValue &&
+                                         u.BirthDate.Value.Year == request.BirthYear.Value);
+            }
+
+            // CONSERVER : Filtrer par date complète (pour compatibilité)
             if (request.BirthDate.HasValue)
             {
-                // Utilisez l'année seulement
-                var year = request.BirthDate.Value.Year;
-                query = query.Where(u => u.BirthDate.HasValue && u.BirthDate.Value.Year == year);
+                query = query.Where(u => u.BirthDate.HasValue &&
+                                         u.BirthDate.Value.Date == request.BirthDate.Value.Date);
             }
 
             // 5. Appliquer le tri

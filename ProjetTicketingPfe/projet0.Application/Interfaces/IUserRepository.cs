@@ -12,7 +12,7 @@ namespace projet0.Application.Interfaces
     public interface IUserRepository : IGenericRepository<ApplicationUser>
     {
         Task<IdentityResult> RestoreAsync(ApplicationUser user);
-        Task<IEnumerable<UserWithRoleDto>> GetAllUsersWithRolesAsync();
+        Task<PagedResult<UserWithRoleDto>> GetAllUsersWithRolesAsync(PagedRequest request);
         Task<IdentityResult> UpdateAsync(ApplicationUser user);
         Task<IdentityResult> SoftDeleteAsync(ApplicationUser user);
         Task<ApplicationUser> GetByEmailAsync(string email);

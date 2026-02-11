@@ -466,16 +466,43 @@ namespace projet0.Application.Services.User
             });
 
 
-        public async Task<IEnumerable<UserWithRoleDto>> GetAllUsersWithRolesAsync()
+        public async Task<ApiResponse<PagedResult<UserWithRoleDto>>> GetAllUsersWithRolesAsync(PagedRequest request)
         {
-            // on utilise le repository qui utilise UserManager
-            var usersWithRoles = await _userRepository.GetAllUsersWithRolesAsync();
+            return await MeasureAsync(
+                actionName: "GetAllUsersWithRoles",
+                input: request,
+                async () =>
+                {
+                    try
+                    {
+                        var pagedResult = await _userRepository.GetAllUsersWithRolesAsync(request);
 
-            // optionnel : on peut logger
-            _logger.LogDebug("SUCCESS GetAllUsersWithRoles | Count = {Count}", usersWithRoles?.Count() ?? 0);
+                        _logger.LogInformation(
+                            "SUCCESS GetAllUsersWithRoles | Total: {TotalCount} | Page: {Page}/{TotalPages}",
+                            pagedResult.TotalCount,
+                            pagedResult.Page,
+                            pagedResult.TotalPages
+                        );
 
-            return usersWithRoles;
+                        return ApiResponse<PagedResult<UserWithRoleDto>>.Success(
+                            data: pagedResult,
+                            message: pagedResult.TotalCount > 0
+                                ? $"{pagedResult.TotalCount} utilisateur(s) trouvé(s)."
+                                : "Aucun utilisateur trouvé.",
+                            resultCode: 0
+                        );
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "ERROR GetAllUsersWithRoles | Request = {@Request}", request);
+                        return ApiResponse<PagedResult<UserWithRoleDto>>.Failure(
+                            message: "Erreur lors de la récupération des utilisateurs",
+                            resultCode: 32
+                        );
+                    }
+                });
         }
+
         public async Task<ApiResponse<ApplicationUser>> EditProfileAsync(Guid userId, EditProfileDto dto)
         {
             return await MeasureAsync(
