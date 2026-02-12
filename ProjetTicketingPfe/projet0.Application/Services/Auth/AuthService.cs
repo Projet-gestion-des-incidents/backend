@@ -9,7 +9,6 @@ using projet0.Application.Services.Token;
 using projet0.Domain.Entities;
 using projet0.Domain.Enums;
 
-
 namespace projet0.Application.Services.Auth
 {
     public class AuthService : IAuthService

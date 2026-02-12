@@ -20,7 +20,8 @@ namespace projet0.Application.Interfaces
         Task<IEnumerable<ApplicationUser>> GetUsersByRoleAsync(string roleName);
         Task<IEnumerable<ApplicationUser>> GetActiveUsersAsync();
         Task<bool> IsEmailUniqueAsync(string email, Guid? excludeUserId = null);
-        Task SaveChangesAsync();
+        //Task SaveChangesAsync();
+        Task<int> SaveChangesAsync();
         Task<bool> IsUserNameUniqueAsync(string userName, Guid? excludeUserId = null);
         Task<IdentityResult> CreateAsync(ApplicationUser user, string password = null);
         Task<IList<string>> GetUserRolesAsync(Guid userId);

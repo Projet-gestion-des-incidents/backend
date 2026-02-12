@@ -7,9 +7,11 @@ using Microsoft.OpenApi.Models;
 using projet0.API.Filters;
 using projet0.Application.Commun.DTOs;
 using projet0.Application.Interfaces;
+using projet0.Application.Mappings;
 using projet0.Application.Services;
 using projet0.Application.Services.Auth;
 using projet0.Application.Services.Email;
+using projet0.Application.Services.Incident;
 using projet0.Application.Services.Otp;
 using projet0.Application.Services.Token;
 using projet0.Application.Services.User;
@@ -137,6 +139,30 @@ builder.Services.AddAuthorization(options =>
         policy.RequireAuthenticatedUser();
         policy.RequireRole("Admin", "Technicien", "Commercant");
     });
+
+    options.AddPolicy("IncidentRead", policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.RequireRole("Admin", "Technicien", "Commercant"); // Ajustez selon vos besoins
+    });
+
+    options.AddPolicy("IncidentCreate", policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.RequireRole("Admin", "Technicien", "Commercant");
+    });
+
+    options.AddPolicy("IncidentUpdate", policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.RequireRole("Admin", "Technicien", "Commercant");
+    });
+
+    options.AddPolicy("IncidentDelete", policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.RequireRole("Admin"); // Seul l'admin peut supprimer
+    });
 });
 #endregion
 
@@ -178,6 +204,11 @@ builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IIncidentRepository, IncidentRepository>();
+builder.Services.AddScoped<IIncidentService, IncidentService>();
+builder.Services.AddScoped<IEntiteImpacteeRepository, EntiteImpacteeRepository>();
+builder.Services.AddAutoMapper(typeof(IncidentMappingProfile).Assembly);
+
 builder.Services.AddHttpContextAccessor();
 #endregion
 

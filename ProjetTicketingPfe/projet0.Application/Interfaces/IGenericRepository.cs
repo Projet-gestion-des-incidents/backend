@@ -21,5 +21,14 @@ namespace projet0.Application.Interfaces
         Task<int> CountAsync();
         Task<int> CountAsync(Expression<Func<T, bool>> predicate);
 
+        // methodes ajoutées pour incident
+        Task UpdateAsync(T entity);
+        Task UpdateRangeAsync(IEnumerable<T> entities);
+        Task DeleteAsync(T entity);
+        Task DeleteRangeAsync(IEnumerable<T> entities);
+
+         Task<int> SaveChangesAsync(); 
+
+
     }
 }

@@ -7,7 +7,7 @@
         public string? Message { get; set; }
         public int ResultCode { get; set; }
 
-        public bool IsSuccess => ResultCode == 0;
+        public bool IsSuccess => ResultCode >= 200 && ResultCode < 300;
 
         private ApiResponse() { }
 
@@ -15,8 +15,8 @@
         public static ApiResponse<T> Success(
             T? data = default,
             string? message = null,
-            int resultCode = 0
-        )
+  int resultCode = 200
+            )
         {
             return new ApiResponse<T>
             {
@@ -31,8 +31,8 @@
         public static ApiResponse<T> Failure(
             string message,
             List<string>? errors = null,
-            int resultCode = 50
-        )
+        int resultCode = 400
+            )
         {
             return new ApiResponse<T>
             {

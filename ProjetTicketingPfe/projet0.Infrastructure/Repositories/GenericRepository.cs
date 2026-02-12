@@ -85,9 +85,35 @@ namespace projet0.Infrastructure.Repositories
             return await _dbSet.CountAsync(predicate);
 
         }
-        public async Task SaveChangesAsync()
+        public async Task<int> SaveChangesAsync()  // AJOUTER <int>
         {
-            await _context.SaveChangesAsync();
+            return await _context.SaveChangesAsync();  // AJOUTER return
+        }
+
+        // methodes ajoutées pour incident
+
+        public async Task UpdateAsync(T entity) 
+        {
+            _dbSet.Update(entity);
+            await Task.CompletedTask;
+        }
+        public async Task UpdateRangeAsync(IEnumerable<T> entities)
+        {
+            _dbSet.UpdateRange(entities);
+            await Task.CompletedTask;
+        }
+
+      
+        public async Task DeleteAsync(T entity) 
+        {
+            _dbSet.Remove(entity);
+            await Task.CompletedTask;
+        }
+
+        public async Task DeleteRangeAsync(IEnumerable<T> entities) 
+        {
+            _dbSet.RemoveRange(entities);
+            await Task.CompletedTask;
         }
     }
 }
