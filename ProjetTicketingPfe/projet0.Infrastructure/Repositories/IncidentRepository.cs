@@ -28,10 +28,24 @@ namespace projet0.Infrastructure.Repositories
                 .Include(i => i.Notifications)
                 .FirstOrDefaultAsync(i => i.CodeIncident == code);
         }
+        public override async Task<Incident> GetByIdAsync(Guid id)
+        {
+            return await _context.Incidents
+                .Include(i => i.EntitesImpactees)  // ✅ AJOUTER CET INCLUDE !
+                .FirstOrDefaultAsync(i => i.Id == id);
+        }
 
+        public override async Task<IEnumerable<Incident>> GetAllAsync()
+        {
+            return await _context.Incidents
+                .Include(i => i.EntitesImpactees)  // ✅ AJOUTER CET INCLUDE !
+                .OrderByDescending(i => i.DateDetection)
+                .ToListAsync();
+        }
         public async Task<List<Incident>> GetIncidentsByStatutAsync(StatutIncident statut)
         {
             return await _context.Incidents
+                   .Include(i => i.EntitesImpactees)
                 .Where(i => i.StatutIncident == statut)
                 .OrderByDescending(i => i.DateDetection)
                 .ToListAsync();
@@ -40,6 +54,7 @@ namespace projet0.Infrastructure.Repositories
         public async Task<List<Incident>> GetIncidentsBySeveriteAsync(SeveriteIncident severite)
         {
             return await _context.Incidents
+                   .Include(i => i.EntitesImpactees)
                 .Where(i => i.SeveriteIncident == severite)
                 .OrderByDescending(i => i.DateDetection)
                 .ToListAsync();
@@ -105,6 +120,7 @@ namespace projet0.Infrastructure.Repositories
         public async Task<List<Incident>> GetIncidentsByCreatedByAsync(Guid createdById)
         {
             return await _context.Incidents
+                                .Include(i => i.EntitesImpactees)  // ✅ AJOUTER !
                 .Where(i => i.CreatedById == createdById)
                 .OrderByDescending(i => i.DateDetection)
                 .ToListAsync();

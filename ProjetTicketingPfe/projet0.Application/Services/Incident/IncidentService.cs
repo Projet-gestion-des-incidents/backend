@@ -74,10 +74,17 @@ namespace projet0.Application.Services.Incident
                 var user = await _userRepository.GetByIdAsync(incident.CreatedById.Value);
                 dto.CreatedByName = user != null ? $"{user.Nom} {user.Prenom}" : "Utilisateur inconnu";
             }
-
+            if (incident.EntitesImpactees == null)
+            {
+                _logger.LogWarning("EntitesImpactees non chargé pour l'incident {IncidentId}", incident.Id);
+                dto.NombreEntitesImpactees = 0;
+            }
+            else
+            {
+                dto.NombreEntitesImpactees = incident.EntitesImpactees.Count;
+            }
             // Compter les relations
             dto.NombreTickets = incident.IncidentTickets?.Count ?? 0;
-            dto.NombreEntitesImpactees = incident.EntitesImpactees?.Count ?? 0;
 
             return dto;
         }
