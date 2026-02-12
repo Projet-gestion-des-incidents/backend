@@ -465,7 +465,6 @@ namespace projet0.Application.Services.User
                     resultCode: 0);
             });
 
-
         public async Task<ApiResponse<PagedResult<UserWithRoleDto>>> GetAllUsersWithRolesAsync(PagedRequest request)
         {
             return await MeasureAsync(
@@ -865,7 +864,7 @@ namespace projet0.Application.Services.User
                     );
                 });
 
-        // ================= SEARCH USERS (avec rôles) =================
+        // ================= SEARCH USERS =================
         public async Task<ApiResponse<PagedResult<UserWithRoleDto>>> SearchUsersAsync(UserSearchRequest request)
         {
             return await MeasureAsync(

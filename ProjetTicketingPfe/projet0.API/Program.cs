@@ -69,7 +69,8 @@ builder.Services.AddCors(options =>
 #endregion
 
 #region 🔹 Database
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
+builder.Services.
+    AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("DefaultConnection"),
         b => b.MigrationsAssembly("projet0.Infrastructure")));

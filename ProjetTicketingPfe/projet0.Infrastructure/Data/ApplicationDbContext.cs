@@ -14,9 +14,23 @@ namespace projet0.Infrastructure.Data
         // Ajouter le DbSet ici, en dehors de OnModelCreating
         public DbSet<OtpCode> OtpCodes { get; set; }
 
+        public DbSet<ApplicationUser> Users { get; set; }
+
+        // NOUVEAUX DbSets
+        public DbSet<Incident> Incidents { get; set; }
+        public DbSet<Ticket> Tickets { get; set; }
+        public DbSet<IncidentTicket> IncidentTickets { get; set; }
+        public DbSet<CommentaireTicket> CommentairesTicket { get; set; }
+        public DbSet<PieceJointe> PiecesJointes { get; set; }
+        public DbSet<HistoriqueTicket> HistoriquesTicket { get; set; }
+        public DbSet<Notification> Notifications { get; set; }
+        public DbSet<EntiteImpactee> EntitesImpactees { get; set; }
+
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
+
+            builder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
 
             // Configurations supplémentaires
             builder.Entity<ApplicationUser>()

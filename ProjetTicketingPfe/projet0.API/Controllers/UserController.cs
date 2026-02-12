@@ -78,6 +78,7 @@ namespace projet0.API.Controllers
                 }
             });
         }
+
         [HttpPost]
         [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> Create(UserDto dto)
