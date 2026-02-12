@@ -25,7 +25,25 @@ namespace projet0.API.Controllers
             _incidentService = incidentService;
             _logger = logger;
         }
-
+        /// <summary>
+/// Récupère TOUS les incidents sans filtre, sans pagination
+/// </summary>
+[HttpGet("all")]
+[Authorize(Policy = "IncidentRead")]
+public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents()
+{
+    try
+    {
+        var result = await _incidentService.GetAllIncidentsAsync();
+        return Ok(result);
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Erreur lors de la récupération de tous les incidents");
+        return StatusCode(500, ApiResponse<List<IncidentDTO>>.Failure(
+            "Erreur interne du serveur"));
+    }
+}
         /// <summary>
         /// Récupère l'ID de l'utilisateur connecté
         /// </summary>
@@ -40,10 +58,11 @@ namespace projet0.API.Controllers
 
         #region CRUD Operations
 
+
         /// <summary>
         /// Recherche paginée des incidents avec filtres
         /// </summary>
-        [HttpGet]
+        [HttpGet("withFilters")]
         [Authorize(Policy = "IncidentRead")]
      
         public async Task<ActionResult<ApiResponse<PagedResult<IncidentDTO>>>> SearchIncidents(
