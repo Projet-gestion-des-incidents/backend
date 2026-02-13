@@ -11,6 +11,6 @@ namespace projet0.Application.Commun.DTOs.Incident
         public string DescriptionIncident { get; set; }
         public SeveriteIncident SeveriteIncident { get; set; }
         public StatutIncident StatutIncident { get; set; }
-        public DateTime? DateResolution { get; set; }
+        // public DateTime? DateResolution { get; set; }
     }
 }

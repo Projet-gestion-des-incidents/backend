@@ -399,7 +399,7 @@ namespace projet0.Application.Services.Incident
                     incident.DescriptionIncident = dto.DescriptionIncident ?? incident.DescriptionIncident;
                     incident.SeveriteIncident = dto.SeveriteIncident;
                     incident.StatutIncident = dto.StatutIncident;
-                    incident.DateResolution = dto.DateResolution;
+                    //incident.DateResolution = dto.DateResolution;
                     incident.UpdatedAt = DateTime.UtcNow;
                     incident.UpdatedById = updatedById;
 
