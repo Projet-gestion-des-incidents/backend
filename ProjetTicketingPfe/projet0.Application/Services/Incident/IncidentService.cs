@@ -616,27 +616,31 @@ namespace projet0.Application.Services.Incident
                     if (incident == null)
                         return ApiResponse<bool>.Failure($"Incident avec ID {incidentId} non trouvé");
 
-                    var entites = await _entiteImpacteeRepository.GetByIdsAsync(entiteIds);
+                    // Récupérer les entités à ajouter
+                    var nouvellesEntites = await _entiteImpacteeRepository.GetByIdsAsync(entiteIds);
 
-                    // Réinitialiser les entités impactées
-                    foreach (var entite in incident.EntitesImpactees)
+                    // Créer un HashSet des IDs existants pour éviter les doublons
+                    var existantsIds = incident.EntitesImpactees.Select(e => e.Id).ToHashSet();
+
+                    // Ajouter uniquement les nouvelles entités qui ne sont pas déjà assignées
+                    foreach (var entite in nouvellesEntites)
                     {
-                        entite.IncidentId = null;
+                        if (!existantsIds.Contains(entite.Id))
+                        {
+                            entite.IncidentId = incidentId;
+                            incident.EntitesImpactees.Add(entite);
+                        }
                     }
 
-                    // Assigner les nouvelles entités
-                    foreach (var entite in entites)
-                    {
-                        entite.IncidentId = incidentId;
-                    }
-
-                    incident.EntitesImpactees = entites.ToList();
                     incident.UpdatedAt = DateTime.UtcNow;
 
                     await _incidentRepository.UpdateAsync(incident);
                     await _incidentRepository.SaveChangesAsync();
 
-                    return ApiResponse<bool>.Success(true, $"{entites.Count} entités impactées assignées à l'incident");
+                    return ApiResponse<bool>.Success(
+                        true,
+                        $"{nouvellesEntites.Count} entités impactées assignées à l'incident"
+                    );
                 }
                 catch (Exception ex)
                 {
