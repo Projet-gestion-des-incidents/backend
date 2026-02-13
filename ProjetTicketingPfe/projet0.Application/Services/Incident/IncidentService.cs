@@ -388,27 +388,76 @@ namespace projet0.Application.Services.Incident
             });
         }
 
-        public async Task<ApiResponse<IncidentDTO>> UpdateIncidentAsync(Guid id, UpdateIncidentDTO dto, Guid updatedById)
+        public async Task<ApiResponse<IncidentDTO>> UpdateIncidentAsync(Guid incidentId, UpdateIncidentDTO dto, Guid updatedById)
         {
-            return await MeasureAsync(nameof(UpdateIncidentAsync), new { id, dto, updatedById }, async () =>
+            return await MeasureAsync(nameof(UpdateIncidentAsync), new { incidentId, dto }, async () =>
             {
                 try
                 {
-                    var incident = await _incidentRepository.GetByIdAsync(id);
-
+                    var incident = await _incidentRepository.GetIncidentWithDetailsAsync(incidentId);
                     if (incident == null)
-                        return ApiResponse<IncidentDTO>.Failure($"Incident avec ID {id} non trouvé");
+                        return ApiResponse<IncidentDTO>.Failure("Incident introuvable");
 
-                    // Mettre à jour les propriétés
+                    // Mise à jour des champs simples
                     incident.TitreIncident = dto.TitreIncident ?? incident.TitreIncident;
                     incident.DescriptionIncident = dto.DescriptionIncident ?? incident.DescriptionIncident;
                     incident.SeveriteIncident = dto.SeveriteIncident;
                     incident.StatutIncident = dto.StatutIncident;
-                    //incident.DateResolution = dto.DateResolution;
                     incident.UpdatedAt = DateTime.UtcNow;
-                    incident.UpdatedById = updatedById;
 
-                    await _incidentRepository.UpdateAsync(incident);
+                    if (dto.EntitesImpactees != null)
+                    {
+                        // 1️⃣ Dissocier les entités qui ne sont plus dans le DTO
+                        var dtoIds = dto.EntitesImpactees.Where(d => d.Id.HasValue).Select(d => d.Id.Value).ToHashSet();
+                        foreach (var entite in incident.EntitesImpactees)
+                        {
+                            if (!dtoIds.Contains(entite.Id))
+                            {
+                                entite.IncidentId = null; // Dissociation au lieu de suppression
+                            }
+                        }
+
+                        // 2️⃣ Parcourir les entités du DTO pour modifier ou créer
+                        foreach (var eDto in dto.EntitesImpactees)
+                        {
+                            if (eDto.Id.HasValue)
+                            {
+                                // Modifier ou réassocier une entité existante
+                                var existing = incident.EntitesImpactees.FirstOrDefault(e => e.Id == eDto.Id.Value);
+
+                                if (existing != null)
+                                {
+                                    existing.Nom = eDto.Nom;
+                                    existing.TypeEntiteImpactee = eDto.TypeEntiteImpactee;
+                                    existing.IncidentId = incident.Id; // au cas où elle avait été dissociée
+                                }
+                                else
+                                {
+                                    // Récupérer une entité dissociée en base
+                                    var dissociee = await _entiteImpacteeRepository.GetByIdAsync(eDto.Id.Value);
+                                    if (dissociee != null)
+                                    {
+                                        dissociee.Nom = eDto.Nom;
+                                        dissociee.TypeEntiteImpactee = eDto.TypeEntiteImpactee;
+                                        dissociee.IncidentId = incident.Id;
+                                        incident.EntitesImpactees.Add(dissociee);
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                // Nouvelle entité à créer
+                                var newEntite = new EntiteImpactee
+                                {
+                                    Nom = eDto.Nom,
+                                    TypeEntiteImpactee = eDto.TypeEntiteImpactee,
+                                    IncidentId = incident.Id
+                                };
+                                incident.EntitesImpactees.Add(newEntite);
+                            }
+                        }
+                    }
+
                     await _incidentRepository.SaveChangesAsync();
 
                     var resultDto = await MapToDto(incident);
@@ -416,7 +465,7 @@ namespace projet0.Application.Services.Incident
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Erreur lors de la mise à jour de l'incident {Id}", id);
+                    _logger.LogError(ex, "Erreur lors de la mise à jour de l'incident");
                     return ApiResponse<IncidentDTO>.Failure("Erreur interne du serveur");
                 }
             });

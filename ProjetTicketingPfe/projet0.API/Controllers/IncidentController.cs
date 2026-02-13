@@ -205,7 +205,6 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
         /// </summary>
         [HttpPut("{id}")]
         [Authorize(Policy = "IncidentUpdate")]
-   
         public async Task<ActionResult<ApiResponse<IncidentDTO>>> Update(Guid id, [FromBody] UpdateIncidentDTO dto)
         {
             try
@@ -218,7 +217,7 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
 
                 if (!result.IsSuccess)
                 {
-                    if (result.Message?.Contains("non trouvé") == true)
+                    if (result.Message?.Contains("introuvable") == true)
                         return NotFound(result);
 
                     return BadRequest(result);
