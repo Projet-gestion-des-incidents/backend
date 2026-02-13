@@ -477,15 +477,24 @@ namespace projet0.Application.Services.Incident
             {
                 try
                 {
-                    var incident = await _incidentRepository.GetByIdAsync(id);
-
+                    var incident = await _incidentRepository.GetIncidentWithDetailsAsync(id);
                     if (incident == null)
                         return ApiResponse<bool>.Failure($"Incident avec ID {id} non trouvé");
 
+                    // 1️⃣ Dissocier toutes les entités impactées liées à cet incident
+                    if (incident.EntitesImpactees != null)
+                    {
+                        foreach (var entite in incident.EntitesImpactees)
+                        {
+                            entite.IncidentId = null; // Dissociation au lieu de suppression
+                        }
+                    }
+
+                    // 2️⃣ Supprimer uniquement l'incident
                     await _incidentRepository.DeleteAsync(incident);
                     await _incidentRepository.SaveChangesAsync();
 
-                    return ApiResponse<bool>.Success(true, "Incident supprimé avec succès");
+                    return ApiResponse<bool>.Success(true, "Incident supprimé avec succès, entités impactées conservées");
                 }
                 catch (Exception ex)
                 {
