@@ -7,9 +7,9 @@ namespace projet0.Application.Commun.DTOs.Incident
 {
     public class EntiteImpacteeDTO
     {
-        public Guid Id { get; set; }
+        //public Guid Id { get; set; }
         public TypeEntiteImpactee TypeEntiteImpactee { get; set; }
         public string Nom { get; set; }
-        public string Description { get; set; }
+        //public string Description { get; set; }
     }
 }

@@ -349,8 +349,8 @@ namespace projet0.Application.Services.Incident
                         TitreIncident = dto.TitreIncident,
                         DescriptionIncident = dto.DescriptionIncident,
                         SeveriteIncident = dto.SeveriteIncident,
-                        StatutIncident = StatutIncident.Nouveau,
-                        DateDetection = dto.DateDetection == default ? DateTime.Now : dto.DateDetection,
+                        StatutIncident = StatutIncident.Nouveau, // toujours Nouveau à la création
+                        DateDetection = DateTime.Now,
                         CreatedAt = DateTime.UtcNow,
                         CreatedById = createdById,
                         IncidentTickets = new List<IncidentTicket>(),
@@ -359,21 +359,26 @@ namespace projet0.Application.Services.Incident
                     };
 
                     // Ajouter les entités impactées si spécifiées
-                    if (dto.EntitesImpacteesIds != null && dto.EntitesImpacteesIds.Any())
+                    if (dto.EntitesImpactees != null && dto.EntitesImpactees.Any())
                     {
-                        var entites = await _entiteImpacteeRepository.GetByIdsAsync(dto.EntitesImpacteesIds);
-                        foreach (var entite in entites)
+                        foreach (var eDto in dto.EntitesImpactees)
                         {
-                            entite.IncidentId = incident.Id;
+                            var entite = new EntiteImpactee
+                            {
+                                IncidentId = incident.Id,
+                                TypeEntiteImpactee = eDto.TypeEntiteImpactee,
+                                Nom = eDto.Nom
+                            };
+                            incident.EntitesImpactees.Add(entite);
                         }
-                        incident.EntitesImpactees = entites.ToList();
                     }
 
                     await _incidentRepository.AddAsync(incident);
                     await _incidentRepository.SaveChangesAsync();
 
                     var resultDto = await MapToDto(incident);
-                    return ApiResponse<IncidentDTO>.Success(resultDto, $"Incident {code} créé avec succès", 201);
+
+                    return ApiResponse<IncidentDTO>.Success(resultDto, $"Incident {code} créé avec succès");
                 }
                 catch (Exception ex)
                 {

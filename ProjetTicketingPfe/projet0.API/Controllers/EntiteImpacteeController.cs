@@ -5,7 +5,9 @@ using projet0.Application.Commun.DTOs.Incident;
 using projet0.Application.Commun.DTOs.IncidentDTOs;
 using projet0.Application.Commun.Ressources;
 using projet0.Application.Interfaces;
+using projet0.Application.Services.EntiteImpacteeServices;
 using projet0.Domain.Entities;
+using projet0.Domain.Enums;
 
 namespace projet0.API.Controllers
 {
@@ -14,65 +16,53 @@ namespace projet0.API.Controllers
     [Authorize]
     public class EntiteImpacteeController : ControllerBase
     {
-        private readonly IEntiteImpacteeRepository _entiteImpacteeRepository;
+        private readonly IEntiteImpacteeService _service;
         private readonly ILogger<EntiteImpacteeController> _logger;
-        private readonly IMapper _mapper;
 
-        public EntiteImpacteeController(
-            IEntiteImpacteeRepository entiteImpacteeRepository,
-            ILogger<EntiteImpacteeController> logger , IMapper mapper)
+        public EntiteImpacteeController(IEntiteImpacteeService service, ILogger<EntiteImpacteeController> logger)
         {
-            _entiteImpacteeRepository = entiteImpacteeRepository;
+            _service = service;
             _logger = logger;
-            _mapper = mapper;
         }
 
-        /// <summary>
-        /// Créer une nouvelle entité impactée
-        /// </summary>
         [HttpPost]
         public async Task<ActionResult<ApiResponse<EntiteImpacteeDTO>>> Create([FromBody] CreateEntiteImpacteeDTO dto)
         {
-            try
-            {
-                var entite = new EntiteImpactee
-                {
-                    Id = Guid.NewGuid(),
-                    TypeEntiteImpactee = dto.TypeEntiteImpactee,
-                    Nom = dto.Nom,
-                    IncidentId = null
-                };
+            var result = await _service.CreateAsync(dto);
+            if (!result.IsSuccess)
+                return StatusCode(500, result);
 
-                await _entiteImpacteeRepository.AddAsync(entite);
-                await _entiteImpacteeRepository.SaveChangesAsync();
-
-                var dtoResult = _mapper.Map<EntiteImpacteeDTO>(entite);
-                return Ok(ApiResponse<EntiteImpacteeDTO>.Success(dtoResult, "Entité impactée créée avec succès", 201));
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Erreur lors de la création d'entité impactée");
-                return StatusCode(500, ApiResponse<EntiteImpacteeDTO>.Failure("Erreur interne du serveur"));
-            }
+            return Ok(result);
         }
 
-        /// <summary>
-        /// Récupérer toutes les entités impactées disponibles
-        /// </summary>
         [HttpGet]
         public async Task<ActionResult<ApiResponse<List<EntiteImpacteeDTO>>>> GetAll()
         {
-            try
-            {
-                var entites = await _entiteImpacteeRepository.GetAllAsync();
-                var dtos = _mapper.Map<List<EntiteImpacteeDTO>>(entites);
-                return Ok(ApiResponse<List<EntiteImpacteeDTO>>.Success(dtos));
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Erreur lors de la récupération des entités impactées");
-                return StatusCode(500, ApiResponse<List<EntiteImpacteeDTO>>.Failure("Erreur interne du serveur"));
-            }
+            var result = await _service.GetAllAsync();
+            if (!result.IsSuccess)
+                return StatusCode(500, result);
+
+            return Ok(result);
+        }
+
+        [HttpGet("by-type/{type}")]
+        public async Task<ActionResult<ApiResponse<List<EntiteImpacteeDTO>>>> GetByType(TypeEntiteImpactee type)
+        {
+            var result = await _service.GetByTypeAsync(type);
+            if (!result.IsSuccess)
+                return StatusCode(500, result);
+
+            return Ok(result);
+        }
+
+        [HttpGet("by-incident/{incidentId}")]
+        public async Task<ActionResult<ApiResponse<List<EntiteImpacteeDTO>>>> GetByIncidentId(Guid incidentId)
+        {
+            var result = await _service.GetByIncidentIdAsync(incidentId);
+            if (!result.IsSuccess)
+                return StatusCode(500, result);
+
+            return Ok(result);
         }
     }
 }

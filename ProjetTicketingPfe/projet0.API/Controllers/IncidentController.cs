@@ -168,7 +168,6 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
         /// </summary>
         [HttpPost]
         [Authorize(Policy = "IncidentCreate")]
-   
         public async Task<ActionResult<ApiResponse<IncidentDTO>>> Create([FromBody] CreateIncidentDTO dto)
         {
             try
@@ -199,6 +198,7 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
                     "Erreur interne du serveur lors de la création de l'incident"));
             }
         }
+
 
         /// <summary>
         /// Met à jour un incident existant
