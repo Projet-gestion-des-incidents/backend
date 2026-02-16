@@ -27,7 +27,6 @@ namespace projet0.Domain.Entities
         public virtual ICollection<Notification> Notifications { get; set; }
 
         // Audit
-        public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
     }
 }

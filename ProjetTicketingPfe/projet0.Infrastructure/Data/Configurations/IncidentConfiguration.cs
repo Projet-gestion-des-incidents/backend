@@ -19,8 +19,7 @@ namespace projet0.Infrastructure.Data.Configurations
             builder.Property(i => i.CodeIncident).IsRequired().HasMaxLength(20);
             builder.Property(i => i.TitreIncident).IsRequired().HasMaxLength(200);
             builder.Property(i => i.DescriptionIncident).HasMaxLength(2000);
-            builder.Property(i => i.DateDetection).IsRequired();
-            builder.Property(i => i.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
+            builder.Property(i => i.DateDetection).HasDefaultValueSql("GETUTCDATE()").IsRequired();
             builder.Property(i => i.CreatedById);
             builder.Property(i => i.UpdatedById);
 

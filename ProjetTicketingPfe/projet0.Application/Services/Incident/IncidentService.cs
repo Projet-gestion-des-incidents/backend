@@ -364,7 +364,6 @@ namespace projet0.Application.Services.Incident
                         SeveriteIncident = dto.SeveriteIncident,
                         StatutIncident = StatutIncident.Nouveau, // toujours Nouveau à la création
                         DateDetection = DateTime.Now,
-                        CreatedAt = DateTime.UtcNow,
                         CreatedById = createdById,
                         IncidentTickets = new List<IncidentTicket>(),
                         EntitesImpactees = new List<EntiteImpactee>(),
@@ -420,32 +419,46 @@ namespace projet0.Application.Services.Incident
 
                     if (dto.EntitesImpactees != null)
                     {
-                        // ✅ 1️⃣ Récupérer tous les IDs du DTO
+                        // ✅ 1️⃣ Récupérer les IDs des entités actuellement dans l'incident
+                        var entitesActuellesIds = incident.EntitesImpactees
+                            .Select(e => e.Id)
+                            .ToHashSet();
+
+                        // ✅ 2️⃣ Récupérer les IDs du DTO (entités à garder)
                         var dtoIds = dto.EntitesImpactees
                             .Where(e => e.Id.HasValue)
                             .Select(e => e.Id.Value)
                             .ToHashSet();
 
-                        // ✅ 2️⃣ Créer une NOUVELLE liste pour les entités à garder
-                        var nouvellesEntites = new List<EntiteImpactee>();
-
-                        // ✅ 3️⃣ Traiter les entités avec ID (mise à jour)
+                        // ✅ 3️⃣ Traiter les entités EXISTANTES (mise à jour)
                         foreach (var eDto in dto.EntitesImpactees.Where(e => e.Id.HasValue))
                         {
-                            var entite = await _entiteImpacteeRepository.GetByIdAsync(eDto.Id.Value);
-                            if (entite != null)
-                            {
-                                // Mettre à jour l'entité
-                                entite.Nom = eDto.Nom;
-                                entite.TypeEntiteImpactee = eDto.TypeEntiteImpactee;
-                                entite.IncidentId = incident.Id;
+                            // Chercher l'entité dans la collection actuelle
+                            var entiteExistante = incident.EntitesImpactees
+                                .FirstOrDefault(e => e.Id == eDto.Id.Value);
 
-                                // ✅ Ajouter à la NOUVELLE liste
-                                nouvellesEntites.Add(entite);
+                            if (entiteExistante != null)
+                            {
+                                // ✅ MISE À JOUR : l'entité existe déjà dans l'incident
+                                entiteExistante.Nom = eDto.Nom;
+                                entiteExistante.TypeEntiteImpactee = eDto.TypeEntiteImpactee;
+                                // IncidentId reste inchangé (déjà associé)
+                            }
+                            else
+                            {
+                                // ✅ RÉASSOCIATION : l'entité existe en base mais était dissociée
+                                var entite = await _entiteImpacteeRepository.GetByIdAsync(eDto.Id.Value);
+                                if (entite != null)
+                                {
+                                    entite.Nom = eDto.Nom;
+                                    entite.TypeEntiteImpactee = eDto.TypeEntiteImpactee;
+                                    entite.IncidentId = incident.Id;
+                                    incident.EntitesImpactees.Add(entite);
+                                }
                             }
                         }
 
-                        // ✅ 4️⃣ Traiter les nouvelles entités (sans ID)
+                        // ✅ 4️⃣ Ajouter les NOUVELLES entités (sans ID)
                         foreach (var eDto in dto.EntitesImpactees.Where(e => !e.Id.HasValue))
                         {
                             var newEntite = new EntiteImpactee
@@ -454,24 +467,25 @@ namespace projet0.Application.Services.Incident
                                 TypeEntiteImpactee = eDto.TypeEntiteImpactee,
                                 IncidentId = incident.Id
                             };
-                            nouvellesEntites.Add(newEntite);
+                            incident.EntitesImpactees.Add(newEntite);
                         }
 
-                        // ✅ 5️⃣ Remplacer la collection entière
-                        incident.EntitesImpactees.Clear();
-                        foreach (var entite in nouvellesEntites)
-                        {
-                            incident.EntitesImpactees.Add(entite);
-                        }
+                        // ✅ 5️⃣ DISSOCIATION UNIQUEMENT POUR LES ENTITÉS SUPPRIMÉES
+                        // Les entités qui sont dans la collection actuelle mais PAS dans le DTO
+                        var idsASupprimer = entitesActuellesIds.Except(dtoIds).ToList();
 
-                        // ✅ 6️⃣ Dissocier les entités qui ne sont plus dans la nouvelle liste
-                        var entitesADissocier = await _entiteImpacteeRepository
-                            .GetByIncidentIdAsync(incidentId)
-                            ;
-
-                        foreach (var entite in entitesADissocier)
+                        foreach (var id in idsASupprimer)
                         {
-                            entite.IncidentId = null;
+                            var entiteASupprimer = incident.EntitesImpactees
+                                .FirstOrDefault(e => e.Id == id);
+
+                            if (entiteASupprimer != null)
+                            {
+                                // ✅ SUPPRESSION : on dissocie l'entité
+                                entiteASupprimer.IncidentId = null;
+                                // On la retire de la collection
+                                incident.EntitesImpactees.Remove(entiteASupprimer);
+                            }
                         }
                     }
 
