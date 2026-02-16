@@ -158,7 +158,10 @@ namespace projet0.Application.Services.Incident
         }
 
         // Appliquer les filtres pour SearchIncidentsAsync
-        private IQueryable<IncidentEntity> ApplySearchFilters(IQueryable<IncidentEntity> query, IncidentSearchRequest request)
+        private IQueryable<IncidentEntity> ApplySearchFilters(
+            IQueryable<IncidentEntity> query,
+            IncidentSearchRequest request,
+            List<Guid> matchedUserIds)
         {
             if (!string.IsNullOrWhiteSpace(request.SearchTerm))
             {
@@ -167,7 +170,8 @@ namespace projet0.Application.Services.Incident
                 query = query.Where(i =>
                     (i.CodeIncident != null && i.CodeIncident.ToLower().Contains(term)) ||
                     (i.TitreIncident != null && i.TitreIncident.ToLower().Contains(term)) ||
-                    i.DateDetection.Year.ToString().Contains(term)
+                    i.DateDetection.Year.ToString().Contains(term) ||
+                    (matchedUserIds.Any() && i.CreatedById.HasValue && matchedUserIds.Contains(i.CreatedById.Value))
                 );
             }
 
@@ -283,24 +287,36 @@ namespace projet0.Application.Services.Incident
             {
                 try
                 {
-                    // Récupérer le IQueryable depuis le repository (avec Include si nécessaire pour détails)
                     var query = _incidentRepository.QueryWithDetails();
-                    // Appliquer les filtres
-                    query = ApplySearchFilters(query, request);
 
-                    // Compter le total avant pagination
+                    // 🔥 NOUVEAU : Recherche des users correspondant au SearchTerm
+                    List<Guid> matchedUserIds = new();
+
+                    if (!string.IsNullOrWhiteSpace(request.SearchTerm))
+                    {
+                        var userSearchRequest = new UserSearchRequest
+                        {
+                            SearchTerm = request.SearchTerm,
+                            Page = 1,
+                            PageSize = 1000 // large pour récupérer tous les match
+                        };
+
+                        var (users, _) = await _userRepository.SearchUsersAsync(userSearchRequest);
+                        matchedUserIds = users.Select(u => u.Id).ToList();
+                    }
+
+                    // Appliquer les filtres
+                    query = ApplySearchFilters(query, request, matchedUserIds);
+
                     var totalCount = await query.CountAsync();
 
-                    // Appliquer le tri
                     query = ApplySorting(query, request.SortBy, request.SortDescending);
 
-                    // Appliquer la pagination
                     var pagedIncidents = await query
                         .Skip((request.Page - 1) * request.PageSize)
                         .Take(request.PageSize)
                         .ToListAsync();
 
-                    // Mapper les DTOs
                     var dtos = new List<IncidentDTO>();
                     foreach (var incident in pagedIncidents)
                     {
@@ -404,49 +420,46 @@ namespace projet0.Application.Services.Incident
 
                     if (dto.EntitesImpactees != null)
                     {
-                        // ✅ BEST PRACTICE 1: Utiliser un HashSet pour les IDs du DTO
+                        // ✅ 1️⃣ Récupérer tous les IDs du DTO
                         var dtoIds = dto.EntitesImpactees
                             .Where(e => e.Id.HasValue)
                             .Select(e => e.Id.Value)
                             .ToHashSet();
 
-                        // ✅ BEST PRACTICE 2: Dissocier APRÈS avoir traité les modifications
-                        // Mais d'abord, on traite les entités du DTO
-                        foreach (var eDto in dto.EntitesImpactees)
+                        // ✅ 2️⃣ D'ABORD traiter les mises à jour des entités existantes
+                        foreach (var eDto in dto.EntitesImpactees.Where(e => e.Id.HasValue))
                         {
-                            if (eDto.Id.HasValue)
+                            // 🔑 Chercher en BASE, pas dans la collection
+                            var entite = await _entiteImpacteeRepository.GetByIdAsync(eDto.Id.Value);
+
+                            if (entite != null)
                             {
-                                // ✅ BEST PRACTICE 3: Chercher en BASE, pas dans la collection
-                                var entite = await _entiteImpacteeRepository.GetByIdAsync(eDto.Id.Value);
+                                // Mettre à jour l'entité existante
+                                entite.Nom = eDto.Nom;
+                                entite.TypeEntiteImpactee = eDto.TypeEntiteImpactee;
+                                entite.IncidentId = incident.Id; // Réassocier explicitement
 
-                                if (entite != null)
+                                // Ajouter à la collection si pas déjà présent
+                                if (!incident.EntitesImpactees.Any(e => e.Id == entite.Id))
                                 {
-                                    // Mise à jour de l'entité existante
-                                    entite.Nom = eDto.Nom;
-                                    entite.TypeEntiteImpactee = eDto.TypeEntiteImpactee;
-                                    entite.IncidentId = incident.Id; // Réassociation explicite
-
-                                    // Ajouter à la collection si pas déjà présent
-                                    if (!incident.EntitesImpactees.Any(e => e.Id == entite.Id))
-                                    {
-                                        incident.EntitesImpactees.Add(entite);
-                                    }
+                                    incident.EntitesImpactees.Add(entite);
                                 }
-                            }
-                            else
-                            {
-                                // Nouvelle entité
-                                var newEntite = new EntiteImpactee
-                                {
-                                    Nom = eDto.Nom,
-                                    TypeEntiteImpactee = eDto.TypeEntiteImpactee,
-                                    IncidentId = incident.Id
-                                };
-                                incident.EntitesImpactees.Add(newEntite);
                             }
                         }
 
-                        // ✅ BEST PRACTICE 4: Dissocier les entités qui ne sont plus dans le DTO
+                        // ✅ 3️⃣ ENSUITE créer les nouvelles entités
+                        foreach (var eDto in dto.EntitesImpactees.Where(e => !e.Id.HasValue))
+                        {
+                            var newEntite = new EntiteImpactee
+                            {
+                                Nom = eDto.Nom,
+                                TypeEntiteImpactee = eDto.TypeEntiteImpactee,
+                                IncidentId = incident.Id
+                            };
+                            incident.EntitesImpactees.Add(newEntite);
+                        }
+
+                        // ✅ 4️⃣ ENFIN dissocier les entités qui ne sont plus dans le DTO
                         var entitesADissocier = incident.EntitesImpactees
                             .Where(e => !dtoIds.Contains(e.Id))
                             .ToList();

@@ -130,18 +130,17 @@ namespace projet0.Infrastructure.Repositories
             return query;
         }
 
-
-
-
-
-
         public async Task<List<Incident>> GetIncidentsByCreatedByAsync(Guid createdById)
         {
             return await _context.Incidents
-                                .Include(i => i.EntitesImpactees)  // ✅ AJOUTER !
+                .Include(i => i.EntitesImpactees)
+                .Include(i => i.IncidentTickets)
+                    .ThenInclude(it => it.Ticket)
                 .Where(i => i.CreatedById == createdById)
                 .OrderByDescending(i => i.DateDetection)
                 .ToListAsync();
         }
+
+
     }
 }
