@@ -426,28 +426,26 @@ namespace projet0.Application.Services.Incident
                             .Select(e => e.Id.Value)
                             .ToHashSet();
 
-                        // ✅ 2️⃣ D'ABORD traiter les mises à jour des entités existantes
+                        // ✅ 2️⃣ Créer une NOUVELLE liste pour les entités à garder
+                        var nouvellesEntites = new List<EntiteImpactee>();
+
+                        // ✅ 3️⃣ Traiter les entités avec ID (mise à jour)
                         foreach (var eDto in dto.EntitesImpactees.Where(e => e.Id.HasValue))
                         {
-                            // 🔑 Chercher en BASE, pas dans la collection
                             var entite = await _entiteImpacteeRepository.GetByIdAsync(eDto.Id.Value);
-
                             if (entite != null)
                             {
-                                // Mettre à jour l'entité existante
+                                // Mettre à jour l'entité
                                 entite.Nom = eDto.Nom;
                                 entite.TypeEntiteImpactee = eDto.TypeEntiteImpactee;
-                                entite.IncidentId = incident.Id; // Réassocier explicitement
+                                entite.IncidentId = incident.Id;
 
-                                // Ajouter à la collection si pas déjà présent
-                                if (!incident.EntitesImpactees.Any(e => e.Id == entite.Id))
-                                {
-                                    incident.EntitesImpactees.Add(entite);
-                                }
+                                // ✅ Ajouter à la NOUVELLE liste
+                                nouvellesEntites.Add(entite);
                             }
                         }
 
-                        // ✅ 3️⃣ ENSUITE créer les nouvelles entités
+                        // ✅ 4️⃣ Traiter les nouvelles entités (sans ID)
                         foreach (var eDto in dto.EntitesImpactees.Where(e => !e.Id.HasValue))
                         {
                             var newEntite = new EntiteImpactee
@@ -456,13 +454,20 @@ namespace projet0.Application.Services.Incident
                                 TypeEntiteImpactee = eDto.TypeEntiteImpactee,
                                 IncidentId = incident.Id
                             };
-                            incident.EntitesImpactees.Add(newEntite);
+                            nouvellesEntites.Add(newEntite);
                         }
 
-                        // ✅ 4️⃣ ENFIN dissocier les entités qui ne sont plus dans le DTO
-                        var entitesADissocier = incident.EntitesImpactees
-                            .Where(e => !dtoIds.Contains(e.Id))
-                            .ToList();
+                        // ✅ 5️⃣ Remplacer la collection entière
+                        incident.EntitesImpactees.Clear();
+                        foreach (var entite in nouvellesEntites)
+                        {
+                            incident.EntitesImpactees.Add(entite);
+                        }
+
+                        // ✅ 6️⃣ Dissocier les entités qui ne sont plus dans la nouvelle liste
+                        var entitesADissocier = await _entiteImpacteeRepository
+                            .GetByIncidentIdAsync(incidentId)
+                            ;
 
                         foreach (var entite in entitesADissocier)
                         {
