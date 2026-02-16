@@ -33,10 +33,7 @@ namespace projet0.Infrastructure.Data.Configurations
                 .HasForeignKey(it => it.IncidentId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            builder.HasMany(i => i.EntitesImpactees)
-                .WithOne(e => e.Incident)
-                .HasForeignKey(e => e.IncidentId)
-                .OnDelete(DeleteBehavior.Cascade);
+           
 
         }
     }

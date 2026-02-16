@@ -681,7 +681,7 @@ namespace projet0.Infrastructure.Migrations
                     b.HasOne("projet0.Domain.Entities.Incident", "Incident")
                         .WithMany("EntitesImpactees")
                         .HasForeignKey("IncidentId")
-                        .OnDelete(DeleteBehavior.Cascade);
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Incident");
                 });

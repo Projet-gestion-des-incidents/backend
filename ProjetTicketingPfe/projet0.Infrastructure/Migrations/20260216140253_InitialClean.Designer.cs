@@ -12,8 +12,8 @@ using projet0.Infrastructure.Data;
 namespace projet0.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260213141334_CascadeEntiteImpacteIncident")]
-    partial class CascadeEntiteImpacteIncident
+    [Migration("20260216140253_InitialClean")]
+    partial class InitialClean
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -285,7 +285,7 @@ namespace projet0.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid>("IncidentId")
+                    b.Property<Guid?>("IncidentId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Nom")
@@ -346,16 +346,13 @@ namespace projet0.Infrastructure.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
-
                     b.Property<Guid?>("CreatedById")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime>("DateDetection")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
 
                     b.Property<DateTime?>("DateResolution")
                         .HasColumnType("datetime2");
@@ -687,8 +684,7 @@ namespace projet0.Infrastructure.Migrations
                     b.HasOne("projet0.Domain.Entities.Incident", "Incident")
                         .WithMany("EntitesImpactees")
                         .HasForeignKey("IncidentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Incident");
                 });

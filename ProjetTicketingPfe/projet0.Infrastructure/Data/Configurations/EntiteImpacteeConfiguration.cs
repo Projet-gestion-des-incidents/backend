@@ -17,13 +17,13 @@ namespace projet0.Infrastructure.Data.Configurations
             builder.Property(e => e.Nom).IsRequired().HasMaxLength(200);
             builder.Property(e => e.TypeEntiteImpactee).HasConversion<int>();
 
-            builder.Property(e => e.IncidentId)
-              .IsRequired(false);
+     builder.Property(e => e.IncidentId)
+       .IsRequired(false);
 
-            builder.HasOne(e => e.Incident)
-                   .WithMany(i => i.EntitesImpactees)
-                   .HasForeignKey(e => e.IncidentId)
-                   .OnDelete(DeleteBehavior.SetNull); // 🔥 IMPORTANT
+builder.HasOne(e => e.Incident)
+       .WithMany(i => i.EntitesImpactees)
+       .HasForeignKey(e => e.IncidentId)
+       .OnDelete(DeleteBehavior.SetNull); // 🔥 IMPORTANT
 
         }
     }

@@ -419,34 +419,29 @@ namespace projet0.Application.Services.Incident
 
                     if (dto.EntitesImpactees != null)
                     {
-                        // ✅ 1️⃣ Récupérer les IDs des entités actuellement dans l'incident
-                        var entitesActuellesIds = incident.EntitesImpactees
-                            .Select(e => e.Id)
-                            .ToHashSet();
-
-                        // ✅ 2️⃣ Récupérer les IDs du DTO (entités à garder)
+                        // ✅ 1️⃣ Récupérer les IDs du DTO
                         var dtoIds = dto.EntitesImpactees
                             .Where(e => e.Id.HasValue)
                             .Select(e => e.Id.Value)
                             .ToHashSet();
 
-                        // ✅ 3️⃣ Traiter les entités EXISTANTES (mise à jour)
+                        // ✅ 2️⃣ Traiter les MISES À JOUR (entités existantes)
                         foreach (var eDto in dto.EntitesImpactees.Where(e => e.Id.HasValue))
                         {
-                            // Chercher l'entité dans la collection actuelle
+                            // Chercher l'entité dans la COLLECTION ACTUELLE (pas en base)
                             var entiteExistante = incident.EntitesImpactees
                                 .FirstOrDefault(e => e.Id == eDto.Id.Value);
 
                             if (entiteExistante != null)
                             {
-                                // ✅ MISE À JOUR : l'entité existe déjà dans l'incident
+                                // ✅ MISE À JOUR DIRECTE de l'entité dans la collection
                                 entiteExistante.Nom = eDto.Nom;
                                 entiteExistante.TypeEntiteImpactee = eDto.TypeEntiteImpactee;
                                 // IncidentId reste inchangé (déjà associé)
                             }
                             else
                             {
-                                // ✅ RÉASSOCIATION : l'entité existe en base mais était dissociée
+                                // Cas rare: entité avec ID mais pas dans la collection (réassociation)
                                 var entite = await _entiteImpacteeRepository.GetByIdAsync(eDto.Id.Value);
                                 if (entite != null)
                                 {
@@ -458,7 +453,7 @@ namespace projet0.Application.Services.Incident
                             }
                         }
 
-                        // ✅ 4️⃣ Ajouter les NOUVELLES entités (sans ID)
+                        // ✅ 3️⃣ Ajouter les NOUVELLES entités (sans ID)
                         foreach (var eDto in dto.EntitesImpactees.Where(e => !e.Id.HasValue))
                         {
                             var newEntite = new EntiteImpactee
@@ -470,22 +465,16 @@ namespace projet0.Application.Services.Incident
                             incident.EntitesImpactees.Add(newEntite);
                         }
 
-                        // ✅ 5️⃣ DISSOCIATION UNIQUEMENT POUR LES ENTITÉS SUPPRIMÉES
-                        // Les entités qui sont dans la collection actuelle mais PAS dans le DTO
-                        var idsASupprimer = entitesActuellesIds.Except(dtoIds).ToList();
+                        // ✅ 4️⃣ SUPPRESSION UNIQUEMENT (quand l'utilisateur clique sur supprimer)
+                        var entitesASupprimer = incident.EntitesImpactees
+                            .Where(e => !dtoIds.Contains(e.Id))
+                            .ToList();
 
-                        foreach (var id in idsASupprimer)
+                        foreach (var entite in entitesASupprimer)
                         {
-                            var entiteASupprimer = incident.EntitesImpactees
-                                .FirstOrDefault(e => e.Id == id);
-
-                            if (entiteASupprimer != null)
-                            {
-                                // ✅ SUPPRESSION : on dissocie l'entité
-                                entiteASupprimer.IncidentId = null;
-                                // On la retire de la collection
-                                incident.EntitesImpactees.Remove(entiteASupprimer);
-                            }
+                            entite.IncidentId = null; // Dissociation
+                                                      // Optionnel: la retirer de la collection si vous voulez
+                                                      // incident.EntitesImpactees.Remove(entite);
                         }
                     }
 

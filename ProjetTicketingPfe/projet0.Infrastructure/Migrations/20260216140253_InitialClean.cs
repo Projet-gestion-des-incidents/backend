@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace projet0.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class InitialClean : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -65,11 +65,10 @@ namespace projet0.Infrastructure.Migrations
                     DescriptionIncident = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: false),
                     SeveriteIncident = table.Column<int>(type: "int", nullable: false),
                     StatutIncident = table.Column<int>(type: "int", nullable: false),
-                    DateDetection = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    DateDetection = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
                     DateResolution = table.Column<DateTime>(type: "datetime2", nullable: true),
                     CreatedById = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     UpdatedById = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
                     UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
                 },
                 constraints: table =>
@@ -257,7 +256,7 @@ namespace projet0.Infrastructure.Migrations
                         column: x => x.IncidentId,
                         principalTable: "Incidents",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.SetNull);
                 });
 
             migrationBuilder.CreateTable(
