@@ -1,17 +1,17 @@
-﻿using Microsoft.Extensions.Logging;
-using Org.BouncyCastle.Crypto;
+﻿using AutoMapper;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using projet0.Application.Common.Models.Pagination;
 using projet0.Application.Commun.DTOs.Incident;
 using projet0.Application.Commun.Ressources;
 using projet0.Application.Interfaces;
 using projet0.Domain.Entities;
+using projet0.Domain.Enums;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Text;
-using AutoMapper;
+
 using IncidentEntity = projet0.Domain.Entities.Incident;
-using projet0.Domain.Enums;
 
 namespace projet0.Application.Services.Incident
 {
@@ -39,6 +39,7 @@ namespace projet0.Application.Services.Incident
 
         #region Private Methods
 
+        //mesurer et logger l’exécution d’une action asynchrone.
         private async Task<T> MeasureAsync<T>(string actionName, object input, Func<Task<T>> action)
         {
             var sw = Stopwatch.StartNew();
@@ -60,6 +61,7 @@ namespace projet0.Application.Services.Incident
             }
         }
 
+        //transformer un IncidentEntity en IncidentDTO.
         private async Task<IncidentDTO> MapToDto(IncidentEntity incident)
         {
             var dto = _mapper.Map<IncidentDTO>(incident);
@@ -89,6 +91,7 @@ namespace projet0.Application.Services.Incident
             return dto;
         }
 
+        //transformer un IncidentEntity en IncidentDetailDTO
         private async Task<IncidentDetailDTO> MapToDetailDto(IncidentEntity incident)
         {
             var dto = _mapper.Map<IncidentDetailDTO>(incident);
@@ -154,15 +157,18 @@ namespace projet0.Application.Services.Incident
             };
         }
 
+        // Appliquer les filtres pour SearchIncidentsAsync
         private IQueryable<IncidentEntity> ApplySearchFilters(IQueryable<IncidentEntity> query, IncidentSearchRequest request)
         {
             if (!string.IsNullOrWhiteSpace(request.SearchTerm))
             {
                 var term = request.SearchTerm.ToLower();
+
                 query = query.Where(i =>
-                    i.CodeIncident.ToLower().Contains(term) ||
-                    i.TitreIncident.ToLower().Contains(term) ||
-                    i.DescriptionIncident.ToLower().Contains(term));
+                    (i.CodeIncident != null && i.CodeIncident.ToLower().Contains(term)) ||
+                    (i.TitreIncident != null && i.TitreIncident.ToLower().Contains(term)) ||
+                    i.DateDetection.Year.ToString().Contains(term)
+                );
             }
 
             if (request.SeveriteIncident.HasValue)
@@ -171,18 +177,11 @@ namespace projet0.Application.Services.Incident
             if (request.StatutIncident.HasValue)
                 query = query.Where(i => i.StatutIncident == request.StatutIncident.Value);
 
-            if (request.CreatedById.HasValue)
-                query = query.Where(i => i.CreatedById == request.CreatedById.Value);
-
-            if (request.DateDebut.HasValue)
-                query = query.Where(i => i.DateDetection >= request.DateDebut.Value);
-
-            if (request.DateFin.HasValue)
-                query = query.Where(i => i.DateDetection <= request.DateFin.Value);
-
             return query;
         }
 
+
+        // Appliquer le tri pour SearchIncidentsAsync
         private IQueryable<IncidentEntity> ApplySorting(IQueryable<IncidentEntity> query, string sortBy, bool descending)
         {
             if (string.IsNullOrWhiteSpace(sortBy))
@@ -284,24 +283,22 @@ namespace projet0.Application.Services.Incident
             {
                 try
                 {
-                    // Récupérer tous les incidents
-                    var incidents = await _incidentRepository.GetAllWithDetailsAsync();
-                    var query = incidents.AsQueryable();
-
+                    // Récupérer le IQueryable depuis le repository (avec Include si nécessaire pour détails)
+                    var query = _incidentRepository.QueryWithDetails();
                     // Appliquer les filtres
                     query = ApplySearchFilters(query, request);
 
                     // Compter le total avant pagination
-                    var totalCount = query.Count();
+                    var totalCount = await query.CountAsync();
 
                     // Appliquer le tri
                     query = ApplySorting(query, request.SortBy, request.SortDescending);
 
                     // Appliquer la pagination
-                    var pagedIncidents = query
+                    var pagedIncidents = await query
                         .Skip((request.Page - 1) * request.PageSize)
                         .Take(request.PageSize)
-                        .ToList();
+                        .ToListAsync();
 
                     // Mapper les DTOs
                     var dtos = new List<IncidentDTO>();
@@ -407,46 +404,38 @@ namespace projet0.Application.Services.Incident
 
                     if (dto.EntitesImpactees != null)
                     {
-                        // 1️⃣ Dissocier les entités qui ne sont plus dans le DTO
-                        var dtoIds = dto.EntitesImpactees.Where(d => d.Id.HasValue).Select(d => d.Id.Value).ToHashSet();
-                        foreach (var entite in incident.EntitesImpactees)
-                        {
-                            if (!dtoIds.Contains(entite.Id))
-                            {
-                                entite.IncidentId = null; // Dissociation au lieu de suppression
-                            }
-                        }
+                        // ✅ BEST PRACTICE 1: Utiliser un HashSet pour les IDs du DTO
+                        var dtoIds = dto.EntitesImpactees
+                            .Where(e => e.Id.HasValue)
+                            .Select(e => e.Id.Value)
+                            .ToHashSet();
 
-                        // 2️⃣ Parcourir les entités du DTO pour modifier ou créer
+                        // ✅ BEST PRACTICE 2: Dissocier APRÈS avoir traité les modifications
+                        // Mais d'abord, on traite les entités du DTO
                         foreach (var eDto in dto.EntitesImpactees)
                         {
                             if (eDto.Id.HasValue)
                             {
-                                // Modifier ou réassocier une entité existante
-                                var existing = incident.EntitesImpactees.FirstOrDefault(e => e.Id == eDto.Id.Value);
+                                // ✅ BEST PRACTICE 3: Chercher en BASE, pas dans la collection
+                                var entite = await _entiteImpacteeRepository.GetByIdAsync(eDto.Id.Value);
 
-                                if (existing != null)
+                                if (entite != null)
                                 {
-                                    existing.Nom = eDto.Nom;
-                                    existing.TypeEntiteImpactee = eDto.TypeEntiteImpactee;
-                                    existing.IncidentId = incident.Id; // au cas où elle avait été dissociée
-                                }
-                                else
-                                {
-                                    // Récupérer une entité dissociée en base
-                                    var dissociee = await _entiteImpacteeRepository.GetByIdAsync(eDto.Id.Value);
-                                    if (dissociee != null)
+                                    // Mise à jour de l'entité existante
+                                    entite.Nom = eDto.Nom;
+                                    entite.TypeEntiteImpactee = eDto.TypeEntiteImpactee;
+                                    entite.IncidentId = incident.Id; // Réassociation explicite
+
+                                    // Ajouter à la collection si pas déjà présent
+                                    if (!incident.EntitesImpactees.Any(e => e.Id == entite.Id))
                                     {
-                                        dissociee.Nom = eDto.Nom;
-                                        dissociee.TypeEntiteImpactee = eDto.TypeEntiteImpactee;
-                                        dissociee.IncidentId = incident.Id;
-                                        incident.EntitesImpactees.Add(dissociee);
+                                        incident.EntitesImpactees.Add(entite);
                                     }
                                 }
                             }
                             else
                             {
-                                // Nouvelle entité à créer
+                                // Nouvelle entité
                                 var newEntite = new EntiteImpactee
                                 {
                                     Nom = eDto.Nom,
@@ -455,6 +444,16 @@ namespace projet0.Application.Services.Incident
                                 };
                                 incident.EntitesImpactees.Add(newEntite);
                             }
+                        }
+
+                        // ✅ BEST PRACTICE 4: Dissocier les entités qui ne sont plus dans le DTO
+                        var entitesADissocier = incident.EntitesImpactees
+                            .Where(e => !dtoIds.Contains(e.Id))
+                            .ToList();
+
+                        foreach (var entite in entitesADissocier)
+                        {
+                            entite.IncidentId = null;
                         }
                     }
 
@@ -470,7 +469,6 @@ namespace projet0.Application.Services.Incident
                 }
             });
         }
-
         public async Task<ApiResponse<bool>> DeleteIncidentAsync(Guid id)
         {
             return await MeasureAsync(nameof(DeleteIncidentAsync), new { id }, async () =>
@@ -508,27 +506,6 @@ namespace projet0.Application.Services.Incident
 
         #region Specific Methods
 
-        public async Task<ApiResponse<IncidentDTO>> GetIncidentByCodeAsync(string code)
-        {
-            return await MeasureAsync(nameof(GetIncidentByCodeAsync), new { code }, async () =>
-            {
-                try
-                {
-                    var incident = await _incidentRepository.GetByCodeAsync(code);
-
-                    if (incident == null)
-                        return ApiResponse<IncidentDTO>.Failure($"Incident avec code {code} non trouvé");
-
-                    var dto = await MapToDto(incident);
-                    return ApiResponse<IncidentDTO>.Success(dto);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Erreur lors de la récupération de l'incident {Code}", code);
-                    return ApiResponse<IncidentDTO>.Failure("Erreur interne du serveur");
-                }
-            });
-        }
 
         public async Task<ApiResponse<List<IncidentDTO>>> GetIncidentsByStatutAsync(StatutIncident statut)
         {
@@ -602,116 +579,8 @@ namespace projet0.Application.Services.Incident
             });
         }
 
-        public async Task<ApiResponse<IncidentDTO>> UpdateIncidentStatutAsync(Guid id, UpdateIncidentStatutDTO dto, Guid updatedById)
-        {
-            return await MeasureAsync(nameof(UpdateIncidentStatutAsync), new { id, dto, updatedById }, async () =>
-            {
-                try
-                {
-                    var incident = await _incidentRepository.GetByIdAsync(id);
 
-                    if (incident == null)
-                        return ApiResponse<IncidentDTO>.Failure($"Incident avec ID {id} non trouvé");
 
-                    var ancienStatut = incident.StatutIncident;
-                    incident.StatutIncident = dto.StatutIncident;
-                    incident.DateResolution = dto.DateResolution ?? incident.DateResolution;
-                    incident.UpdatedAt = DateTime.UtcNow;
-                    incident.UpdatedById = updatedById;
-
-                    await _incidentRepository.UpdateAsync(incident);
-                    await _incidentRepository.SaveChangesAsync();
-
-                    var resultDto = await MapToDto(incident);
-
-                    _logger.LogInformation("Incident {Code} : Statut changé de {Ancien} à {Nouveau} par {UserId}",
-                        incident.CodeIncident, ancienStatut, dto.StatutIncident, updatedById);
-
-                    return ApiResponse<IncidentDTO>.Success(resultDto, $"Statut de l'incident mis à jour vers {GetStatutLibelle(dto.StatutIncident)}");
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Erreur lors du changement de statut de l'incident {Id}", id);
-                    return ApiResponse<IncidentDTO>.Failure("Erreur interne du serveur");
-                }
-            });
-        }
-
-        public async Task<ApiResponse<bool>> ResoudreIncidentAsync(Guid id, Guid updatedById)
-        {
-            return await MeasureAsync(nameof(ResoudreIncidentAsync), new { id, updatedById }, async () =>
-            {
-                try
-                {
-                    var incident = await _incidentRepository.GetByIdAsync(id);
-
-                    if (incident == null)
-                        return ApiResponse<bool>.Failure($"Incident avec ID {id} non trouvé");
-
-                    incident.StatutIncident = StatutIncident.Resolu;
-                    incident.DateResolution = DateTime.Now;
-                    incident.UpdatedAt = DateTime.UtcNow;
-                    incident.UpdatedById = updatedById;
-
-                    await _incidentRepository.UpdateAsync(incident);
-                    await _incidentRepository.SaveChangesAsync();
-
-                    _logger.LogInformation("Incident {Code} résolu par {UserId}", incident.CodeIncident, updatedById);
-
-                    return ApiResponse<bool>.Success(true, "Incident marqué comme résolu");
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Erreur lors de la résolution de l'incident {Id}", id);
-                    return ApiResponse<bool>.Failure("Erreur interne du serveur");
-                }
-            });
-        }
-
-        public async Task<ApiResponse<bool>> AssignerEntitesImpacteesAsync(Guid incidentId, List<Guid> entiteIds)
-        {
-            return await MeasureAsync(nameof(AssignerEntitesImpacteesAsync), new { incidentId, entiteIds }, async () =>
-            {
-                try
-                {
-                    var incident = await _incidentRepository.GetIncidentWithDetailsAsync(incidentId);
-
-                    if (incident == null)
-                        return ApiResponse<bool>.Failure($"Incident avec ID {incidentId} non trouvé");
-
-                    // Récupérer les entités à ajouter
-                    var nouvellesEntites = await _entiteImpacteeRepository.GetByIdsAsync(entiteIds);
-
-                    // Créer un HashSet des IDs existants pour éviter les doublons
-                    var existantsIds = incident.EntitesImpactees.Select(e => e.Id).ToHashSet();
-
-                    // Ajouter uniquement les nouvelles entités qui ne sont pas déjà assignées
-                    foreach (var entite in nouvellesEntites)
-                    {
-                        if (!existantsIds.Contains(entite.Id))
-                        {
-                            entite.IncidentId = incidentId;
-                            incident.EntitesImpactees.Add(entite);
-                        }
-                    }
-
-                    incident.UpdatedAt = DateTime.UtcNow;
-
-                    await _incidentRepository.UpdateAsync(incident);
-                    await _incidentRepository.SaveChangesAsync();
-
-                    return ApiResponse<bool>.Success(
-                        true,
-                        $"{nouvellesEntites.Count} entités impactées assignées à l'incident"
-                    );
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Erreur lors de l'assignation des entités impactées à l'incident {Id}", incidentId);
-                    return ApiResponse<bool>.Failure("Erreur interne du serveur");
-                }
-            });
-        }
 
         #endregion
     }

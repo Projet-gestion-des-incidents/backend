@@ -11,6 +11,7 @@ namespace projet0.Application.Interfaces
     public interface IIncidentRepository : IGenericRepository<Incident>
     {
         Task<Incident> GetByCodeAsync(string code);
+        IQueryable<Incident> QueryWithDetails(Guid? createdById = null);
         Task<List<Incident>> GetIncidentsByStatutAsync(StatutIncident statut);
         Task<List<Incident>> GetIncidentsBySeveriteAsync(SeveriteIncident severite);
         Task<bool> IsCodeUniqueAsync(string code, Guid? excludeId = null);

@@ -10,9 +10,7 @@ namespace projet0.Application.Commun.DTOs.Incident
         public string SearchTerm { get; set; }
         public SeveriteIncident? SeveriteIncident { get; set; }
         public StatutIncident? StatutIncident { get; set; }
-        public DateTime? DateDebut { get; set; }
-        public DateTime? DateFin { get; set; }
-        public Guid? CreatedById { get; set; }
+   
         public int Page { get; set; } = 1;
         public int PageSize { get; set; } = 10;
         public string SortBy { get; set; } = "DateDetection";

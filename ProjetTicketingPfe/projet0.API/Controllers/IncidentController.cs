@@ -138,30 +138,6 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
             }
         }
 
-        /// <summary>
-        /// Récupère un incident par son code
-        /// </summary>
-        [HttpGet("code/{code}")]
-        [Authorize(Policy = "IncidentRead")]
-
-        public async Task<ActionResult<ApiResponse<IncidentDTO>>> GetByCode(string code)
-        {
-            try
-            {
-                var result = await _incidentService.GetIncidentByCodeAsync(code);
-
-                if (!result.IsSuccess)
-                    return NotFound(result);
-
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Erreur lors de la récupération de l'incident {IncidentCode}", code);
-                return StatusCode(500, ApiResponse<IncidentDTO>.Failure(
-                    "Erreur interne du serveur lors de la récupération de l'incident par code"));
-            }
-        }
 
         /// <summary>
         /// Crée un nouvel incident
@@ -357,116 +333,7 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
             }
         }
 
-        /// <summary>
-        /// Met à jour uniquement le statut d'un incident
-        /// </summary>
-        [HttpPatch("{id}/statut")]
-        [Authorize(Policy = "IncidentUpdate")]
      
-        public async Task<ActionResult<ApiResponse<IncidentDTO>>> UpdateStatut(
-            Guid id,
-            [FromBody] UpdateIncidentStatutDTO dto)
-        {
-            try
-            {
-                if (!ModelState.IsValid)
-                    return BadRequest(ModelState);
-
-                var userId = GetCurrentUserId();
-                var result = await _incidentService.UpdateIncidentStatutAsync(id, dto, userId);
-
-                if (!result.IsSuccess)
-                {
-                    if (result.Message?.Contains("non trouvé") == true)
-                        return NotFound(result);
-
-                    return BadRequest(result);
-                }
-
-                return Ok(result);
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                _logger.LogWarning(ex, "Tentative de mise à jour du statut sans authentification");
-                return Unauthorized(ApiResponse<IncidentDTO>.Failure(ex.Message));
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Erreur lors du changement de statut de l'incident {IncidentId}", id);
-                return StatusCode(500, ApiResponse<IncidentDTO>.Failure(
-                    "Erreur interne du serveur lors du changement de statut"));
-            }
-        }
-
-        /// <summary>
-        /// Marque un incident comme résolu
-        /// </summary>
-        [HttpPatch("{id}/resoudre")]
-        [Authorize(Policy = "IncidentUpdate")]
-
-        public async Task<ActionResult<ApiResponse<bool>>> Resoudre(Guid id)
-        {
-            try
-            {
-                var userId = GetCurrentUserId();
-                var result = await _incidentService.ResoudreIncidentAsync(id, userId);
-
-                if (!result.IsSuccess)
-                    return NotFound(result);
-
-                return Ok(result);
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                _logger.LogWarning(ex, "Tentative de résolution d'incident sans authentification");
-                return Unauthorized(ApiResponse<bool>.Failure(ex.Message));
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Erreur lors de la résolution de l'incident {IncidentId}", id);
-                return StatusCode(500, ApiResponse<bool>.Failure(
-                    "Erreur interne du serveur lors de la résolution de l'incident"));
-            }
-        }
-
-        /// <summary>
-        /// Assigne des entités impactées à un incident
-        /// </summary>
-        [HttpPost("{id}/entites-impactees")]
-        [Authorize(Policy = "IncidentUpdate")]
-
-        public async Task<ActionResult<ApiResponse<bool>>> AssignerEntitesImpactees(
-            Guid id,
-            [FromBody] List<Guid> entiteIds)
-        {
-            try
-            {
-                if (entiteIds == null || entiteIds.Count == 0)
-                {
-                    return BadRequest(ApiResponse<bool>.Failure(
-                        "La liste des entités impactées ne peut pas être vide"));
-                }
-
-                var result = await _incidentService.AssignerEntitesImpacteesAsync(id, entiteIds);
-
-                if (!result.IsSuccess)
-                {
-                    if (result.Message?.Contains("non trouvé") == true)
-                        return NotFound(result);
-
-                    return BadRequest(result);
-                }
-
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Erreur lors de l'assignation des entités impactées à l'incident {IncidentId}", id);
-                return StatusCode(500, ApiResponse<bool>.Failure(
-                    "Erreur interne du serveur lors de l'assignation des entités impactées"));
-            }
-        }
-
         #endregion
     }
 }

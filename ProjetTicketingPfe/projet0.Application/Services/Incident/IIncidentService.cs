@@ -20,12 +20,9 @@ namespace projet0.Application.Services.Incident
         Task<ApiResponse<bool>> DeleteIncidentAsync(Guid id);
 
         // Méthodes spécifiques
-        Task<ApiResponse<IncidentDTO>> GetIncidentByCodeAsync(string code);
         Task<ApiResponse<List<IncidentDTO>>> GetIncidentsByStatutAsync(StatutIncident statut);
         Task<ApiResponse<List<IncidentDTO>>> GetIncidentsBySeveriteAsync(SeveriteIncident severite);
         Task<ApiResponse<List<IncidentDTO>>> GetIncidentsByCreatedByAsync(Guid createdById);
-        Task<ApiResponse<IncidentDTO>> UpdateIncidentStatutAsync(Guid id, UpdateIncidentStatutDTO dto, Guid updatedById);
-        Task<ApiResponse<bool>> ResoudreIncidentAsync(Guid id, Guid updatedById);
-        Task<ApiResponse<bool>> AssignerEntitesImpacteesAsync(Guid incidentId, List<Guid> entiteIds);
+     
     }
 }

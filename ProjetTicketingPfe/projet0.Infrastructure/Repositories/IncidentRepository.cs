@@ -116,6 +116,24 @@ namespace projet0.Infrastructure.Repositories
                 .OrderByDescending(i => i.DateDetection)
                 .ToListAsync();
         }
+        public IQueryable<Incident> QueryWithDetails(Guid? createdById = null)
+        {
+            var query = _context.Incidents
+                .Include(i => i.EntitesImpactees)
+                .Include(i => i.IncidentTickets)
+                    .ThenInclude(it => it.Ticket)
+                .AsQueryable();
+
+            if (createdById.HasValue)
+                query = query.Where(i => i.CreatedById == createdById.Value);
+
+            return query;
+        }
+
+
+
+
+
 
         public async Task<List<Incident>> GetIncidentsByCreatedByAsync(Guid createdById)
         {
