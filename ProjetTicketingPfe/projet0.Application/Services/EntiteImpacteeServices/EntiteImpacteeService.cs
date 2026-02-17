@@ -29,30 +29,30 @@ namespace projet0.Application.Services.EntiteImpacteeServices
             _logger = logger;
         }
 
-        public async Task<ApiResponse<EntiteImpacteeDTO>> CreateAsync(CreateEntiteImpacteeDTO dto)
+public async Task<ApiResponse<EntiteImpacteeDTO>> CreateAsync(CreateEntiteImpacteeDTO dto)
+{
+    try
+    {
+        var entite = new EntiteImpactee
         {
-            try
-            {
-                var entite = new EntiteImpactee
-                {
-                    Id = Guid.NewGuid(),
-                    TypeEntiteImpactee = dto.TypeEntiteImpactee,
-                    Nom = dto.Nom,
-                    IncidentId = dto.IncidentId // ✅ obligatoire maintenant
-                };
+            Id = Guid.NewGuid(),
+            TypeEntiteImpactee = dto.TypeEntiteImpactee,
+            Nom = dto.Nom,
+            IncidentId = dto.IncidentId // ✅ obligatoire maintenant
+        };
 
-                await _repository.AddAsync(entite);
-                await _repository.SaveChangesAsync();
+        await _repository.AddAsync(entite);
+        await _repository.SaveChangesAsync();
 
-                var dtoResult = _mapper.Map<EntiteImpacteeDTO>(entite);
-                return ApiResponse<EntiteImpacteeDTO>.Success(dtoResult, "Entité impactée créée avec succès");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Erreur lors de la création d'entité impactée");
-                return ApiResponse<EntiteImpacteeDTO>.Failure("Erreur interne du serveur");
-            }
-        }
+        var dtoResult = _mapper.Map<EntiteImpacteeDTO>(entite);
+        return ApiResponse<EntiteImpacteeDTO>.Success(dtoResult, "Entité impactée créée avec succès");
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Erreur lors de la création d'entité impactée");
+        return ApiResponse<EntiteImpacteeDTO>.Failure("Erreur interne du serveur");
+    }
+}
 
         public async Task<ApiResponse<List<EntiteImpacteeDTO>>> GetAllAsync()
         {
