@@ -171,7 +171,6 @@ namespace projet0.Application.Services.Incident
                 query = query.Where(i =>
                     (i.CodeIncident != null && i.CodeIncident.ToLower().Contains(term)) ||
                     (i.TitreIncident != null && i.TitreIncident.ToLower().Contains(term)) ||
-                    i.DateDetection.Year.ToString().Contains(term) ||
                     (matchedUserIds.Any() && i.CreatedById.HasValue && matchedUserIds.Contains(i.CreatedById.Value))
                 );
             }
@@ -183,6 +182,20 @@ namespace projet0.Application.Services.Incident
             // Filtre par statut si renseigné
             if (request.StatutIncident.HasValue)
                 query = query.Where(i => i.StatutIncident == request.StatutIncident.Value);
+
+            // Filtre par année de détection
+            if (request.YearDetection.HasValue)
+            {
+                query = query.Where(i => i.DateDetection.Year == request.YearDetection.Value);
+            }
+
+            // Filtre par année de résolution
+            if (request.YearResolution.HasValue)
+            {
+                query = query.Where(i => i.DateResolution.HasValue &&
+                                         i.DateResolution.Value.Year == request.YearResolution.Value);
+            }
+
 
             return query;
         }
