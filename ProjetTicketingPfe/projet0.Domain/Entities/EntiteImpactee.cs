@@ -12,7 +12,7 @@ namespace projet0.Domain.Entities
         public string Nom { get; set; }
 
         // Foreign Keys
-        public Guid? IncidentId { get; set; }
+        public Guid IncidentId { get; set; }
 
         // Navigation Properties
         public virtual Incident Incident { get; set; }

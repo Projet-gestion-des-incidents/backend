@@ -38,7 +38,7 @@ namespace projet0.Application.Services.EntiteImpacteeServices
                     Id = Guid.NewGuid(),
                     TypeEntiteImpactee = dto.TypeEntiteImpactee,
                     Nom = dto.Nom,
-                    IncidentId = null
+                    IncidentId = dto.IncidentId // ✅ obligatoire maintenant
                 };
 
                 await _repository.AddAsync(entite);

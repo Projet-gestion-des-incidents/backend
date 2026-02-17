@@ -346,186 +346,187 @@ namespace projet0.Application.Services.Incident
 
         public async Task<ApiResponse<IncidentDTO>> CreateIncidentAsync(CreateIncidentDTO dto, Guid createdById)
         {
-            return await MeasureAsync(nameof(CreateIncidentAsync), new { dto, createdById }, async () =>
+            var sw = Stopwatch.StartNew();
+            _logger.LogInformation("CreateIncident START | Titre: {Titre}", dto.TitreIncident);
+
+            try
             {
-                try
+                if (string.IsNullOrWhiteSpace(dto.TitreIncident))
+                    return ApiResponse<IncidentDTO>.Failure("Le titre est requis");
+
+                var code = await _incidentRepository.GenerateCodeIncidentAsync();
+
+                var incident = new IncidentEntity
                 {
-                    // Validation
-                    if (string.IsNullOrWhiteSpace(dto.TitreIncident))
-                        return ApiResponse<IncidentDTO>.Failure("Le titre de l'incident est requis");
+                    Id = Guid.NewGuid(),
+                    CodeIncident = code,
+                    TitreIncident = dto.TitreIncident,
+                    DescriptionIncident = dto.DescriptionIncident,
+                    SeveriteIncident = dto.SeveriteIncident,
+                    StatutIncident = StatutIncident.Nouveau,
+                    DateDetection = DateTime.UtcNow,
+                    CreatedById = createdById,
+                    EntitesImpactees = new List<EntiteImpactee>()
+                };
 
-                    // Générer le code unique
-                    var code = await _incidentRepository.GenerateCodeIncidentAsync();
-
-                    // Créer l'incident
-                    var incident = new IncidentEntity
+                if (dto.EntitesImpactees != null)
+                {
+                    foreach (var e in dto.EntitesImpactees)
                     {
-                        Id = Guid.NewGuid(),
-                        CodeIncident = code,
-                        TitreIncident = dto.TitreIncident,
-                        DescriptionIncident = dto.DescriptionIncident,
-                        SeveriteIncident = dto.SeveriteIncident,
-                        StatutIncident = StatutIncident.Nouveau, // toujours Nouveau à la création
-                        DateDetection = DateTime.Now,
-                        CreatedById = createdById,
-                        IncidentTickets = new List<IncidentTicket>(),
-                        EntitesImpactees = new List<EntiteImpactee>(),
-                        Notifications = new List<Notification>()
-                    };
-
-                    // Ajouter les entités impactées si spécifiées
-                    if (dto.EntitesImpactees != null && dto.EntitesImpactees.Any())
-                    {
-                        foreach (var eDto in dto.EntitesImpactees)
+                        incident.EntitesImpactees.Add(new EntiteImpactee
                         {
-                            var entite = new EntiteImpactee
-                            {
-                                IncidentId = incident.Id,
-                                TypeEntiteImpactee = eDto.TypeEntiteImpactee,
-                                Nom = eDto.Nom
-                            };
-                            incident.EntitesImpactees.Add(entite);
-                        }
+                            Nom = e.Nom,
+                            TypeEntiteImpactee = e.TypeEntiteImpactee,
+                            IncidentId = incident.Id
+                        });
                     }
-
-                    await _incidentRepository.AddAsync(incident);
-                    await _incidentRepository.SaveChangesAsync();
-
-                    var resultDto = await MapToDto(incident);
-
-                    return ApiResponse<IncidentDTO>.Success(resultDto, $"Incident {code} créé avec succès");
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Erreur lors de la création de l'incident");
-                    return ApiResponse<IncidentDTO>.Failure("Erreur interne du serveur");
-                }
-            });
+
+                await _incidentRepository.AddAsync(incident);
+                await _incidentRepository.SaveChangesAsync();
+
+                var result = await MapToDto(incident);
+
+                sw.Stop();
+                _logger.LogInformation("CreateIncident SUCCESS | Code: {Code} | Duration: {Ms} ms",
+                    code, sw.ElapsedMilliseconds);
+
+                return ApiResponse<IncidentDTO>.Success(result, $"Incident {code} créé");
+            }
+            catch (Exception ex)
+            {
+                sw.Stop();
+                _logger.LogError(ex, "CreateIncident ERROR | Duration: {Ms} ms", sw.ElapsedMilliseconds);
+                return ApiResponse<IncidentDTO>.Failure("Erreur interne du serveur");
+            }
         }
-
-        public async Task<ApiResponse<IncidentDTO>> UpdateIncidentAsync(Guid incidentId, UpdateIncidentDTO dto, Guid updatedById)
+        public async Task<ApiResponse<IncidentDTO>> UpdateIncidentAsync(
+     Guid incidentId,
+     UpdateIncidentDTO dto,
+     Guid updatedById)
         {
-            return await MeasureAsync(nameof(UpdateIncidentAsync), new { incidentId, dto }, async () =>
+            var sw = Stopwatch.StartNew();
+            _logger.LogInformation("UpdateIncident START | Id: {IncidentId}", incidentId);
+
+            try
             {
-                try
+                var incident = await _incidentRepository.GetIncidentWithDetailsAsync(incidentId);
+
+                if (incident == null)
                 {
-                    var incident = await _incidentRepository.GetIncidentWithDetailsAsync(incidentId);
-                    if (incident == null)
-                        return ApiResponse<IncidentDTO>.Failure("Incident introuvable");
+                    _logger.LogWarning("UpdateIncident | Incident introuvable | Id: {IncidentId}", incidentId);
+                    return ApiResponse<IncidentDTO>.Failure("Incident introuvable");
+                }
 
-                    // Mise à jour des champs simples
-                    incident.TitreIncident = dto.TitreIncident ?? incident.TitreIncident;
-                    incident.DescriptionIncident = dto.DescriptionIncident ?? incident.DescriptionIncident;
-                    incident.SeveriteIncident = dto.SeveriteIncident;
-                    incident.StatutIncident = dto.StatutIncident;
-                    incident.UpdatedAt = DateTime.UtcNow;
+                // 🔹 1️⃣ Mise à jour des champs simples
+                _logger.LogDebug("Updating basic fields");
+                incident.TitreIncident = dto.TitreIncident ?? incident.TitreIncident;
+                incident.DescriptionIncident = dto.DescriptionIncident ?? incident.DescriptionIncident;
+                incident.SeveriteIncident = dto.SeveriteIncident;
+                incident.StatutIncident = dto.StatutIncident;
+                incident.UpdatedAt = DateTime.UtcNow;
+                incident.UpdatedById = updatedById;
 
-                    if (dto.EntitesImpactees != null)
+
+                if (dto.EntitesImpactees != null)
+                {
+                    _logger.LogDebug("Processing {Count} entitesImpactees from DTO", dto.EntitesImpactees.Count);
+
+                    var existingEntities = incident.EntitesImpactees.ToList();
+
+                    var dtoIds = dto.EntitesImpactees.Where(e => e.Id.HasValue).Select(e => e.Id.Value).ToHashSet();
+                    var toRemove = existingEntities.Where(e => !dtoIds.Contains(e.Id)).ToList();
+                    _logger.LogDebug("Found {Count} entities to remove", toRemove.Count);
+
+                    foreach (var e in toRemove)
                     {
-                        // ✅ 1️⃣ Récupérer les IDs du DTO
-                        var dtoIds = dto.EntitesImpactees
-                            .Where(e => e.Id.HasValue)
-                            .Select(e => e.Id.Value)
-                            .ToHashSet();
+                        incident.EntitesImpactees.Remove(e);
+                        _logger.LogDebug("Removing entity | Id: {Id}, Nom: {Nom}", e.Id, e.Nom);
 
-                        // ✅ 2️⃣ Traiter les MISES À JOUR (entités existantes)
-                        foreach (var eDto in dto.EntitesImpactees.Where(e => e.Id.HasValue))
+                    }
+
+                    // 🔹 Mettre à jour les existantes
+                    foreach (var eDto in dto.EntitesImpactees.Where(e => e.Id.HasValue))
+                    {
+                        var existing = incident.EntitesImpactees.FirstOrDefault(e => e.Id == eDto.Id.Value);
+                        if (existing != null)
                         {
-                            // Chercher l'entité dans la COLLECTION ACTUELLE (pas en base)
-                            var entiteExistante = incident.EntitesImpactees
-                                .FirstOrDefault(e => e.Id == eDto.Id.Value);
-
-                            if (entiteExistante != null)
-                            {
-                                // ✅ MISE À JOUR DIRECTE de l'entité dans la collection
-                                entiteExistante.Nom = eDto.Nom;
-                                entiteExistante.TypeEntiteImpactee = eDto.TypeEntiteImpactee;
-                                // IncidentId reste inchangé (déjà associé)
-                            }
-                            else
-                            {
-                                // Cas rare: entité avec ID mais pas dans la collection (réassociation)
-                                var entite = await _entiteImpacteeRepository.GetByIdAsync(eDto.Id.Value);
-                                if (entite != null)
-                                {
-                                    entite.Nom = eDto.Nom;
-                                    entite.TypeEntiteImpactee = eDto.TypeEntiteImpactee;
-                                    entite.IncidentId = incident.Id;
-                                    incident.EntitesImpactees.Add(entite);
-                                }
-                            }
-                        }
-
-                        // ✅ 3️⃣ Ajouter les NOUVELLES entités (sans ID)
-                        foreach (var eDto in dto.EntitesImpactees.Where(e => !e.Id.HasValue))
-                        {
-                            var newEntite = new EntiteImpactee
-                            {
-                                Nom = eDto.Nom,
-                                TypeEntiteImpactee = eDto.TypeEntiteImpactee,
-                                IncidentId = incident.Id
-                            };
-                            incident.EntitesImpactees.Add(newEntite);
-                        }
-
-                        // ✅ 4️⃣ SUPPRESSION UNIQUEMENT (quand l'utilisateur clique sur supprimer)
-                        var entitesASupprimer = incident.EntitesImpactees
-                            .Where(e => !dtoIds.Contains(e.Id))
-                            .ToList();
-
-                        foreach (var entite in entitesASupprimer)
-                        {
-                            entite.IncidentId = null; // Dissociation
-                                                      // Optionnel: la retirer de la collection si vous voulez
-                                                      // incident.EntitesImpactees.Remove(entite);
+                            existing.Nom = eDto.Nom;
+                            existing.TypeEntiteImpactee = eDto.TypeEntiteImpactee;
                         }
                     }
 
-                    await _incidentRepository.SaveChangesAsync();
-
-                    var resultDto = await MapToDto(incident);
-                    return ApiResponse<IncidentDTO>.Success(resultDto, "Incident mis à jour avec succès");
+                    // 🔹 Ajouter les nouvelles
+                    foreach (var eDto in dto.EntitesImpactees.Where(e => !e.Id.HasValue))
+                    {
+                        var newEntite = new EntiteImpactee
+                        {
+                            Id = Guid.NewGuid(),
+                            Nom = eDto.Nom,
+                            TypeEntiteImpactee = eDto.TypeEntiteImpactee,
+                            IncidentId = incident.Id
+                        };
+                        incident.EntitesImpactees.Add(newEntite);
+                    }
                 }
-                catch (Exception ex)
+                else
                 {
-                    _logger.LogError(ex, "Erreur lors de la mise à jour de l'incident");
-                    return ApiResponse<IncidentDTO>.Failure("Erreur interne du serveur");
+                    _logger.LogDebug("DTO entitesImpactees is null");
                 }
-            });
+
+                _logger.LogDebug("Saving changes to repository");
+                await _incidentRepository.SaveChangesAsync();
+
+                var resultDto = await MapToDto(incident);
+
+                sw.Stop();
+                _logger.LogInformation("UpdateIncident SUCCESS | Duration: {Ms} ms", sw.ElapsedMilliseconds);
+
+                return ApiResponse<IncidentDTO>.Success(resultDto, "Incident mis à jour avec succès");
+            }
+            catch (Exception ex)
+            {
+                sw.Stop();
+                _logger.LogError(ex, "UpdateIncident ERROR | Duration: {Ms} ms", sw.ElapsedMilliseconds);
+
+                // 🔹 Pour débogage, on peut renvoyer le message d'exception (en dev uniquement)
+                return ApiResponse<IncidentDTO>.Failure($"Erreur interne du serveur: {ex.Message} | {ex.InnerException?.Message}");
+            }
         }
+
         public async Task<ApiResponse<bool>> DeleteIncidentAsync(Guid id)
         {
-            return await MeasureAsync(nameof(DeleteIncidentAsync), new { id }, async () =>
+            var sw = Stopwatch.StartNew();
+            _logger.LogInformation("DeleteIncident START | Id: {Id}", id);
+
+            try
             {
-                try
+                var incident = await _incidentRepository.GetByIdAsync(id);
+
+                if (incident == null)
                 {
-                    var incident = await _incidentRepository.GetIncidentWithDetailsAsync(id);
-                    if (incident == null)
-                        return ApiResponse<bool>.Failure($"Incident avec ID {id} non trouvé");
-
-                    // 1️⃣ Dissocier toutes les entités impactées liées à cet incident
-                    if (incident.EntitesImpactees != null)
-                    {
-                        foreach (var entite in incident.EntitesImpactees)
-                        {
-                            entite.IncidentId = null; // Dissociation au lieu de suppression
-                        }
-                    }
-
-                    // 2️⃣ Supprimer uniquement l'incident
-                    await _incidentRepository.DeleteAsync(incident);
-                    await _incidentRepository.SaveChangesAsync();
-
-                    return ApiResponse<bool>.Success(true, "Incident supprimé avec succès, entités impactées conservées");
+                    _logger.LogWarning("DeleteIncident | Incident introuvable | Id: {Id}", id);
+                    return ApiResponse<bool>.Failure("Incident introuvable");
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Erreur lors de la suppression de l'incident {Id}", id);
-                    return ApiResponse<bool>.Failure("Erreur interne du serveur");
-                }
-            });
+
+                await _incidentRepository.DeleteAsync(incident);
+                await _incidentRepository.SaveChangesAsync();
+
+                sw.Stop();
+                _logger.LogInformation("DeleteIncident SUCCESS | Duration: {Ms} ms",
+                    sw.ElapsedMilliseconds);
+
+                return ApiResponse<bool>.Success(true, "Incident supprimé avec ses entités liées");
+            }
+            catch (Exception ex)
+            {
+                sw.Stop();
+                _logger.LogError(ex, "DeleteIncident ERROR | Duration: {Ms} ms",
+                    sw.ElapsedMilliseconds);
+
+                return ApiResponse<bool>.Failure("Erreur interne du serveur");
+            }
         }
-
         #endregion
 
         #region Specific Methods

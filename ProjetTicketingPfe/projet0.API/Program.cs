@@ -162,7 +162,7 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("IncidentDelete", policy =>
     {
         policy.RequireAuthenticatedUser();
-        policy.RequireRole("Admin"); // Seul l'admin peut supprimer
+        policy.RequireRole("Admin", "Technicien", "Commercant");
     });
 });
 #endregion
