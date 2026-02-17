@@ -7,7 +7,7 @@ namespace projet0.Application.Commun.DTOs.Incident
 {
     public class IncidentSearchRequest
     {
-        public string SearchTerm { get; set; }
+        public string? SearchTerm { get; set; } // <-- le "?" permet de rendre le champ optionnel
         public SeveriteIncident? SeveriteIncident { get; set; }
         public StatutIncident? StatutIncident { get; set; }
    

@@ -159,10 +159,11 @@ namespace projet0.Application.Services.Incident
 
         // Appliquer les filtres pour SearchIncidentsAsync
         private IQueryable<IncidentEntity> ApplySearchFilters(
-            IQueryable<IncidentEntity> query,
-            IncidentSearchRequest request,
-            List<Guid> matchedUserIds)
+       IQueryable<IncidentEntity> query,
+       IncidentSearchRequest request,
+       List<Guid> matchedUserIds)
         {
+            // Filtre par SearchTerm
             if (!string.IsNullOrWhiteSpace(request.SearchTerm))
             {
                 var term = request.SearchTerm.ToLower();
@@ -175,9 +176,11 @@ namespace projet0.Application.Services.Incident
                 );
             }
 
+            // Filtre par sévérité si renseignée
             if (request.SeveriteIncident.HasValue)
                 query = query.Where(i => i.SeveriteIncident == request.SeveriteIncident.Value);
 
+            // Filtre par statut si renseigné
             if (request.StatutIncident.HasValue)
                 query = query.Where(i => i.StatutIncident == request.StatutIncident.Value);
 
@@ -289,23 +292,23 @@ namespace projet0.Application.Services.Incident
                 {
                     var query = _incidentRepository.QueryWithDetails();
 
-                    // 🔥 NOUVEAU : Recherche des users correspondant au SearchTerm
                     List<Guid> matchedUserIds = new();
 
+                    // Recherche utilisateurs uniquement si SearchTerm est renseigné
                     if (!string.IsNullOrWhiteSpace(request.SearchTerm))
                     {
                         var userSearchRequest = new UserSearchRequest
                         {
                             SearchTerm = request.SearchTerm,
                             Page = 1,
-                            PageSize = 1000 // large pour récupérer tous les match
+                            PageSize = 1000
                         };
 
                         var (users, _) = await _userRepository.SearchUsersAsync(userSearchRequest);
                         matchedUserIds = users.Select(u => u.Id).ToList();
                     }
 
-                    // Appliquer les filtres
+                    // Appliquer tous les filtres, SearchTerm est optionnel
                     query = ApplySearchFilters(query, request, matchedUserIds);
 
                     var totalCount = await query.CountAsync();
