@@ -15,6 +15,9 @@ namespace projet0.Application.Interfaces
         Task<List<Incident>> GetIncidentsByStatutAsync(StatutIncident statut);
         Task<List<Incident>> GetIncidentsBySeveriteAsync(SeveriteIncident severite);
         Task<bool> IsCodeUniqueAsync(string code, Guid? excludeId = null);
+        Task SaveChangesAsync();
+            void RemoveEntiteImpactee(EntiteImpactee entite);
+        Task AddEntiteImpacteeAsync(EntiteImpactee entite);
         Task<string> GenerateCodeIncidentAsync();
         Task<int> GetNextIncidentNumberAsync(int year);
         Task<Incident> GetIncidentWithDetailsAsync(Guid id);

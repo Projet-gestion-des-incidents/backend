@@ -31,6 +31,12 @@ namespace projet0.Infrastructure.Repositories
                 .Where(e => e.IncidentId == incidentId)
                 .ToListAsync();
         }
+        public async Task<Incident> GetIncidentWithDetailsAsync(Guid id)
+        {
+            return await _context.Incidents
+                .Include(i => i.EntitesImpactees)
+                .FirstOrDefaultAsync(i => i.Id == id);
+        }
 
         public async Task<List<EntiteImpactee>> GetByTypeAsync(TypeEntiteImpactee type)
         {

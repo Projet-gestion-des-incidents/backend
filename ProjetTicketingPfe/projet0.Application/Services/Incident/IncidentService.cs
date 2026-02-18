@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using projet0.Application.Common.Models.Pagination;
 using projet0.Application.Commun.DTOs.Incident;
+using projet0.Application.Commun.DTOs.IncidentDTOs;
 using projet0.Application.Commun.Ressources;
 using projet0.Application.Interfaces;
 using projet0.Domain.Entities;
@@ -413,13 +414,104 @@ namespace projet0.Application.Services.Incident
                 return ApiResponse<IncidentDTO>.Failure("Erreur interne du serveur");
             }
         }
+        //   public async Task<ApiResponse<IncidentDTO>> UpdateIncidentAsync(
+        //Guid incidentId,
+        //UpdateIncidentDTO dto,
+        //Guid updatedById)
+        //   {
+        //       var sw = Stopwatch.StartNew();
+        //       _logger.LogInformation("UpdateIncident START | Id: {IncidentId}", incidentId);
+
+        //       try
+        //       {
+        //           var incident = await _incidentRepository.GetIncidentWithDetailsAsync(incidentId);
+
+        //           if (incident == null)
+        //           {
+        //               _logger.LogWarning("UpdateIncident | Incident introuvable | Id: {IncidentId}", incidentId);
+        //               return ApiResponse<IncidentDTO>.Failure("Incident introuvable");
+        //           }
+
+        //           // 🔹 1️⃣ Mise à jour des champs simples
+        //           _logger.LogDebug("Updating basic fields");
+        //           incident.TitreIncident = dto.TitreIncident ?? incident.TitreIncident;
+        //           incident.DescriptionIncident = dto.DescriptionIncident ?? incident.DescriptionIncident;
+        //           incident.SeveriteIncident = dto.SeveriteIncident;
+        //           incident.StatutIncident = dto.StatutIncident;
+        //           incident.UpdatedAt = DateTime.UtcNow;
+        //           incident.UpdatedById = updatedById;
+
+
+        //           if (dto.EntitesImpactees != null)
+        //           {
+        //               _logger.LogDebug("Processing {Count} entitesImpactees from DTO", dto.EntitesImpactees.Count);
+
+        //               var existingEntities = incident.EntitesImpactees.ToList();
+
+        //               var dtoIds = dto.EntitesImpactees.Where(e => e.Id.HasValue).Select(e => e.Id.Value).ToHashSet();
+        //               var toRemove = existingEntities.Where(e => !dtoIds.Contains(e.Id)).ToList();
+        //               _logger.LogDebug("Found {Count} entities to remove", toRemove.Count);
+
+        //               foreach (var e in toRemove)
+        //               {
+        //                   incident.EntitesImpactees.Remove(e);
+        //                   _logger.LogDebug("Removing entity | Id: {Id}, Nom: {Nom}", e.Id, e.Nom);
+
+        //               }
+
+        //               // 🔹 Mettre à jour les existantes
+        //               foreach (var eDto in dto.EntitesImpactees.Where(e => e.Id.HasValue))
+        //               {
+        //                   var existing = incident.EntitesImpactees.FirstOrDefault(e => e.Id == eDto.Id.Value);
+        //                   if (existing != null)
+        //                   {
+        //                       existing.Nom = eDto.Nom;
+        //                       existing.TypeEntiteImpactee = eDto.TypeEntiteImpactee;
+        //                   }
+        //               }
+
+        //               // 🔹 Ajouter les nouvelles
+        //               foreach (var eDto in dto.EntitesImpactees.Where(e => !e.Id.HasValue))
+        //               {
+        //                   var newEntite = new EntiteImpactee
+        //                   {
+        //                       Id = Guid.NewGuid(),
+        //                       Nom = eDto.Nom,
+        //                       TypeEntiteImpactee = eDto.TypeEntiteImpactee,
+        //                       IncidentId = incident.Id
+        //                   };
+        //                   incident.EntitesImpactees.Add(newEntite);
+        //               }
+        //           }
+        //           else
+        //           {
+        //               _logger.LogDebug("DTO entitesImpactees is null");
+        //           }
+
+        //           _logger.LogDebug("Saving changes to repository");
+        //           await _incidentRepository.SaveChangesAsync();
+
+        //           var resultDto = await MapToDto(incident);
+
+        //           sw.Stop();
+        //           _logger.LogInformation("UpdateIncident SUCCESS | Duration: {Ms} ms", sw.ElapsedMilliseconds);
+
+        //           return ApiResponse<IncidentDTO>.Success(resultDto, "Incident mis à jour avec succès");
+        //       }
+        //       catch (Exception ex)
+        //       {
+        //           sw.Stop();
+        //           _logger.LogError(ex, "UpdateIncident ERROR | Duration: {Ms} ms", sw.ElapsedMilliseconds);
+
+        //           // 🔹 Pour débogage, on peut renvoyer le message d'exception (en dev uniquement)
+        //           return ApiResponse<IncidentDTO>.Failure($"Erreur interne du serveur: {ex.Message} | {ex.InnerException?.Message}");
+        //       }
         public async Task<ApiResponse<IncidentDTO>> UpdateIncidentAsync(
-     Guid incidentId,
-     UpdateIncidentDTO dto,
-     Guid updatedById)
+        Guid incidentId,
+        UpdateIncidentDTO dto,
+        Guid userId)
         {
-            var sw = Stopwatch.StartNew();
-            _logger.LogInformation("UpdateIncident START | Id: {IncidentId}", incidentId);
+            _logger.LogInformation("Début mise à jour incident {IncidentId}", incidentId);
 
             try
             {
@@ -427,83 +519,76 @@ namespace projet0.Application.Services.Incident
 
                 if (incident == null)
                 {
-                    _logger.LogWarning("UpdateIncident | Incident introuvable | Id: {IncidentId}", incidentId);
+                    _logger.LogWarning("Incident {IncidentId} introuvable", incidentId);
                     return ApiResponse<IncidentDTO>.Failure("Incident introuvable");
                 }
 
-                // 🔹 1️⃣ Mise à jour des champs simples
-                _logger.LogDebug("Updating basic fields");
-                incident.TitreIncident = dto.TitreIncident ?? incident.TitreIncident;
-                incident.DescriptionIncident = dto.DescriptionIncident ?? incident.DescriptionIncident;
-                incident.SeveriteIncident = dto.SeveriteIncident;
+                // 🔹 Mise à jour champs principaux
+                incident.TitreIncident = dto.TitreIncident;
+                incident.DescriptionIncident = dto.DescriptionIncident;
                 incident.StatutIncident = dto.StatutIncident;
+                incident.SeveriteIncident = dto.SeveriteIncident;
+                incident.UpdatedById = userId;
                 incident.UpdatedAt = DateTime.UtcNow;
-                incident.UpdatedById = updatedById;
+
+                var entitesExistantes = incident.EntitesImpactees.ToList();
+                var entitesDto = dto.EntitesImpactees ?? new List<UpdateEntiteImpacteeDTO>();
 
 
-                if (dto.EntitesImpactees != null)
+                // 🔹 SUPPRESSION
+                foreach (var entite in entitesExistantes)
                 {
-                    _logger.LogDebug("Processing {Count} entitesImpactees from DTO", dto.EntitesImpactees.Count);
-
-                    var existingEntities = incident.EntitesImpactees.ToList();
-
-                    var dtoIds = dto.EntitesImpactees.Where(e => e.Id.HasValue).Select(e => e.Id.Value).ToHashSet();
-                    var toRemove = existingEntities.Where(e => !dtoIds.Contains(e.Id)).ToList();
-                    _logger.LogDebug("Found {Count} entities to remove", toRemove.Count);
-
-                    foreach (var e in toRemove)
+                    if (!entitesDto.Any(e => e.Id == entite.Id))
                     {
-                        incident.EntitesImpactees.Remove(e);
-                        _logger.LogDebug("Removing entity | Id: {Id}, Nom: {Nom}", e.Id, e.Nom);
-
+                        _logger.LogInformation("Suppression entité {EntiteId}", entite.Id);
+                        incident.EntitesImpactees.Remove(entite); // EF gère la suppression
                     }
+                }
 
-                    // 🔹 Mettre à jour les existantes
-                    foreach (var eDto in dto.EntitesImpactees.Where(e => e.Id.HasValue))
+                // 🔹 MODIFICATION / AJOUT
+                foreach (var entiteDto in entitesDto)
+                {
+                    if (entiteDto.Id.HasValue)
                     {
-                        var existing = incident.EntitesImpactees.FirstOrDefault(e => e.Id == eDto.Id.Value);
-                        if (existing != null)
+                        // 🔹 Modification
+                        var entiteExistante = entitesExistantes.FirstOrDefault(e => e.Id == entiteDto.Id.Value);
+                        if (entiteExistante != null)
                         {
-                            existing.Nom = eDto.Nom;
-                            existing.TypeEntiteImpactee = eDto.TypeEntiteImpactee;
+                            _logger.LogInformation("Modification entité {EntiteId}", entiteExistante.Id);
+                            entiteExistante.Nom = entiteDto.Nom;
+                            entiteExistante.TypeEntiteImpactee = entiteDto.TypeEntiteImpactee;
+                            // Ne jamais changer l'ID ni recréer l'entité
                         }
                     }
-
-                    // 🔹 Ajouter les nouvelles
-                    foreach (var eDto in dto.EntitesImpactees.Where(e => !e.Id.HasValue))
+                    else
                     {
-                        var newEntite = new EntiteImpactee
+                        // 🔹 Ajout nouvelle entité
+                        var nouvelleEntite = new EntiteImpactee
                         {
                             Id = Guid.NewGuid(),
-                            Nom = eDto.Nom,
-                            TypeEntiteImpactee = eDto.TypeEntiteImpactee,
+                            Nom = entiteDto.Nom,
+                            TypeEntiteImpactee = entiteDto.TypeEntiteImpactee,
                             IncidentId = incident.Id
                         };
-                        incident.EntitesImpactees.Add(newEntite);
+                        _logger.LogInformation("Ajout nouvelle entité {EntiteId} via AddEntiteImpacteeAsync", nouvelleEntite.Id);
+                        await _incidentRepository.AddEntiteImpacteeAsync(nouvelleEntite);
                     }
                 }
-                else
-                {
-                    _logger.LogDebug("DTO entitesImpactees is null");
-                }
 
-                _logger.LogDebug("Saving changes to repository");
+
+                // 🔹 Sauvegarde unique
                 await _incidentRepository.SaveChangesAsync();
 
-                var resultDto = await MapToDto(incident);
 
-                sw.Stop();
-                _logger.LogInformation("UpdateIncident SUCCESS | Duration: {Ms} ms", sw.ElapsedMilliseconds);
 
-                return ApiResponse<IncidentDTO>.Success(resultDto, "Incident mis à jour avec succès");
+                return ApiResponse<IncidentDTO>.Success(
+                    _mapper.Map<IncidentDTO>(incident),
+                    "Incident mis à jour avec succès");
             }
             catch (Exception ex)
             {
-                sw.Stop();
-                _logger.LogError(ex, "UpdateIncident ERROR | Duration: {Ms} ms", sw.ElapsedMilliseconds);
-
-                // 🔹 Pour débogage, on peut renvoyer le message d'exception (en dev uniquement)
-                return ApiResponse<IncidentDTO>.Failure($"Erreur interne du serveur: {ex.Message} | {ex.InnerException?.Message}");
+                _logger.LogError(ex, "Erreur mise à jour incident {IncidentId}", incidentId);
+                return ApiResponse<IncidentDTO>.Failure("Erreur interne serveur");
             }
         }
 

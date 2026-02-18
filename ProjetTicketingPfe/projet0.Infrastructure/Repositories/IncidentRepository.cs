@@ -129,6 +129,19 @@ namespace projet0.Infrastructure.Repositories
 
             return query;
         }
+        public void RemoveEntiteImpactee(EntiteImpactee entite)
+        {
+            _context.EntitesImpactees.Remove(entite);
+        }
+
+        public async Task SaveChangesAsync()
+        {
+            await _context.SaveChangesAsync();
+        }
+        public async Task AddEntiteImpacteeAsync(EntiteImpactee entite)
+        {
+            await _context.EntitesImpactees.AddAsync(entite);
+        }
 
         public async Task<List<Incident>> GetIncidentsByCreatedByAsync(Guid createdById)
         {
