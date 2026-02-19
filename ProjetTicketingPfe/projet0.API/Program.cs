@@ -14,6 +14,7 @@ using projet0.Application.Services.Email;
 using projet0.Application.Services.EntiteImpacteeServices;
 using projet0.Application.Services.Incident;
 using projet0.Application.Services.Otp;
+using projet0.Application.Services.Ticket;
 using projet0.Application.Services.Token;
 using projet0.Application.Services.User;
 using projet0.Domain.Entities;
@@ -208,6 +209,9 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IIncidentRepository, IncidentRepository>();
 builder.Services.AddScoped<IIncidentService, IncidentService>();
 builder.Services.AddScoped<IEntiteImpacteeRepository, EntiteImpacteeRepository>();
+builder.Services.AddScoped<ITicketRepository, TicketRepository>();
+builder.Services.AddScoped<ITicketService, TicketService>();
+
 builder.Services.AddAutoMapper(typeof(IncidentMappingProfile).Assembly);
 builder.Services.AddScoped<IEntiteImpacteeService, EntiteImpacteeService>();
 builder.Services.AddHttpContextAccessor();
