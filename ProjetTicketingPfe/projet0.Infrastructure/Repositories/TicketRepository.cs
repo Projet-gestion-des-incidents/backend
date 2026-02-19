@@ -35,7 +35,7 @@ namespace projet0.Infrastructure.Repositories
         {
             return await _context.Tickets
                 .Include(t => t.Createur)
-                .Include(t => t.Assignee)
+                
                 .FirstOrDefaultAsync(t => t.Id == id);
         }
 

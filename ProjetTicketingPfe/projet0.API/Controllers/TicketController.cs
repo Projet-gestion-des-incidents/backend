@@ -42,7 +42,7 @@ namespace projet0.API.Controllers
         /// Récupère TOUS les tickets
         /// </summary>
         [HttpGet("all")]
-        //[Authorize(Policy = "TicketRead")]
+        [Authorize(Policy = "TicketRead")]
         public async Task<ActionResult<ApiResponse<List<TicketDTO>>>> GetAllTickets()
         {
             try
@@ -62,7 +62,7 @@ namespace projet0.API.Controllers
         /// Crée un nouveau ticket
         /// </summary>
         [HttpPost]
-        //[Authorize(Policy = "TicketCreate")]
+        [Authorize(Policy = "TicketCreate")]
         public async Task<ActionResult<ApiResponse<TicketDTO>>> Create([FromBody] CreateTicketDTO dto)
         {
             try
@@ -95,13 +95,18 @@ namespace projet0.API.Controllers
         }
 
         [HttpGet("{id}")]
+        [Authorize(Policy = "TicketRead")]
+
         public async Task<ActionResult<ApiResponse<TicketDTO>>> GetById(Guid id)
         {
             try
             {
-                // Pour l'instant, retournez une réponse temporaire
-                // Vous implémenterez la vraie méthode plus tard
-                return Ok(ApiResponse<TicketDTO>.Success(null, "Méthode à implémenter"));
+                var result = await _ticketService.GetTicketByIdAsync(id);
+
+                if (!result.IsSuccess || result.Data == null)
+                    return NotFound(result);
+
+                return Ok(result);
             }
             catch (Exception ex)
             {

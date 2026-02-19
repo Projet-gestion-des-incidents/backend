@@ -165,7 +165,45 @@ builder.Services.AddAuthorization(options =>
         policy.RequireAuthenticatedUser();
         policy.RequireRole("Admin", "Technicien", "Commercant");
     });
+
+    options.AddPolicy("TicketRead", policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.RequireRole("Admin", "Technicien", "Commercant"); // Tous les rôles peuvent lire
+    });
+
+    options.AddPolicy("TicketCreate", policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.RequireRole("Admin", "Technicien", "Commercant"); // Tous les rôles peuvent créer
+    });
+
+    options.AddPolicy("TicketUpdate", policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.RequireRole("Admin", "Technicien"); // Seuls Admin et Technicien peuvent modifier
+    });
+
+    options.AddPolicy("TicketDelete", policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.RequireRole("Admin"); // Seul l'Admin peut supprimer
+    });
+
+    options.AddPolicy("TicketAssign", policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.RequireRole("Admin", "Technicien"); // Admin et Technicien peuvent assigner
+    });
+
+    options.AddPolicy("TicketComment", policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.RequireRole("Admin", "Technicien", "Commercant"); // Tous peuvent commenter
+    });
 });
+
+
 #endregion
 
 #region 🔹 Swagger + JWT

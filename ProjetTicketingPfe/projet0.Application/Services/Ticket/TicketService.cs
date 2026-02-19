@@ -12,11 +12,7 @@ using TicketEntity = projet0.Domain.Entities.Ticket;  // Alias pour éviter les 
 
 namespace projet0.Application.Services.Ticket
 {
-    public interface ITicketService
-    {
-        Task<ApiResponse<List<TicketDTO>>> GetAllTicketsAsync();
-        Task<ApiResponse<TicketDTO>> CreateTicketAsync(CreateTicketDTO dto, Guid createurId);
-    }
+   
 
     public class TicketService : ITicketService
     {
@@ -220,6 +216,30 @@ namespace projet0.Application.Services.Ticket
                 return ApiResponse<TicketDTO>.Failure("Erreur interne du serveur");
             }
         }
+
+        public async Task<ApiResponse<TicketDTO>> GetTicketByIdAsync(Guid id)
+        {
+            return await MeasureAsync(nameof(GetTicketByIdAsync), new { id }, async () =>
+            {
+                try
+                {
+                    var ticket = await _ticketRepository.GetByIdAsync(id);
+
+                    if (ticket == null)
+                        return ApiResponse<TicketDTO>.Failure($"Ticket avec ID {id} non trouvé");
+
+                    var dto = await MapToDto(ticket);
+                    return ApiResponse<TicketDTO>.Success(dto);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Erreur lors de la récupération du ticket {Id}", id);
+                    return ApiResponse<TicketDTO>.Failure("Erreur interne du serveur");
+                }
+            });
+        }
+
+
 
         #endregion
     }
