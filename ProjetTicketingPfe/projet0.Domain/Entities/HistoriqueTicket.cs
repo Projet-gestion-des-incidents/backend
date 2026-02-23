@@ -16,7 +16,7 @@ namespace projet0.Domain.Entities
 
         // Foreign Keys
         public Guid TicketId { get; set; }
-        public Guid? ModifieParId { get; set; }  // Utilisateur qui a fait le changement
+        public Guid? ModifieParId { get; set; }  
 
         // Navigation Properties
         public virtual Ticket Ticket { get; set; }

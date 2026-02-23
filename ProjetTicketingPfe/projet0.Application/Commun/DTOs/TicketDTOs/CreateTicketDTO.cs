@@ -1,6 +1,6 @@
-﻿// Fichier: projet0.Application/Commun/DTOs/Ticket/CreateTicketDTO.cs
-using System.ComponentModel.DataAnnotations;
+﻿using Microsoft.AspNetCore.Http;
 using projet0.Domain.Enums;
+using System.ComponentModel.DataAnnotations;
 
 namespace projet0.Application.Commun.DTOs.Ticket
 {
@@ -19,7 +19,17 @@ namespace projet0.Application.Commun.DTOs.Ticket
         [Required(ErrorMessage = "Le statut est requis")]
         public StatutTicket StatutTicket { get; set; }
 
-        // 👇 SUPPRIMEZ assigneeId pour l'instant - il sera null
-        // public Guid? AssigneeId { get; set; }  ← À COMMENTER/SUPPRIMER
+        // public Guid? AssigneeId { get; set; }
+
+        // ✅ NOUVEAU: Commentaire initial
+        [StringLength(2000, ErrorMessage = "Le commentaire ne peut pas dépasser 2000 caractères")]
+        public string? CommentaireInitial { get; set; }
+
+        // ✅ NOUVEAU: Indique si le commentaire est interne
+        public bool CommentaireInterne { get; set; } = false;
+
+        // ✅ NOUVEAU: Fichiers joints
+        public List<IFormFile>? Fichiers { get; set; }
+
     }
 }

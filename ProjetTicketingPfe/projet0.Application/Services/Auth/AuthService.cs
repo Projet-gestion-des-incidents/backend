@@ -17,7 +17,6 @@ namespace projet0.Application.Services.Auth
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly RoleManager<IdentityRole<Guid>> _roleManager;
         private readonly SignInManager<ApplicationUser> _signInManager;
-
         private readonly ITokenService _tokenService;
         private readonly IOtpService _otpService;
         public AuthService(
@@ -96,117 +95,6 @@ namespace projet0.Application.Services.Auth
         resultCode: 0
             );
         }
-
-        // ================= LOGIN =================
-        /*public async Task<ApiResponse<AuthResponseDTO>> LoginAsync(LoginDTO dto)
-        {
-            var user = await _userManager.FindByEmailAsync(dto.Email);
-
-            if (user == null || !await _userManager.CheckPasswordAsync(user, dto.Password))
-            {
-            return ApiResponse<AuthResponseDTO>.Failure(
-            message: "Email ou mot de passe incorrect",
-            resultCode: 10
-                );
-            }
-
-            // VÉRIFIER SI L'UTILISATEUR EST LOCKOUT
-            var isLockedOut = await _userManager.IsLockedOutAsync(user);
-            if (isLockedOut)
-            {
-                var lockoutEnd = await _userManager.GetLockoutEndDateAsync(user);
-                var remainingTime = lockoutEnd.HasValue ?
-                    (lockoutEnd.Value - DateTimeOffset.UtcNow) : TimeSpan.Zero;
-
-                return ApiResponse<AuthResponseDTO>.Failure(
-                    message: $"Compte temporairement bloqué. Réessayez dans {remainingTime.Minutes} minutes.",
-                    resultCode: 13
-                );
-            }
-
-            // TENTER LA CONNEXION
-            // UTILISEZ SignInManager.PasswordSignInAsync (cela gère automatiquement le lockout)
-            var signInResult = await _signInManager.PasswordSignInAsync(
-                user,
-                dto.Password,
-                isPersistent: false,
-                lockoutOnFailure: true); // IMPORTANT: lockoutOnFailure = true
-            if (!signInResult.Succeeded)
-
-            {
-                // Incrémenter le compteur d'échecs
-                await _userManager.AccessFailedAsync(user);
-
-                // Vérifier si l'utilisateur vient d'être lockout
-                var newIsLockedOut = await _userManager.IsLockedOutAsync(user);
-                if (newIsLockedOut)
-                {
-                    return ApiResponse<AuthResponseDTO>.Failure(
-                        message: "Trop de tentatives échouées. Votre compte est temporairement bloqué.",
-                        resultCode: 14
-                    );
-                }
-
-                // Calculer les tentatives restantes
-                var failedCount = await _userManager.GetAccessFailedCountAsync(user);
-                var remainingAttempts = 3 - failedCount;
-
-                return ApiResponse<AuthResponseDTO>.Failure(
-                    message: $"Email ou mot de passe incorrect. Il vous reste {remainingAttempts} tentative(s).",
-                    resultCode: 10
-                );
-            }
-
-            // RÉINITIALISER LE COMPTEUR D'ÉCHECS EN CAS DE SUCCÈS
-            if (await _userManager.GetAccessFailedCountAsync(user) > 0)
-            {
-                await _userManager.ResetAccessFailedCountAsync(user);
-            }
-
-            var roles = await _userManager.GetRolesAsync(user);
-
-            
-            // VÉRIFIER SI L'EMAIL EST CONFIRMÉ
-            if (!user.EmailConfirmed && !roles.Contains("Admin"))
-            {
-                // Option 1: Refuser le login
-                return ApiResponse<AuthResponseDTO>.Failure(
-             message: "Veuillez confirmer votre email avant de vous connecter",
-             resultCode: 11
-                 );
-
-                // Option 2: Renvoyer un OTP pour confirmer
-                // var otpResult = await _otpService.GenerateAndSendOtpAsync(
-                //     user, 
-                //     OtpPurpose.EmailConfirmation
-                // );
-                // return new ApiResponse<AuthResponseDTO>(
-                //     message: "Veuillez confirmer votre email. Un code a été envoyé.",
-                //     resultCode: 12
-                // );
-            }
-
-            var accessToken = _tokenService.GenerateAccessToken(user, roles);
-            var refreshToken = _tokenService.GenerateRefreshToken(user);
-            var userRole = roles.FirstOrDefault(); // on prend le premier rôle (ou tu peux gérer plusieurs rôles)
-
-            var response = new AuthResponseDTO
-            {
-                AccessToken = accessToken,
-                RefreshToken = refreshToken,
-                ExpiresAt = DateTime.UtcNow.AddMinutes(
-                    int.Parse(_config["Jwt:AccessTokenExpirationMinutes"])
-                ),
-                UserName = user.UserName,
-                Role = userRole //  le frontend récupére le rôle
-
-            };
-            return ApiResponse<AuthResponseDTO>.Success(
-                   data: response,
-                   message: "Connexion réussie",
-                   resultCode: 0
-                       );
-        }*/
 
         // ================= LOGIN =================
         public async Task<ApiResponse<AuthResponseDTO>> LoginAsync(LoginDTO dto)

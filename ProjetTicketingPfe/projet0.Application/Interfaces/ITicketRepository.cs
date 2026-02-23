@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
-// Fichier: projet0.Application/Interfaces/ITicketRepository.cs
 using projet0.Domain.Entities;
 using projet0.Domain.Enums;
 

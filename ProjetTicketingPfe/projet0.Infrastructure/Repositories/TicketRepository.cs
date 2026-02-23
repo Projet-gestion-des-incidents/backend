@@ -1,12 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
-
-// Fichier: projet0.Infrastructure/Repositories/TicketRepository.cs
 using Microsoft.EntityFrameworkCore;
 using projet0.Application.Interfaces;
 using projet0.Domain.Entities;
 using projet0.Domain.Enums;
+using Microsoft.Extensions.Logging;  // ← AJOUTER
+
 using projet0.Infrastructure.Data;
 
 namespace projet0.Infrastructure.Repositories
@@ -14,10 +14,13 @@ namespace projet0.Infrastructure.Repositories
     public class TicketRepository : GenericRepository<Ticket>, ITicketRepository
     {
         private readonly ApplicationDbContext _context;
+        private readonly ILogger<TicketRepository> _logger;  // ← AJOUTER
 
-        public TicketRepository(ApplicationDbContext context) : base(context)
+        public TicketRepository(ApplicationDbContext context, ILogger<TicketRepository> logger) : base(context)
         {
             _context = context;
+            _logger = logger;  // ← AJOUTER
+
         }
 
         public async Task<Ticket> GetByReferenceAsync(string reference)
@@ -33,10 +36,43 @@ namespace projet0.Infrastructure.Repositories
 
         public override async Task<Ticket> GetByIdAsync(Guid id)
         {
-            return await _context.Tickets
+            _logger.LogInformation("=== TicketRepository.GetByIdAsync ===");
+            _logger.LogInformation("ID reçu: {Id}", id);
+            _logger.LogInformation("Type d'ID: {IdType}", id.GetType());
+
+            // Vérifions d'abord combien de tickets existent
+            var totalTickets = await _context.Tickets.CountAsync();
+            _logger.LogInformation("Total tickets dans la base: {Total}", totalTickets);
+
+            // Récupérons tous les IDs pour comparaison
+            var allIds = await _context.Tickets
+                .Select(t => new { t.Id, t.ReferenceTicket })
+                .Take(5)
+                .ToListAsync();
+
+            _logger.LogInformation("Premiers tickets trouvés:");
+            foreach (var t in allIds)
+            {
+                _logger.LogInformation("  - ID: {Id}, Ref: {Ref}", t.Id, t.ReferenceTicket);
+                _logger.LogInformation("    Comparaison avec ID recherché: {IsEqual}", t.Id == id);
+            }
+
+            var ticket = await _context.Tickets
                 .Include(t => t.Createur)
-                
+                .Include(t => t.Commentaires)
+                    .ThenInclude(c => c.PiecesJointes)
                 .FirstOrDefaultAsync(t => t.Id == id);
+
+            if (ticket == null)
+            {
+                _logger.LogWarning("❌ Ticket non trouvé avec ID: {Id}", id);
+            }
+            else
+            {
+                _logger.LogInformation("✅ Ticket trouvé: {Reference}", ticket.ReferenceTicket);
+            }
+
+            return ticket;
         }
 
         public override async Task<IEnumerable<Ticket>> GetAllAsync()
@@ -44,6 +80,8 @@ namespace projet0.Infrastructure.Repositories
             return await _context.Tickets
                 .Include(t => t.Createur)
                 .Include(t => t.Assignee)
+                        .Include(t => t.Commentaires)  // ✅ AJOUTER
+
                 .OrderByDescending(t => t.DateCreation)
                 .ToListAsync();
         }

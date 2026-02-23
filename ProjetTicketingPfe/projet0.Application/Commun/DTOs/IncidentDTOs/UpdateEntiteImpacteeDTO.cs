@@ -7,7 +7,7 @@ namespace projet0.Application.Commun.DTOs.IncidentDTOs
 {
     public class UpdateEntiteImpacteeDTO
     {
-        public Guid? Id { get; set; } // null = nouvelle entité
+        public Guid? Id { get; set; }
 
         public TypeEntiteImpactee TypeEntiteImpactee { get; set; }
 

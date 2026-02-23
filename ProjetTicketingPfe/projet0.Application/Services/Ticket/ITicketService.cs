@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
-// Fichier: projet0.Application/Services/Ticket/ITicketService.cs
 using projet0.Application.Commun.DTOs.Ticket;
 using projet0.Application.Commun.Ressources;
 
@@ -17,5 +16,9 @@ namespace projet0.Application.Services.Ticket
 
         // Créer un nouveau ticket
         Task<ApiResponse<TicketDTO>> CreateTicketAsync(CreateTicketDTO dto, Guid createurId);
+        
+       Task<ApiResponse<bool>> DeleteTicketAsync(Guid id);
+        // ✅ NOUVEAU: Récupérer un ticket avec ses commentaires
+        Task<ApiResponse<TicketDetailDTO>> GetTicketDetailAsync(Guid id);
     }
 }

@@ -31,4 +31,8 @@
     <ProjectReference Include="..\projet0.Infrastructure\projet0.Infrastructure.csproj" />
   </ItemGroup>
 
+	<ItemGroup>
+	  <Folder Include="uploads\pieces-jointes\" />
+	</ItemGroup>
+
 </Project>

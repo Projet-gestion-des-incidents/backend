@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
-
-// Fichier: projet0.Application/Mappings/TicketMappingProfile.cs
 using AutoMapper;
 using projet0.Application.Commun.DTOs.Ticket;
 using projet0.Domain.Entities;
@@ -20,7 +18,10 @@ namespace projet0.Application.Mappings
                 .ForMember(dest => dest.CreateurNom, opt => opt.Ignore())
                 .ForMember(dest => dest.AssigneeNom, opt => opt.Ignore())
                 .ForMember(dest => dest.NombreCommentaires, opt => opt.Ignore())
+
                 .ForMember(dest => dest.NombrePiecesJointes, opt => opt.Ignore());
+            CreateMap<Ticket, TicketDetailDTO>()
+            .IncludeBase<Ticket, TicketDTO>();
 
             // CreateTicketDTO -> Ticket (pour la création)
             CreateMap<CreateTicketDTO, Ticket>()

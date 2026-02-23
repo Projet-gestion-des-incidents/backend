@@ -6,7 +6,6 @@ using projet0.Application.Commun.Ressources;
 using projet0.Application.Interfaces;
 using projet0.Domain.Enums;
 using projet0.Domain.Entities;
-
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -38,7 +37,7 @@ public async Task<ApiResponse<EntiteImpacteeDTO>> CreateAsync(CreateEntiteImpact
             Id = Guid.NewGuid(),
             TypeEntiteImpactee = dto.TypeEntiteImpactee,
             Nom = dto.Nom,
-            IncidentId = dto.IncidentId // ✅ obligatoire maintenant
+            IncidentId = dto.IncidentId
         };
 
         await _repository.AddAsync(entite);
@@ -53,7 +52,6 @@ public async Task<ApiResponse<EntiteImpacteeDTO>> CreateAsync(CreateEntiteImpact
         return ApiResponse<EntiteImpacteeDTO>.Failure("Erreur interne du serveur");
     }
 }
-
         public async Task<ApiResponse<List<EntiteImpacteeDTO>>> GetAllAsync()
         {
             try

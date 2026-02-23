@@ -31,14 +31,14 @@ namespace projet0.Infrastructure.Repositories
         public override async Task<Incident> GetByIdAsync(Guid id)
         {
             return await _context.Incidents
-                .Include(i => i.EntitesImpactees)  // ✅ AJOUTER CET INCLUDE !
+                .Include(i => i.EntitesImpactees)  
                 .FirstOrDefaultAsync(i => i.Id == id);
         }
 
         public override async Task<IEnumerable<Incident>> GetAllAsync()
         {
             return await _context.Incidents
-                .Include(i => i.EntitesImpactees)  // ✅ AJOUTER CET INCLUDE !
+                .Include(i => i.EntitesImpactees)  
                 .OrderByDescending(i => i.DateDetection)
                 .ToListAsync();
         }

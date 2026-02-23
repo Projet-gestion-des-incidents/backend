@@ -154,8 +154,6 @@ namespace projet0.API.Controllers
             var result = await _userService.DeleteAsync(id);
             return Ok(result);
         }
-
-        // ================= SEARCH USERS =================
         
         [HttpGet("search")]
         [Authorize(Policy = "AdminOnly")]

@@ -85,9 +85,9 @@ namespace projet0.Infrastructure.Repositories
             return await _dbSet.CountAsync(predicate);
 
         }
-        public async Task<int> SaveChangesAsync()  // AJOUTER <int>
+        public async Task<int> SaveChangesAsync()  
         {
-            return await _context.SaveChangesAsync();  // AJOUTER return
+            return await _context.SaveChangesAsync();  
         }
 
         // methodes ajoutées pour incident

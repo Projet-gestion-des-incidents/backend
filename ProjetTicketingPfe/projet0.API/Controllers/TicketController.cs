@@ -1,16 +1,17 @@
-﻿// Fichier: projet0.API/Controllers/TicketController.cs
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using projet0.Application.Commun.DTOs.Ticket;
 using projet0.Application.Commun.Ressources;
 using projet0.Application.Services.Ticket;
+using projet0.Domain.Enums;
 using System.Security.Claims;
 
 namespace projet0.API.Controllers
 {
+    // Fichier: projet0.API/Controllers/TicketController.cs
+
     [ApiController]
     [Route("api/ticket")]
-    //[Authorize]
     public class TicketController : ControllerBase
     {
         private readonly ITicketService _ticketService;
@@ -24,9 +25,6 @@ namespace projet0.API.Controllers
             _logger = logger;
         }
 
-        /// <summary>
-        /// Récupère l'ID de l'utilisateur connecté
-        /// </summary>
         private Guid GetCurrentUserId()
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
@@ -38,9 +36,6 @@ namespace projet0.API.Controllers
 
         #region CRUD Operations
 
-        /// <summary>
-        /// Récupère TOUS les tickets
-        /// </summary>
         [HttpGet("all")]
         [Authorize(Policy = "TicketRead")]
         public async Task<ActionResult<ApiResponse<List<TicketDTO>>>> GetAllTickets()
@@ -58,12 +53,9 @@ namespace projet0.API.Controllers
             }
         }
 
-        /// <summary>
-        /// Crée un nouveau ticket
-        /// </summary>
         [HttpPost]
         [Authorize(Policy = "TicketCreate")]
-        public async Task<ActionResult<ApiResponse<TicketDTO>>> Create([FromBody] CreateTicketDTO dto)
+        public async Task<ActionResult<ApiResponse<TicketDTO>>> Create([FromForm] CreateTicketDTO dto)
         {
             try
             {
@@ -77,7 +69,7 @@ namespace projet0.API.Controllers
                     return BadRequest(result);
 
                 return CreatedAtAction(
-                    nameof(GetById), // À implémenter plus tard
+                    nameof(GetById),
                     new { id = result.Data?.Id },
                     result);
             }
@@ -96,7 +88,6 @@ namespace projet0.API.Controllers
 
         [HttpGet("{id}")]
         [Authorize(Policy = "TicketRead")]
-
         public async Task<ActionResult<ApiResponse<TicketDTO>>> GetById(Guid id)
         {
             try
@@ -116,6 +107,66 @@ namespace projet0.API.Controllers
             }
         }
 
+        [HttpGet("{id}/details")]
+        [Authorize(Policy = "TicketRead")]
+        public async Task<ActionResult<ApiResponse<TicketDetailDTO>>> GetDetails(Guid id)
+        {
+            try
+            {
+                var result = await _ticketService.GetTicketDetailAsync(id);
+
+                if (!result.IsSuccess || result.Data == null)
+                    return NotFound(result);
+
+                // Ajouter les URLs des pièces jointes
+                if (result.Data.Commentaires != null)
+                {
+                    foreach (var commentaire in result.Data.Commentaires)
+                    {
+                        foreach (var piece in commentaire.PiecesJointes)
+                        {
+                            piece.Url = $"{Request.Scheme}://{Request.Host}/api/pieces-jointes/{piece.Id}";
+                        }
+                    }
+                }
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erreur lors de la récupération des détails du ticket {Id}", id);
+                return StatusCode(500, ApiResponse<TicketDetailDTO>.Failure(
+                    "Erreur interne du serveur"));
+            }
+        }
+
+        [HttpDelete("{id}")]
+        [Authorize(Policy = "TicketDelete")]
+        public async Task<ActionResult<ApiResponse<bool>>> Delete(Guid id)
+        {
+            try
+            {
+                var result = await _ticketService.DeleteTicketAsync(id);
+
+                if (!result.IsSuccess)
+                {
+                    if (result.Message?.Contains("non trouvé") == true)
+                        return NotFound(result);
+
+                    return BadRequest(result);
+                }
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erreur lors de la suppression du ticket {Id}", id);
+                return StatusCode(500, ApiResponse<bool>.Failure(
+                    "Erreur interne du serveur lors de la suppression du ticket"));
+            }
+        }
+
         #endregion
     }
+
 }

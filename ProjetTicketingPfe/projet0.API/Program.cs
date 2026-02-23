@@ -1,7 +1,9 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using projet0.API.Filters;
@@ -169,37 +171,37 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("TicketRead", policy =>
     {
         policy.RequireAuthenticatedUser();
-        policy.RequireRole("Admin", "Technicien", "Commercant"); // Tous les rôles peuvent lire
+        policy.RequireRole("Admin", "Technicien", "Commercant"); 
     });
 
     options.AddPolicy("TicketCreate", policy =>
     {
         policy.RequireAuthenticatedUser();
-        policy.RequireRole("Admin", "Technicien", "Commercant"); // Tous les rôles peuvent créer
+        policy.RequireRole("Admin", "Technicien", "Commercant"); 
     });
 
     options.AddPolicy("TicketUpdate", policy =>
     {
         policy.RequireAuthenticatedUser();
-        policy.RequireRole("Admin", "Technicien"); // Seuls Admin et Technicien peuvent modifier
+        policy.RequireRole("Admin", "Technicien"); 
     });
 
     options.AddPolicy("TicketDelete", policy =>
     {
         policy.RequireAuthenticatedUser();
-        policy.RequireRole("Admin"); // Seul l'Admin peut supprimer
+        policy.RequireRole("Admin"); 
     });
 
     options.AddPolicy("TicketAssign", policy =>
     {
         policy.RequireAuthenticatedUser();
-        policy.RequireRole("Admin", "Technicien"); // Admin et Technicien peuvent assigner
+        policy.RequireRole("Admin", "Technicien"); 
     });
 
     options.AddPolicy("TicketComment", policy =>
     {
         policy.RequireAuthenticatedUser();
-        policy.RequireRole("Admin", "Technicien", "Commercant"); // Tous peuvent commenter
+        policy.RequireRole("Admin", "Technicien", "Commercant"); 
     });
 });
 
@@ -249,10 +251,21 @@ builder.Services.AddScoped<IIncidentService, IncidentService>();
 builder.Services.AddScoped<IEntiteImpacteeRepository, EntiteImpacteeRepository>();
 builder.Services.AddScoped<ITicketRepository, TicketRepository>();
 builder.Services.AddScoped<ITicketService, TicketService>();
-
 builder.Services.AddAutoMapper(typeof(IncidentMappingProfile).Assembly);
 builder.Services.AddScoped<IEntiteImpacteeService, EntiteImpacteeService>();
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICommentaireRepository, CommentaireRepository>();
+builder.Services.AddScoped<IPieceJointeRepository, PieceJointeRepository>();
+builder.Services.AddScoped<IPieceJointeService, PieceJointeService>();
+
+builder.Services.Configure<FormOptions>(options =>
+{
+    options.ValueLengthLimit = int.MaxValue;
+    options.MultipartBodyLengthLimit = int.MaxValue; // Limite de taille de fichier
+    options.MemoryBufferThreshold = int.MaxValue;
+});
+
+
 #endregion
 
 #region 🔹 OTP & Email Services
@@ -294,6 +307,14 @@ using (var scope = app.Services.CreateScope())
 
     await IdentitySeeder.SeedRolesAsync(roleManager);
 }
+
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(
+        Path.Combine(Directory.GetCurrentDirectory(), "uploads")),  // ← Utiliser Directory.GetCurrentDirectory()
+    RequestPath = "/uploads"
+});
 
 Log.Information("Application démarrée avec succès");
 

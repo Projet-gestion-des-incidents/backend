@@ -44,20 +44,6 @@ namespace projet0.Infrastructure.Repositories
             }
         }
 
-        /*public async Task<IdentityResult> SoftDeleteAsync(ApplicationUser user)
-        {
-            user.IsDeleted = true;
-            user.DeletedAt = DateTime.UtcNow;
-
-            return await _userManager.UpdateAsync(user);
-        }
-        public async Task<IdentityResult> RestoreAsync(ApplicationUser user)
-        {
-            user.IsDeleted = false;
-            user.DeletedAt = null;
-            return await _userManager.UpdateAsync(user);
-        }*/
-
         public async Task<IEnumerable<ApplicationUser>> GetUsersByRoleAsync(string roleName)
         {
             var users = await _userManager.GetUsersInRoleAsync(roleName);

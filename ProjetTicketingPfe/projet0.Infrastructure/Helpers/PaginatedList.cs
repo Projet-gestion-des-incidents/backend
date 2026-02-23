@@ -61,17 +61,17 @@ namespace projet0.Infrastructure.Helpers
             return new PaginatedList<T>(items, totalCount, page, pageSize);
         }
 
-        // Version avec tri (CORRIGÉE)
+        // Version avec tri 
         public static async Task<PaginatedList<T>> CreateAsync<TKey>(
             IQueryable<T> source,
-            Expression<Func<T, TKey>> keySelector, // CHANGEMENT ICI : Expression<>
+            Expression<Func<T, TKey>> keySelector, 
             bool descending = false,
             int page = 1,
             int pageSize = 20,
             CancellationToken cancellationToken = default)
         {
             var orderedSource = descending
-                ? source.OrderByDescending(keySelector) // IQueryable, pas IOrderedEnumerable
+                ? source.OrderByDescending(keySelector) 
                 : source.OrderBy(keySelector);
 
             return await CreateAsync(orderedSource, page, pageSize, cancellationToken);

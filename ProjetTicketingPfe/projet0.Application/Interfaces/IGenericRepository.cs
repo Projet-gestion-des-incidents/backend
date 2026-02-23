@@ -26,8 +26,7 @@ namespace projet0.Application.Interfaces
         Task UpdateRangeAsync(IEnumerable<T> entities);
         Task DeleteAsync(T entity);
         Task DeleteRangeAsync(IEnumerable<T> entities);
-
-         Task<int> SaveChangesAsync(); 
+        Task<int> SaveChangesAsync(); 
 
 
     }

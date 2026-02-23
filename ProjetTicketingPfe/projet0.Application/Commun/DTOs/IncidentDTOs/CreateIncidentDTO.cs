@@ -10,9 +10,7 @@ namespace projet0.Application.Commun.DTOs.Incident
         public string TitreIncident { get; set; }
         public string DescriptionIncident { get; set; }
         public SeveriteIncident SeveriteIncident { get; set; }
-        //public DateTime DateDetection { get; set; }
         public List<EntiteImpacteeDTO> EntitesImpactees { get; set; }
-        //public StatutIncident StatutIncident { get; set; }
 
     }
 }

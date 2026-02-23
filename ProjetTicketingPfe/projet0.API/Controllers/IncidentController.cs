@@ -12,7 +12,6 @@ namespace projet0.API.Controllers
 
     [ApiController]
     [Route("api/incident")]
-    //[Authorize]
     public class IncidentController : ControllerBase
     {
         private readonly IIncidentService _incidentService;
@@ -25,9 +24,7 @@ namespace projet0.API.Controllers
             _incidentService = incidentService;
             _logger = logger;
         }
-        /// <summary>
-/// Récupère TOUS les incidents sans filtre, sans pagination
-/// </summary>
+
 [HttpGet("all")]
 [Authorize(Policy = "IncidentRead")]
 public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents()
@@ -44,9 +41,6 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
             "Erreur interne du serveur"));
     }
 }
-        /// <summary>
-        /// Récupère l'ID de l'utilisateur connecté
-        /// </summary>
         private Guid GetCurrentUserId()
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
@@ -58,13 +52,8 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
 
         #region CRUD Operations
 
-
-        /// <summary>
-        /// Recherche paginée des incidents avec filtres
-        /// </summary>
         [HttpGet("withFilters")]
-        [Authorize(Policy = "IncidentRead")]
-     
+        [Authorize(Policy = "IncidentRead")]     
         public async Task<ActionResult<ApiResponse<PagedResult<IncidentDTO>>>> SearchIncidents(
             [FromQuery] IncidentSearchRequest request)
         {
@@ -88,12 +77,8 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
             }
         }
 
-        /// <summary>
-        /// Récupère un incident par son ID
-        /// </summary>
         [HttpGet("{id}")]
-        [Authorize(Policy = "IncidentRead")]
-   
+        [Authorize(Policy = "IncidentRead")]   
         public async Task<ActionResult<ApiResponse<IncidentDTO>>> GetById(Guid id)
         {
             try
@@ -113,12 +98,8 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
             }
         }
 
-        /// <summary>
-        /// Récupère un incident détaillé avec ses relations (tickets, entités impactées)
-        /// </summary>
         [HttpGet("{id}/details")]
-        [Authorize(Policy = "IncidentRead")]
-  
+        [Authorize(Policy = "IncidentRead")]  
         public async Task<ActionResult<ApiResponse<IncidentDetailDTO>>> GetDetails(Guid id)
         {
             try
@@ -138,10 +119,6 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
             }
         }
 
-
-        /// <summary>
-        /// Crée un nouvel incident
-        /// </summary>
         [HttpPost]
         [Authorize(Policy = "IncidentCreate")]
         public async Task<ActionResult<ApiResponse<IncidentDTO>>> Create([FromBody] CreateIncidentDTO dto)
@@ -175,10 +152,6 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
             }
         }
 
-
-        /// <summary>
-        /// Met à jour un incident existant
-        /// </summary>
         [HttpPut("{id}")]
         [Authorize(Policy = "IncidentUpdate")]
         public async Task<ActionResult<ApiResponse<IncidentDTO>>> Update(Guid id, [FromBody] UpdateIncidentDTO dto)
@@ -214,12 +187,8 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
             }
         }
 
-        /// <summary>
-        /// Supprime un incident
-        /// </summary>
         [HttpDelete("{id}")]
         [Authorize(Policy = "IncidentDelete")]
-
         public async Task<ActionResult<ApiResponse<bool>>> Delete(Guid id)
         {
             try
@@ -243,12 +212,8 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
 
         #region Specific Operations
 
-        /// <summary>
-        /// Récupère les incidents par statut
-        /// </summary>
         [HttpGet("statut/{statut}")]
-        [Authorize(Policy = "IncidentRead")]
-   
+        [Authorize(Policy = "IncidentRead")]   
         public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetByStatut(StatutIncident statut)
         {
             try
@@ -264,12 +229,8 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
             }
         }
 
-        /// <summary>
-        /// Récupère les incidents par sévérité
-        /// </summary>
         [HttpGet("severite/{severite}")]
-        [Authorize(Policy = "IncidentRead")]
-     
+        [Authorize(Policy = "IncidentRead")]     
         public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetBySeverite(SeveriteIncident severite)
         {
             try
@@ -285,12 +246,8 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
             }
         }
 
-        /// <summary>
-        /// Récupère les incidents créés par un utilisateur spécifique
-        /// </summary>
         [HttpGet("created-by/{userId}")]
-        [Authorize(Policy = "IncidentRead")]
-  
+        [Authorize(Policy = "IncidentRead")]  
         public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetByCreatedBy(Guid userId)
         {
             try
@@ -306,12 +263,8 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
             }
         }
 
-        /// <summary>
-        /// Récupère les incidents créés par l'utilisateur connecté
-        /// </summary>
         [HttpGet("my-incidents")]
-        [Authorize(Policy = "IncidentRead")]
-  
+        [Authorize(Policy = "IncidentRead")]  
         public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetMyIncidents()
         {
             try
@@ -332,8 +285,7 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
                     "Erreur interne du serveur lors de la récupération de vos incidents"));
             }
         }
-
-     
+    
         #endregion
     }
 }
