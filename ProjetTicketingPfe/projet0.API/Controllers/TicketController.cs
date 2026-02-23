@@ -55,7 +55,7 @@ namespace projet0.API.Controllers
 
         [HttpPost]
         [Authorize(Policy = "TicketCreate")]
-        public async Task<ActionResult<ApiResponse<TicketDTO>>> Create([FromForm] CreateTicketDTO dto)
+        public async Task<ActionResult<ApiResponse<TicketDTO>>> Create([FromBody] CreateTicketDTO dto)
         {
             try
             {
