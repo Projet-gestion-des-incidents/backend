@@ -75,32 +75,70 @@ namespace projet0.Infrastructure.Repositories
             return ticket;
         }
 
+        // Fichier: projet0.Infrastructure/Repositories/TicketRepository.cs
+
         public override async Task<IEnumerable<Ticket>> GetAllAsync()
         {
-            return await _context.Tickets
-                .Include(t => t.Createur)
-                .Include(t => t.Assignee)
-                        .Include(t => t.Commentaires)  // ✅ AJOUTER
+            try
+            {
+                _logger.LogInformation("Récupération de tous les tickets");
 
-                .OrderByDescending(t => t.DateCreation)
-                .ToListAsync();
+                var tickets = await _context.Tickets
+                    .Include(t => t.Createur)
+                    .Include(t => t.Assignee)
+                    .Include(t => t.Commentaires)  // Inclure les commentaires
+                    .OrderByDescending(t => t.DateCreation)
+                    .ToListAsync();
+
+                _logger.LogInformation("{Count} tickets récupérés", tickets.Count);
+                return tickets;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erreur lors de la récupération de tous les tickets");
+                throw; // Remonter l'exception pour qu'elle soit gérée par le service
+            }
         }
+
+        // Fichier: projet0.Infrastructure/Repositories/TicketRepository.cs
 
         public async Task<Ticket> GetTicketWithDetailsAsync(Guid id)
         {
-            return await _context.Tickets
-                .Include(t => t.Createur)
-                .Include(t => t.Assignee)
-                .Include(t => t.Commentaires)
-                    .ThenInclude(c => c.Auteur)
-                .Include(t => t.Commentaires)
-                    .ThenInclude(c => c.PiecesJointes)
-                .Include(t => t.Historiques)
-                    .ThenInclude(h => h.ModifiePar)
-                .Include(t => t.IncidentTickets)
-                    .ThenInclude(it => it.Incident)
-                .Include(t => t.Notifications)
-                .FirstOrDefaultAsync(t => t.Id == id);
+            try
+            {
+                _logger.LogInformation("Récupération des détails du ticket {Id}", id);
+
+                var ticket = await _context.Tickets
+                    .Include(t => t.Createur)
+                    .Include(t => t.Assignee)
+                    .Include(t => t.Commentaires)
+                        .ThenInclude(c => c.Auteur)
+                    .Include(t => t.Commentaires)
+                        .ThenInclude(c => c.PiecesJointes)
+                    .Include(t => t.Historiques)
+                        .ThenInclude(h => h.ModifiePar)
+                    .Include(t => t.IncidentTickets)
+                        .ThenInclude(it => it.Incident)
+                    .Include(t => t.Notifications)
+                    .FirstOrDefaultAsync(t => t.Id == id);
+
+                if (ticket == null)
+                {
+                    _logger.LogWarning("Ticket {Id} non trouvé", id);
+                }
+                else
+                {
+                    _logger.LogInformation("Ticket {Id} trouvé avec {Commentaires} commentaires",
+                        id, ticket.Commentaires?.Count ?? 0);
+                }
+
+                return ticket;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erreur lors de la récupération des détails du ticket {Id}", id);
+                throw;
+            }
         }
 
         public async Task<List<Ticket>> GetTicketsByStatutAsync(StatutTicket statut)

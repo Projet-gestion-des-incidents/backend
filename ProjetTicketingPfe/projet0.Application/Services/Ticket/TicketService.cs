@@ -11,7 +11,7 @@ using TicketEntity = projet0.Domain.Entities.Ticket;
 
 namespace projet0.Application.Services.Ticket
 {
-       public class TicketService : ITicketService
+    public class TicketService : ITicketService
     {
         private readonly ITicketRepository _ticketRepository;
         private readonly IUserRepository _userRepository;
@@ -125,26 +125,33 @@ namespace projet0.Application.Services.Ticket
 
         #region CRUD Operations
 
+        // Fichier: projet0.Application/Services/Ticket/TicketService.cs
+
         public async Task<ApiResponse<List<TicketDTO>>> GetAllTicketsAsync()
         {
             return await MeasureAsync(nameof(GetAllTicketsAsync), null, async () =>
             {
                 try
                 {
-                    var tickets = await _ticketRepository.GetAllAsync();
-                    var dtos = new List<TicketDTO>();
+                    _logger.LogInformation("Début GetAllTicketsAsync");
 
+                    var tickets = await _ticketRepository.GetAllAsync();
+                    _logger.LogInformation("{Count} tickets récupérés du repository", tickets.Count());
+
+                    var dtos = new List<TicketDTO>();
                     foreach (var ticket in tickets)
                     {
+                        _logger.LogDebug("Mapping ticket {Id} - {Reference}", ticket.Id, ticket.ReferenceTicket);
                         dtos.Add(await MapToDto(ticket));
                     }
 
+                    _logger.LogInformation("{Count} tickets mappés avec succès", dtos.Count);
                     return ApiResponse<List<TicketDTO>>.Success(dtos);
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Erreur lors de la récupération de tous les tickets");
-                    return ApiResponse<List<TicketDTO>>.Failure("Erreur interne du serveur");
+                    return ApiResponse<List<TicketDTO>>.Failure("Erreur interne du serveur: " + ex.Message);
                 }
             });
         }
@@ -255,22 +262,35 @@ namespace projet0.Application.Services.Ticket
         // ✅ NOUVELLE MÉTHODE: GetTicketDetailAsync
         public async Task<ApiResponse<TicketDetailDTO>> GetTicketDetailAsync(Guid id)
         {
+            _logger.LogInformation("=== TicketService.GetTicketDetailAsync ===");
+            _logger.LogInformation("ID reçu: {Id}", id);
+
             return await MeasureAsync(nameof(GetTicketDetailAsync), new { id }, async () =>
             {
                 try
                 {
+                    _logger.LogInformation("Appel du repository GetTicketWithDetailsAsync pour ID: {Id}", id);
                     var ticket = await _ticketRepository.GetTicketWithDetailsAsync(id);
 
                     if (ticket == null)
+                    {
+                        _logger.LogWarning("Ticket avec ID {Id} non trouvé en base", id);
                         return ApiResponse<TicketDetailDTO>.Failure($"Ticket avec ID {id} non trouvé");
+                    }
 
+                    _logger.LogInformation("Ticket trouvé: {Reference}, Commentaires: {NbCommentaires}",
+                        ticket.ReferenceTicket, ticket.Commentaires?.Count ?? 0);
+
+                    _logger.LogInformation("Début du mapping vers TicketDetailDTO");
                     var dto = await MapToDetailDto(ticket);
+                    _logger.LogInformation("Mapping terminé avec succès");
+
                     return ApiResponse<TicketDetailDTO>.Success(dto);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Erreur lors de la récupération des détails du ticket {Id}", id);
-                    return ApiResponse<TicketDetailDTO>.Failure("Erreur interne du serveur");
+                    _logger.LogError(ex, "❌ Erreur lors de la récupération des détails du ticket {Id}", id);
+                    return ApiResponse<TicketDetailDTO>.Failure($"Erreur interne du serveur: {ex.Message}");
                 }
             });
         }
@@ -339,7 +359,7 @@ namespace projet0.Application.Services.Ticket
                 }
             });
         }
-            private TypePieceJointe DeterminerTypePieceJointe(string nomFichier)
+        private TypePieceJointe DeterminerTypePieceJointe(string nomFichier)
         {
             var extension = Path.GetExtension(nomFichier).ToLowerInvariant();
 
@@ -353,70 +373,100 @@ namespace projet0.Application.Services.Ticket
             };
         }
 
-        private async Task<TicketDetailDTO> MapToDetailDto(TicketEntity ticket)
+        
+
+
+    // Fichier: projet0.Application/Services/Ticket/TicketService.cs
+
+private async Task<TicketDetailDTO> MapToDetailDto(TicketEntity ticket)
         {
-            var dto = _mapper.Map<TicketDetailDTO>(ticket);
-
-            dto.StatutTicketLibelle = GetStatutLibelle(ticket.StatutTicket);
-            dto.PrioriteTicketLibelle = GetPrioriteLibelle(ticket.PrioriteTicket);
-
-            // Nom du créateur
-            if (ticket.Createur != null)
+            try
             {
-                dto.CreateurNom = $"{ticket.Createur.Nom} {ticket.Createur.Prenom}";
-            }
-            else if (ticket.CreateurId != Guid.Empty)
-            {
-                var user = await _userRepository.GetByIdAsync(ticket.CreateurId);
-                dto.CreateurNom = user != null ? $"{user.Nom} {user.Prenom}" : "Utilisateur inconnu";
-            }
+                _logger.LogDebug("Début MapToDetailDto pour ticket {Id} - {Reference}", ticket.Id, ticket.ReferenceTicket);
 
-            // Nom de l'assigné
-            if (ticket.AssigneeId.HasValue)
-            {
-                if (ticket.Assignee != null)
+                // 1. Mapper les propriétés de base avec AutoMapper
+                var dto = _mapper.Map<TicketDetailDTO>(ticket);
+                _logger.LogDebug("Mapping AutoMapper réussi");
+
+                // 2. Ajouter les libellés
+                dto.StatutTicketLibelle = GetStatutLibelle(ticket.StatutTicket);
+                dto.PrioriteTicketLibelle = GetPrioriteLibelle(ticket.PrioriteTicket);
+
+                // 3. Nom du créateur
+                if (ticket.Createur != null)
                 {
-                    dto.AssigneeNom = $"{ticket.Assignee.Nom} {ticket.Assignee.Prenom}";
+                    dto.CreateurNom = $"{ticket.Createur.Nom} {ticket.Createur.Prenom}";
+                    _logger.LogDebug("Créateur trouvé: {CreateurNom}", dto.CreateurNom);
+                }
+                else if (ticket.CreateurId != Guid.Empty)
+                {
+                    _logger.LogDebug("Recherche du créateur par ID: {CreateurId}", ticket.CreateurId);
+                    var user = await _userRepository.GetByIdAsync(ticket.CreateurId);
+                    dto.CreateurNom = user != null ? $"{user.Nom} {user.Prenom}" : "Utilisateur inconnu";
+                }
+
+                // 4. Nom de l'assigné
+                if (ticket.AssigneeId.HasValue)
+                {
+                    if (ticket.Assignee != null)
+                    {
+                        dto.AssigneeNom = $"{ticket.Assignee.Nom} {ticket.Assignee.Prenom}";
+                    }
+                    else
+                    {
+                        _logger.LogDebug("Recherche de l'assigné par ID: {AssigneeId}", ticket.AssigneeId);
+                        var user = await _userRepository.GetByIdAsync(ticket.AssigneeId.Value);
+                        dto.AssigneeNom = user != null ? $"{user.Nom} {user.Prenom}" : "Utilisateur inconnu";
+                    }
+                }
+
+                // 5. Mapper les commentaires
+                if (ticket.Commentaires != null && ticket.Commentaires.Any())
+                {
+                    _logger.LogDebug("Mapping de {Count} commentaires", ticket.Commentaires.Count);
+
+                    dto.Commentaires = ticket.Commentaires.Select(c => new CommentaireDTO
+                    {
+                        Id = c.Id,
+                        Message = c.Message,
+                        DateCreation = c.DateCreation,
+                        EstInterne = c.EstInterne,
+                        AuteurId = c.AuteurId,
+                        AuteurNom = c.Auteur != null ? $"{c.Auteur.Nom} {c.Auteur.Prenom}" : "Inconnu",
+                        PiecesJointes = c.PiecesJointes?.Select(p => new PieceJointeDTO
+                        {
+                            Id = p.Id,
+                            NomFichier = p.NomFichier,
+                            Taille = p.Taille,
+                            ContentType = p.ContentType,
+                            TypePieceJointe = p.TypePieceJointe,
+                            DateAjout = p.DateAjout
+                        }).ToList() ?? new()
+                    }).ToList();
                 }
                 else
                 {
-                    var user = await _userRepository.GetByIdAsync(ticket.AssigneeId.Value);
-                    dto.AssigneeNom = user != null ? $"{user.Nom} {user.Prenom}" : "Utilisateur inconnu";
+                    dto.Commentaires = new List<CommentaireDTO>();
+                    _logger.LogDebug("Aucun commentaire trouvé");
                 }
-            }
 
-            // Mapper les commentaires
-            if (ticket.Commentaires != null)
+                // 6. Compter les relations
+                dto.NombreCommentaires = dto.Commentaires.Count;
+                dto.NombrePiecesJointes = dto.Commentaires
+                    .SelectMany(c => c.PiecesJointes)
+                    .Count();
+
+                _logger.LogDebug("MapToDetailDto terminé pour ticket {Id} - {Commentaires} commentaires, {Pieces} pièces jointes",
+                    ticket.Id, dto.NombreCommentaires, dto.NombrePiecesJointes);
+
+                return dto;
+            }
+            catch (Exception ex)
             {
-                dto.Commentaires = ticket.Commentaires.Select(c => new CommentaireDTO
-                {
-                    Id = c.Id,
-                    Message = c.Message,
-                    DateCreation = c.DateCreation,
-                    EstInterne = c.EstInterne,
-                    AuteurId = c.AuteurId,
-                    AuteurNom = c.Auteur != null ? $"{c.Auteur.Nom} {c.Auteur.Prenom}" : "Inconnu",
-                    PiecesJointes = c.PiecesJointes?.Select(p => new PieceJointeDTO
-                    {
-                        Id = p.Id,
-                        NomFichier = p.NomFichier,
-                        Taille = p.Taille,
-                        ContentType = p.ContentType,
-                        TypePieceJointe = p.TypePieceJointe,
-                        DateAjout = p.DateAjout
-                    }).ToList() ?? new()
-                }).ToList();
+                _logger.LogError(ex, "❌ Erreur dans MapToDetailDto pour ticket {Id}", ticket?.Id);
+                throw;
             }
-
-            dto.NombreCommentaires = dto.Commentaires?.Count ?? 0;
-            dto.NombrePiecesJointes = dto.Commentaires?
-                .SelectMany(c => c.PiecesJointes)
-                .Count() ?? 0;
-
-            return dto;
         }
-    }
-
 
         #endregion
-    }
+    } }

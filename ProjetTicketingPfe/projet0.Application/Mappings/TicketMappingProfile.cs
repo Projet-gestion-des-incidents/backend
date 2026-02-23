@@ -21,7 +21,9 @@ namespace projet0.Application.Mappings
 
                 .ForMember(dest => dest.NombrePiecesJointes, opt => opt.Ignore());
             CreateMap<Ticket, TicketDetailDTO>()
-            .IncludeBase<Ticket, TicketDTO>();
+            .IncludeBase<Ticket, TicketDTO>()
+            .ForMember(dest => dest.Commentaires, opt => opt.Ignore()); // On mappe manuellement
+            ;
 
             // CreateTicketDTO -> Ticket (pour la création)
             CreateMap<CreateTicketDTO, Ticket>()
