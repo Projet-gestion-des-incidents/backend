@@ -111,6 +111,8 @@ namespace projet0.Application.Services
         /// <summary>
         /// Supprime un fichier (physique et base de données)
         /// </summary>
+        // Dans PieceJointeService.cs, méthode SupprimerFichierAsync
+
         public async Task<bool> SupprimerFichierAsync(Guid pieceJointeId)
         {
             // 1. Récupérer la pièce jointe via le repository
@@ -118,15 +120,31 @@ namespace projet0.Application.Services
             if (pieceJointe == null)
                 return false;
 
-            // 2. Supprimer le fichier physique
-            var filePath = Path.Combine(_environment.WebRootPath, pieceJointe.CheminStockage);
-            if (File.Exists(filePath))
-                File.Delete(filePath);
+            // 2. Construire le chemin complet du fichier
+            // ❌ ANCIEN (ne fonctionne pas):
+            // var filePath = Path.Combine(_environment.WebRootPath, pieceJointe.CheminStockage);
 
-            // 3. Supprimer l'entité via le repository
+            // ✅ NOUVEAU: Utiliser ContentRootPath (racine du projet)
+            var filePath = Path.Combine(_environment.ContentRootPath, pieceJointe.CheminStockage);
+
+            _logger.LogInformation("Tentative de suppression du fichier: {FilePath}", filePath);
+
+            // 3. Supprimer le fichier physique s'il existe
+            if (File.Exists(filePath))
+            {
+                File.Delete(filePath);
+                _logger.LogInformation("Fichier physique supprimé");
+            }
+            else
+            {
+                _logger.LogWarning("Fichier non trouvé à l'emplacement: {FilePath}", filePath);
+            }
+
+            // 4. Supprimer l'entité via le repository
             await _pieceJointeRepository.DeleteAsync(pieceJointe);
             await _pieceJointeRepository.SaveChangesAsync();
 
+            _logger.LogInformation("Entité supprimée de la base");
             return true;
         }
 
@@ -205,6 +223,35 @@ namespace projet0.Application.Services
             var request = _httpContextAccessor.HttpContext.Request;
             var baseUrl = $"{request.Scheme}://{request.Host}";
             return $"{baseUrl}/{piece.CheminStockage.Replace("\\", "/")}";
+        }
+
+        // Fichier: projet0.Application/Services/PieceJointeService.cs
+
+        public async Task<bool> SupprimerPiecesJointesAsync(List<Guid> pieceJointeIds)
+        {
+            _logger.LogInformation("Suppression de {Count} pièce(s) jointe(s)", pieceJointeIds.Count);
+
+            bool success = true;
+
+            foreach (var id in pieceJointeIds)
+            {
+                try
+                {
+                    var result = await SupprimerFichierAsync(id);
+                    if (!result)
+                    {
+                        _logger.LogWarning("Échec de suppression pour la pièce jointe {Id}", id);
+                        success = false;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Erreur lors de la suppression de la pièce jointe {Id}", id);
+                    success = false;
+                }
+            }
+
+            return success;
         }
 
         #endregion

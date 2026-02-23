@@ -28,5 +28,6 @@ namespace projet0.Application.Interfaces
         /// Récupère toutes les pièces jointes d'un commentaire
         /// </summary>
         Task<List<PieceJointeDTO>> GetPiecesJointesByCommentaireAsync(Guid commentaireId);
+        Task<bool> SupprimerPiecesJointesAsync(List<Guid> pieceJointeIds);
     }
 }

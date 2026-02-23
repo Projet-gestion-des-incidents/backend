@@ -9,5 +9,8 @@ namespace projet0.Application.Interfaces
     {
         Task<List<CommentaireTicket>> GetCommentairesByTicketIdAsync(Guid ticketId);
         Task<CommentaireTicket> GetCommentaireWithPiecesJointesAsync(Guid id);
+        Task<CommentaireTicket> GetCommentaireForUpdateAsync(Guid id);
+        Task<bool> HasPiecesJointesAsync(Guid commentaireId);
+        Task DeleteCommentaireWithPiecesJointesAsync(Guid id);
     }
 }

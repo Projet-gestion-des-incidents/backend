@@ -7,9 +7,8 @@ namespace projet0.Application.Commun.DTOs.Ticket
 {
     public class CreateCommentaireDTO
     {
-        [Required(ErrorMessage = "Le message est requis")]
         [StringLength(2000, ErrorMessage = "Le message ne peut pas dépasser 2000 caractères")]
-        public string Message { get; set; }
+        public string? Message { get; set; }
 
         public bool EstInterne { get; set; } = false;
 

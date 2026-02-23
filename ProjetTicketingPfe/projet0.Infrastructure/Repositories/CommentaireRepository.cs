@@ -34,5 +34,33 @@ namespace projet0.Infrastructure.Repositories
                 .Include(c => c.PiecesJointes)
                 .FirstOrDefaultAsync(c => c.Id == id);
         }
+
+        // ✅ NOUVEAU: Récupérer un commentaire pour modification
+        public async Task<CommentaireTicket> GetCommentaireForUpdateAsync(Guid id)
+        {
+            return await _context.CommentairesTicket
+                .Include(c => c.PiecesJointes)
+                .FirstOrDefaultAsync(c => c.Id == id);
+        }
+
+        // ✅ NOUVEAU: Vérifier si le commentaire a des pièces jointes
+        public async Task<bool> HasPiecesJointesAsync(Guid commentaireId)
+        {
+            return await _context.PiecesJointes.AnyAsync(p => p.CommentaireId == commentaireId);
+        }
+
+        // ✅ NOUVEAU: Supprimer un commentaire et ses pièces jointes
+        public async Task DeleteCommentaireWithPiecesJointesAsync(Guid id)
+        {
+            var commentaire = await _context.CommentairesTicket
+                .Include(c => c.PiecesJointes)
+                .FirstOrDefaultAsync(c => c.Id == id);
+
+            if (commentaire != null)
+            {
+                _context.CommentairesTicket.Remove(commentaire);
+                // Les pièces jointes seront supprimées en cascade par EF Core
+            }
+        }
     }
 }
