@@ -55,46 +55,74 @@ namespace projet0.Application.Services.Ticket
 
         private async Task<TicketDTO> MapToDto(TicketEntity ticket)
         {
-            var dto = _mapper.Map<TicketDTO>(ticket);
-
-            // Libellés
-            dto.StatutTicketLibelle = GetStatutLibelle(ticket.StatutTicket);
-            dto.PrioriteTicketLibelle = GetPrioriteLibelle(ticket.PrioriteTicket);
-
-            // Nom du créateur
-            if (ticket.Createur != null)
+            try
             {
-                dto.CreateurNom = $"{ticket.Createur.Nom} {ticket.Createur.Prenom}";
-            }
-            else if (ticket.CreateurId != Guid.Empty)
-            {
-                var user = await _userRepository.GetByIdAsync(ticket.CreateurId);
-                dto.CreateurNom = user != null ? $"{user.Nom} {user.Prenom}" : "Utilisateur inconnu";
-            }
+                _logger.LogDebug("Début MapToDto pour ticket {Id} - {Reference}", ticket.Id, ticket.ReferenceTicket);
 
-            // Nom de l'assigné (optionnel)
-            if (ticket.AssigneeId.HasValue)
-            {
-                if (ticket.Assignee != null)
+                var dto = _mapper.Map<TicketDTO>(ticket);
+
+                // Libellés
+                dto.StatutTicketLibelle = GetStatutLibelle(ticket.StatutTicket);
+                dto.PrioriteTicketLibelle = GetPrioriteLibelle(ticket.PrioriteTicket);
+
+                // Nom du créateur
+                if (ticket.Createur != null)
                 {
-                    dto.AssigneeNom = $"{ticket.Assignee.Nom} {ticket.Assignee.Prenom}";
+                    dto.CreateurNom = $"{ticket.Createur.Nom} {ticket.Createur.Prenom}";
+                }
+                else if (ticket.CreateurId != Guid.Empty)
+                {
+                    var user = await _userRepository.GetByIdAsync(ticket.CreateurId);
+                    dto.CreateurNom = user != null ? $"{user.Nom} {user.Prenom}" : "Utilisateur inconnu";
+                }
+
+                // Nom de l'assigné (optionnel)
+                if (ticket.AssigneeId.HasValue)
+                {
+                    if (ticket.Assignee != null)
+                    {
+                        dto.AssigneeNom = $"{ticket.Assignee.Nom} {ticket.Assignee.Prenom}";
+                    }
+                    else
+                    {
+                        var user = await _userRepository.GetByIdAsync(ticket.AssigneeId.Value);
+                        dto.AssigneeNom = user != null ? $"{user.Nom} {user.Prenom}" : "Utilisateur inconnu";
+                    }
+                }
+
+                // ✅ VERSION ROBUSTE - Compter les relations avec vérifications null
+                if (ticket.Commentaires != null)
+                {
+                    dto.NombreCommentaires = ticket.Commentaires.Count;
+
+                    // Compter les pièces jointes de manière sécurisée
+                    int totalPieces = 0;
+                    foreach (var commentaire in ticket.Commentaires)
+                    {
+                        if (commentaire.PiecesJointes != null)
+                        {
+                            totalPieces += commentaire.PiecesJointes.Count;
+                        }
+                    }
+                    dto.NombrePiecesJointes = totalPieces;
                 }
                 else
                 {
-                    var user = await _userRepository.GetByIdAsync(ticket.AssigneeId.Value);
-                    dto.AssigneeNom = user != null ? $"{user.Nom} {user.Prenom}" : "Utilisateur inconnu";
+                    dto.NombreCommentaires = 0;
+                    dto.NombrePiecesJointes = 0;
                 }
+
+                _logger.LogDebug("MapToDto terminé pour ticket {Id} - Commentaires: {NbCommentaires}, Pièces: {NbPieces}",
+                    ticket.Id, dto.NombreCommentaires, dto.NombrePiecesJointes);
+
+                return dto;
             }
-
-            // Compter les relations
-            dto.NombreCommentaires = ticket.Commentaires?.Count ?? 0;
-            dto.NombrePiecesJointes = ticket.Commentaires?
-                .SelectMany(c => c.PiecesJointes)
-                .Count() ?? 0;
-
-            return dto;
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ Erreur dans MapToDto pour ticket {Id}", ticket?.Id);
+                throw;
+            }
         }
-
         private string GetStatutLibelle(StatutTicket statut)
         {
             return statut switch
