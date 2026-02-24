@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using projet0.Application.Common.Models.Pagination;
@@ -21,16 +22,22 @@ namespace projet0.Application.Services.Ticket
         private readonly IUserRepository _userRepository;
         private readonly ILogger<TicketService> _logger;
         private readonly IMapper _mapper;
+        private readonly IWebHostEnvironment _environment; // ← ajouter
+
 
         public TicketService(
             ITicketRepository ticketRepository,
             IUserRepository userRepository,
             ILogger<TicketService> logger,
+                IWebHostEnvironment environment,   // ← ajouter
+
             IMapper mapper)
         {
             _ticketRepository = ticketRepository;
             _userRepository = userRepository;
             _logger = logger;
+            _environment = environment;       // ← initialiser
+
             _mapper = mapper;
         }
 
@@ -376,24 +383,42 @@ namespace projet0.Application.Services.Ticket
                     // Ajouter les pièces jointes si présentes
                     if (dto.Fichiers != null && dto.Fichiers.Any())
                     {
+                        // Créer le dossier uploads si nécessaire
+                        var uploadsFolder = Path.Combine(_environment.WebRootPath ?? _environment.ContentRootPath, "uploads");
+                        if (!Directory.Exists(uploadsFolder))
+                        {
+                            Directory.CreateDirectory(uploadsFolder);
+                        }
+
                         foreach (var fichier in dto.Fichiers)
                         {
+                            // Convertir base64 en byte[]
+                            var bytes = Convert.FromBase64String(fichier.ContenuBase64);
+
+                            // Générer un nom unique sécurisé
+                            var sanitizedFileName = Path.GetFileName(fichier.NomFichier); // enlève chemins éventuels
+                            var uniqueFileName = $"{Guid.NewGuid()}_{sanitizedFileName}";
+                            var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+                            // Écrire le fichier
+                            await File.WriteAllBytesAsync(filePath, bytes);
+
                             var pieceJointe = new PieceJointe
                             {
                                 Id = Guid.NewGuid(),
-                                NomFichier = fichier.FileName,
-                                Taille = fichier.Length,
+                                NomFichier = fichier.NomFichier,
+                                Taille = fichier.Taille,
                                 ContentType = fichier.ContentType,
-                                TypePieceJointe = DeterminerTypePieceJointe(fichier.FileName),
+                                TypePieceJointe = DeterminerTypePieceJointe(fichier.NomFichier),
                                 DateAjout = DateTime.UtcNow,
                                 CommentaireId = commentaire.Id,
                                 UploadedById = createurId,
-                                CheminStockage = "" // Sera mis à jour après sauvegarde physique
+                                CheminStockage = Path.Combine("uploads", uniqueFileName) // chemin relatif depuis wwwroot
                             };
+
                             commentaire.PiecesJointes.Add(pieceJointe);
                         }
                     }
-
                     ticket.Commentaires.Add(commentaire);
                 }
 

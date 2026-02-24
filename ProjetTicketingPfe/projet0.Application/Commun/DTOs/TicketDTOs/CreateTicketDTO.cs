@@ -29,7 +29,8 @@ namespace projet0.Application.Commun.DTOs.Ticket
         public bool CommentaireInterne { get; set; } = false;
 
         // ✅ NOUVEAU: Fichiers joints
-        public List<IFormFile>? Fichiers { get; set; }
+        //public List<IFormFile>? Fichiers { get; set; }
 
+        public List<CreatePieceJointeDTO>? Fichiers { get; set; }
     }
 }

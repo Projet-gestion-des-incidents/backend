@@ -62,7 +62,6 @@ namespace projet0.API.Controllers
                     "Erreur interne du serveur"));
             }
         }
-
         [HttpPost]
         [Authorize(Policy = "TicketCreate")]
         public async Task<ActionResult<ApiResponse<TicketDTO>>> Create([FromBody] CreateTicketDTO dto)

@@ -166,7 +166,7 @@ namespace projet0.API.Controllers
                                 Taille = fichier.Length,
                                 ContentType = fichier.ContentType,
                                 TypePieceJointe = DeterminerTypePieceJointe(fichier.FileName),
-                                Fichier = fichier
+                                //Fichier = fichier
                             };
 
                             var pieceJointe = await _pieceJointeService.SauvegarderFichierAsync(

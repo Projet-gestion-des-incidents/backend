@@ -101,7 +101,7 @@ namespace projet0.Application.Services.Ticket
                             Taille = fichier.Length,
                             ContentType = fichier.ContentType,
                             TypePieceJointe = DeterminerTypePieceJointe(fichier.FileName),
-                            Fichier = fichier
+                            //Fichier = fichier
                         };
 
                         var pieceJointe = await _pieceJointeService.SauvegarderFichierAsync(

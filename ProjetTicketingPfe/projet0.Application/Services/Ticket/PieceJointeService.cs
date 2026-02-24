@@ -175,46 +175,29 @@ namespace projet0.Application.Services
         private async Task<string> SauvegarderFichierPhysique(CreatePieceJointeDTO dto)
         {
             var uploadsFolder = Path.Combine(_environment.ContentRootPath, "uploads", "pieces-jointes");
-            _logger.LogInformation("Dossier upload: {UploadFolder}", uploadsFolder);
 
             if (!Directory.Exists(uploadsFolder))
             {
-                _logger.LogInformation("Création du dossier {UploadFolder}", uploadsFolder);
                 Directory.CreateDirectory(uploadsFolder);
             }
 
             var uniqueFileName = $"{Guid.NewGuid()}_{dto.NomFichier}";
             var filePath = Path.Combine(uploadsFolder, uniqueFileName);
-            _logger.LogInformation("Chemin complet du fichier: {FilePath}", filePath);
 
-            // Cas 1: Fichier uploadé via IFormFile
-            if (dto.Fichier != null && dto.Fichier.Length > 0)
-            {
-                _logger.LogInformation("Sauvegarde via IFormFile, taille: {Taille}", dto.Fichier.Length);
-                using (var fileStream = new FileStream(filePath, FileMode.Create))
-                {
-                    await dto.Fichier.CopyToAsync(fileStream);
-                }
-            }
-            // Cas 2: Fichier encodé en base64
-            else if (!string.IsNullOrEmpty(dto.ContenuBase64))
-            {
-                _logger.LogInformation("Sauvegarde via Base64");
-                var base64Data = dto.ContenuBase64.Contains(",")
-                    ? dto.ContenuBase64.Split(',')[1]
-                    : dto.ContenuBase64;
-                var fileBytes = Convert.FromBase64String(base64Data);
-                await File.WriteAllBytesAsync(filePath, fileBytes);
-            }
-            else
-            {
-                _logger.LogError("Aucun fichier fourni");
+            if (string.IsNullOrEmpty(dto.ContenuBase64))
                 throw new ArgumentException("Aucun fichier fourni");
-            }
+
+            // Nettoyer si data:image/...;base64,...
+            var base64Data = dto.ContenuBase64.Contains(",")
+                ? dto.ContenuBase64.Split(',')[1]
+                : dto.ContenuBase64;
+
+            var fileBytes = Convert.FromBase64String(base64Data);
+
+            await File.WriteAllBytesAsync(filePath, fileBytes);
 
             return Path.Combine("uploads", "pieces-jointes", uniqueFileName);
         }
-
         /// <summary>
         /// Génère l'URL pour une pièce jointe
         /// </summary>
