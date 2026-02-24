@@ -189,20 +189,39 @@ namespace projet0.Application.Services.Ticket
                 predicates.Add(t => t.PrioriteTicket == request.Priorite.Value);
             }
 
-            // ✅ CORRECTION: Filtres par dates
-            if (request.DateDebut.HasValue)
+            // ✅ OPTION 1: Date exacte (si vous voulez les tickets d'un jour précis)
+            if (request.DateDebut.HasValue && !request.DateFin.HasValue)
             {
-                var dateDebut = request.DateDebut.Value.Date; // Prendre seulement la date (sans heure)
-                predicates.Add(t => t.DateCreation.Date >= dateDebut);
-                _logger.LogDebug("Filtre DateDebut appliqué: {DateDebut}", dateDebut);
+                var date = request.DateDebut.Value.Date;
+                var dateSuivante = date.AddDays(1);
+                _logger.LogInformation("Filtre date exacte: tickets avec DateCreation entre {Date} et {DateSuivante}",
+                    date, dateSuivante);
+                predicates.Add(t => t.DateCreation >= date && t.DateCreation < dateSuivante);
+            }
+            // ✅ OPTION 2: Plage de dates (si les deux dates sont fournies)
+            else if (request.DateDebut.HasValue && request.DateFin.HasValue)
+            {
+                var dateDebut = request.DateDebut.Value.Date;
+                var dateFin = request.DateFin.Value.Date.AddDays(1);
+                _logger.LogInformation("Filtre plage de dates: tickets entre {DateDebut} et {DateFin}",
+                    dateDebut, dateFin);
+                predicates.Add(t => t.DateCreation >= dateDebut && t.DateCreation < dateFin);
+            }
+            // ✅ OPTION 3: DateDebut seule (>=)
+            else if (request.DateDebut.HasValue)
+            {
+                var dateDebut = request.DateDebut.Value.Date;
+                _logger.LogInformation("Filtre DateDebut seule: tickets avec DateCreation >= {DateDebut}", dateDebut);
+                predicates.Add(t => t.DateCreation >= dateDebut);
+            }
+            // ✅ OPTION 4: DateFin seule (<=)
+            else if (request.DateFin.HasValue)
+            {
+                var dateFin = request.DateFin.Value.Date.AddDays(1);
+                _logger.LogInformation("Filtre DateFin seule: tickets avec DateCreation < {DateFin}", dateFin);
+                predicates.Add(t => t.DateCreation < dateFin);
             }
 
-            if (request.DateFin.HasValue)
-            {
-                var dateFin = request.DateFin.Value.Date.AddDays(1).AddTicks(-1); // Fin de la journée
-                predicates.Add(t => t.DateCreation <= dateFin);
-                _logger.LogDebug("Filtre DateFin appliqué: {DateFin}", dateFin);
-            }
 
             // 🔍 RECHERCHE AVANCÉE - Sur le nom du créateur, la référence et le titre
             if (!string.IsNullOrWhiteSpace(request.SearchTerm))
