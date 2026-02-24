@@ -20,7 +20,10 @@ namespace projet0.Application.Services.Ticket
         Task<ApiResponse<TicketDTO>> CreateTicketAsync(CreateTicketDTO dto, Guid createurId);
         
        Task<ApiResponse<bool>> DeleteTicketAsync(Guid id);
-        // ✅ NOUVEAU: Récupérer un ticket avec ses commentaires
+
+        // NOUVEAU: Récupérer un ticket avec ses commentaires
         Task<ApiResponse<TicketDetailDTO>> GetTicketDetailAsync(Guid id);
+
+        Task<ApiResponse<UpdateTicketResponseDTO>> UpdateTicketAsync(Guid id, UpdateTicketDTO dto, Guid userId);
     }
 }

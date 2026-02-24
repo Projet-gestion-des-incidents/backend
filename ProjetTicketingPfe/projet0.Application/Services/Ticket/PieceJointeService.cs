@@ -15,26 +15,25 @@ namespace projet0.Application.Services
 {
     public class PieceJointeService : IPieceJointeService
     {
-        private readonly IPieceJointeRepository _pieceJointeRepository;  // ← Plus de DbContext
-        private readonly ICommentaireRepository _commentaireRepository;    // ← Pour vérifier le commentaire
+        private readonly IPieceJointeRepository _pieceJointeRepository;  
+        private readonly ICommentaireRepository _commentaireRepository;   
         private readonly IWebHostEnvironment _environment;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly string _uploadPath = "uploads/pieces-jointes";
         private readonly ILogger<PieceJointeService> _logger;
 
-
         public PieceJointeService(
-            IPieceJointeRepository pieceJointeRepository,  // ← Injection du repository
-            ICommentaireRepository commentaireRepository,   // ← Pour vérifications
+            IPieceJointeRepository pieceJointeRepository, 
+            ICommentaireRepository commentaireRepository,   
             IWebHostEnvironment environment,
-            IHttpContextAccessor httpContextAccessor, ILogger<PieceJointeService> logger)  // ← AJOUTER CE PARAMÈTRE
+            IHttpContextAccessor httpContextAccessor, ILogger<PieceJointeService> logger)  
 
         {
             _pieceJointeRepository = pieceJointeRepository;
             _commentaireRepository = commentaireRepository;
             _environment = environment;
             _httpContextAccessor = httpContextAccessor;
-            _logger = logger;  // ← INITIALISER _logger
+            _logger = logger;  
 
         }
 
@@ -121,10 +120,7 @@ namespace projet0.Application.Services
                 return false;
 
             // 2. Construire le chemin complet du fichier
-            // ❌ ANCIEN (ne fonctionne pas):
-            // var filePath = Path.Combine(_environment.WebRootPath, pieceJointe.CheminStockage);
-
-            // ✅ NOUVEAU: Utiliser ContentRootPath (racine du projet)
+            // NOUVEAU: Utiliser ContentRootPath (racine du projet)
             var filePath = Path.Combine(_environment.ContentRootPath, pieceJointe.CheminStockage);
 
             _logger.LogInformation("Tentative de suppression du fichier: {FilePath}", filePath);
@@ -208,8 +204,6 @@ namespace projet0.Application.Services
             return $"{baseUrl}/{piece.CheminStockage.Replace("\\", "/")}";
         }
 
-        // Fichier: projet0.Application/Services/PieceJointeService.cs
-
         public async Task<bool> SupprimerPiecesJointesAsync(List<Guid> pieceJointeIds)
         {
             _logger.LogInformation("Suppression de {Count} pièce(s) jointe(s)", pieceJointeIds.Count);
@@ -236,7 +230,6 @@ namespace projet0.Application.Services
 
             return success;
         }
-
         #endregion
     }
 }

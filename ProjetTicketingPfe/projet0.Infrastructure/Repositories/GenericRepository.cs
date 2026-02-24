@@ -85,12 +85,11 @@ namespace projet0.Infrastructure.Repositories
             return await _dbSet.CountAsync(predicate);
 
         }
+
         public async Task<int> SaveChangesAsync()  
         {
             return await _context.SaveChangesAsync();  
         }
-
-        // methodes ajoutées pour incident
 
         public async Task UpdateAsync(T entity) 
         {
@@ -103,7 +102,6 @@ namespace projet0.Infrastructure.Repositories
             await Task.CompletedTask;
         }
 
-      
         public async Task DeleteAsync(T entity) 
         {
             _dbSet.Remove(entity);

@@ -56,8 +56,6 @@ namespace projet0.Application.Services.Ticket
             }
         }
 
-        // Dans CommentaireService.cs, méthode UpdateCommentaireAsync
-
         public async Task<ApiResponse<UpdateCommentaireResponseDTO>> UpdateCommentaireAsync(
             Guid id,
             UpdateCommentaireDTO dto,
@@ -204,8 +202,8 @@ namespace projet0.Application.Services.Ticket
             }
         }
 
-        #region Méthodes privées
 
+        #region Méthodes privées
         private CommentaireDTO MapToDto(CommentaireTicket commentaire)
         {
             return new CommentaireDTO
@@ -269,7 +267,6 @@ namespace projet0.Application.Services.Ticket
                 _ => TypePieceJointe.Autre
             };
         }
-
         #endregion
     }
 }

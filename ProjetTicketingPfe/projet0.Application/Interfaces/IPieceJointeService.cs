@@ -1,5 +1,4 @@
-﻿// Fichier: projet0.Application/Interfaces/IPieceJointeService.cs
-using projet0.Application.Commun.DTOs.Ticket;
+﻿using projet0.Application.Commun.DTOs.Ticket;
 using projet0.Domain.Entities;
 
 namespace projet0.Application.Interfaces

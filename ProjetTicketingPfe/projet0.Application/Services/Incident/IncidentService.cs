@@ -201,7 +201,6 @@ namespace projet0.Application.Services.Incident
             return query;
         }
 
-
         // Appliquer le tri pour SearchIncidentsAsync
         private IQueryable<IncidentEntity> ApplySorting(IQueryable<IncidentEntity> query, string sortBy, bool descending)
         {
@@ -225,11 +224,10 @@ namespace projet0.Application.Services.Incident
                 _ => query.OrderByDescending(i => i.DateDetection)
             };
         }
-
         #endregion
 
-        #region CRUD Operations
 
+        #region CRUD Operations
         public async Task<ApiResponse<IncidentDTO>> GetIncidentByIdAsync(Guid id)
         {
             return await MeasureAsync(nameof(GetIncidentByIdAsync), new { id }, async () =>
@@ -537,8 +535,6 @@ namespace projet0.Application.Services.Incident
         #endregion
 
         #region Specific Methods
-
-
         public async Task<ApiResponse<List<IncidentDTO>>> GetIncidentsByStatutAsync(StatutIncident statut)
         {
             return await MeasureAsync(nameof(GetIncidentsByStatutAsync), new { statut }, async () =>
@@ -610,8 +606,6 @@ namespace projet0.Application.Services.Incident
                 }
             });
         }
-
-
         #endregion
     }
 }

@@ -331,6 +331,5 @@ namespace projet0.Infrastructure.Repositories
                     return query.OrderBy(u => u.Nom);
             }
         }
-
     }
 }

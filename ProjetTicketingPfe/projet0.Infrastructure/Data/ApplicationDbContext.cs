@@ -100,7 +100,5 @@ namespace projet0.Infrastructure.Data
             });
 
         }
-
-
     }
 }

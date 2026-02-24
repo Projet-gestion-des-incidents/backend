@@ -53,7 +53,7 @@ namespace projet0.Infrastructure.Repositories
         public async Task<PieceJointe> GetMetadataAsync(Guid id)
         {
             return await _context.PiecesJointes
-                .AsNoTracking()  // ⚡ Performance: pas de tracking
+                .AsNoTracking()  // Performance: pas de tracking
                 .FirstOrDefaultAsync(p => p.Id == id);
         }
     }

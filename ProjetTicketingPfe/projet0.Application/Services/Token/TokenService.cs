@@ -151,5 +151,4 @@ namespace projet0.Application.Services.Token
             }
         }
     }
-
 }

@@ -59,7 +59,7 @@ namespace projet0.Application.Extensions
             return PagedResult<T>.Create(items, totalCount, page, pageSize);
         }
 
-        // ✅ AJOUTER CETTE MÉTHODE D'EXTENSION ICI
+        // AJOUTER CETTE MÉTHODE D'EXTENSION ICI
         public static Expression<Func<T, bool>> AndAlso<T>(
             this Expression<Func<T, bool>> expr1,
             Expression<Func<T, bool>> expr2)

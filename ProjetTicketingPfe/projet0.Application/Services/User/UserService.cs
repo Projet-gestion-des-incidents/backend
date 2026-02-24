@@ -20,7 +20,6 @@ namespace projet0.Application.Services.User
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IHostEnvironment _webHostEnvironment;
 
-
         public UserService(IUserRepository userRepository, ILogger<UserService> logger, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole<Guid>> roleManager, IHostEnvironment webHostEnvironment) 
         {
             _userRepository = userRepository;

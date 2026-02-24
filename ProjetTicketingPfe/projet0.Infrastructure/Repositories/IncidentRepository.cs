@@ -116,6 +116,7 @@ namespace projet0.Infrastructure.Repositories
                 .OrderByDescending(i => i.DateDetection)
                 .ToListAsync();
         }
+
         public IQueryable<Incident> QueryWithDetails(Guid? createdById = null)
         {
             var query = _context.Incidents
@@ -129,6 +130,7 @@ namespace projet0.Infrastructure.Repositories
 
             return query;
         }
+
         public void RemoveEntiteImpactee(EntiteImpactee entite)
         {
             _context.EntitesImpactees.Remove(entite);
@@ -138,6 +140,7 @@ namespace projet0.Infrastructure.Repositories
         {
             await _context.SaveChangesAsync();
         }
+
         public async Task AddEntiteImpacteeAsync(EntiteImpactee entite)
         {
             await _context.EntitesImpactees.AddAsync(entite);
@@ -153,7 +156,5 @@ namespace projet0.Infrastructure.Repositories
                 .OrderByDescending(i => i.DateDetection)
                 .ToListAsync();
         }
-
-
     }
 }

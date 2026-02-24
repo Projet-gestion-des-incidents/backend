@@ -19,7 +19,7 @@ namespace projet0.Infrastructure.Repositories
 
         public async Task<List<CommentaireTicket>> GetCommentairesByTicketIdAsync(Guid ticketId)
         {
-            return await _context.CommentairesTicket  // ✅ Correction: "CommentaireTickets" (singulier)
+            return await _context.CommentairesTicket  
                 .Include(c => c.Auteur)
                 .Include(c => c.PiecesJointes)
                 .Where(c => c.TicketId == ticketId)
@@ -29,13 +29,12 @@ namespace projet0.Infrastructure.Repositories
 
         public async Task<CommentaireTicket> GetCommentaireWithPiecesJointesAsync(Guid id)
         {
-            return await _context.CommentairesTicket // ✅ Correction: "CommentaireTickets" (singulier)
-                .Include(c => c.Auteur)
+            return await _context.CommentairesTicket 
                 .Include(c => c.PiecesJointes)
                 .FirstOrDefaultAsync(c => c.Id == id);
         }
 
-        // ✅ NOUVEAU: Récupérer un commentaire pour modification
+        // Récupérer un commentaire pour modification
         public async Task<CommentaireTicket> GetCommentaireForUpdateAsync(Guid id)
         {
             return await _context.CommentairesTicket
@@ -43,13 +42,13 @@ namespace projet0.Infrastructure.Repositories
                 .FirstOrDefaultAsync(c => c.Id == id);
         }
 
-        // ✅ NOUVEAU: Vérifier si le commentaire a des pièces jointes
+        // Vérifier si le commentaire a des pièces jointes
         public async Task<bool> HasPiecesJointesAsync(Guid commentaireId)
         {
             return await _context.PiecesJointes.AnyAsync(p => p.CommentaireId == commentaireId);
         }
 
-        // ✅ NOUVEAU: Supprimer un commentaire et ses pièces jointes
+        // Supprimer un commentaire et ses pièces jointes
         public async Task DeleteCommentaireWithPiecesJointesAsync(Guid id)
         {
             var commentaire = await _context.CommentairesTicket

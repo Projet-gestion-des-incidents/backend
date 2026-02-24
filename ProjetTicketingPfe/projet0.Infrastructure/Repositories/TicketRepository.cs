@@ -1,5 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;  // ← AJOUTER
+using Microsoft.Extensions.Logging;
 using projet0.Application.Interfaces;
 using projet0.Domain.Entities;
 using projet0.Domain.Enums;
@@ -15,12 +15,12 @@ namespace projet0.Infrastructure.Repositories
     public class TicketRepository : GenericRepository<Ticket>, ITicketRepository
     {
         private readonly ApplicationDbContext _context;
-        private readonly ILogger<TicketRepository> _logger;  // ← AJOUTER
+        private readonly ILogger<TicketRepository> _logger; 
 
         public TicketRepository(ApplicationDbContext context, ILogger<TicketRepository> logger) : base(context)
         {
             _context = context;
-            _logger = logger;  // ← AJOUTER
+            _logger = logger; 
 
         }
 
@@ -76,8 +76,6 @@ namespace projet0.Infrastructure.Repositories
             return ticket;
         }
 
-        // Fichier: projet0.Infrastructure/Repositories/TicketRepository.cs
-
         public override async Task<IEnumerable<Ticket>> GetAllAsync()
         {
             try
@@ -87,7 +85,7 @@ namespace projet0.Infrastructure.Repositories
                 var tickets = await _context.Tickets
                     .Include(t => t.Createur)
                     .Include(t => t.Assignee)
-                    .Include(t => t.Commentaires)  // Inclure les commentaires
+                    .Include(t => t.Commentaires) 
                     .OrderByDescending(t => t.DateCreation)
                     .ToListAsync();
 
@@ -100,8 +98,6 @@ namespace projet0.Infrastructure.Repositories
                 throw; // Remonter l'exception pour qu'elle soit gérée par le service
             }
         }
-
-        // Fichier: projet0.Infrastructure/Repositories/TicketRepository.cs
 
         public async Task<Ticket> GetTicketWithDetailsAsync(Guid id)
         {
@@ -236,8 +232,6 @@ namespace projet0.Infrastructure.Repositories
             return query;
         }
 
-        // Fichier: projet0.Infrastructure/Repositories/TicketRepository.cs
-
         public IQueryable<Ticket> GetQueryWithIncludes()
         {
             return _context.Tickets
@@ -248,13 +242,11 @@ namespace projet0.Infrastructure.Repositories
                 .AsQueryable();
         }
 
-        // Fichier: projet0.Infrastructure/Repositories/TicketRepository.cs
-
         public IQueryable<Ticket> GetFilteredQuery(Expression<Func<Ticket, bool>>? filter = null)
         {
             var query = _context.Tickets
-                .Include(t => t.Createur)      // ← ESSENTIEL pour la recherche par nom
-                .Include(t => t.Assignee)       // ← Optionnel mais utile
+                .Include(t => t.Createur)      
+                .Include(t => t.Assignee)     
                 .Include(t => t.Commentaires)
                     .ThenInclude(c => c.PiecesJointes)
                 .AsQueryable();

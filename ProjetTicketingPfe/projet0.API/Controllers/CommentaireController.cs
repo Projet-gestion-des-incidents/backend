@@ -8,7 +8,7 @@ using projet0.Application.Services.Ticket;
 using projet0.Domain.Entities;
 using projet0.Domain.Enums;
 using System.Security.Claims;
-using projet0.Application.Services.Ticket;  // ← Pour ICommentaireService
+using projet0.Application.Services.Ticket;
 
 
 namespace projet0.API.Controllers
@@ -22,21 +22,20 @@ namespace projet0.API.Controllers
         private readonly ICommentaireRepository _commentaireRepository;
         private readonly IPieceJointeService _pieceJointeService;
         private readonly ILogger<CommentaireController> _logger;
-        private readonly ICommentaireService _commentaireService;  // ← AJOUTER
+        private readonly ICommentaireService _commentaireService;  
 
         public CommentaireController(
             ITicketService ticketService,
             ICommentaireRepository commentaireRepository,
             IPieceJointeService pieceJointeService,
-                        ICommentaireService commentaireService,  // ← AJOUTER AU CONSTRUCTEUR
-
+            ICommentaireService commentaireService,
             ILogger<CommentaireController> logger)
         {
             _ticketService = ticketService;
             _commentaireRepository = commentaireRepository;
             _pieceJointeService = pieceJointeService;
             _logger = logger;
-            _commentaireService = commentaireService;  // ← INITIALISER
+            _commentaireService = commentaireService; 
 
         }
 
@@ -97,7 +96,7 @@ namespace projet0.API.Controllers
             try
             {
                 _logger.LogInformation("=== DÉBUT AJOUT COMMENTAIRE ===");
-                // ✅ VALIDATION PERSONNALISÉE
+               
                 if (string.IsNullOrWhiteSpace(dto.Message) && (fichiers == null || !fichiers.Any()))
                 {
                     _logger.LogWarning("Tentative de création d'un commentaire vide");
@@ -231,9 +230,6 @@ namespace projet0.API.Controllers
             };
         }
 
-        // Fichier: projet0.API/Controllers/CommentaireController.cs
-        // AJOUTER CES NOUVELLES MÉTHODES
-
         /// <summary>
         /// Récupérer un commentaire par son ID
         /// </summary>
@@ -291,7 +287,12 @@ namespace projet0.API.Controllers
             try
             {
                 _logger.LogInformation("Mise à jour commentaire {CommentaireId}", commentaireId);
-
+                // Vérifier la cohérence des IDs
+                if (commentaireId != dto.Id)
+                {
+                    return BadRequest(ApiResponse<UpdateCommentaireResponseDTO>.Failure(
+                        "L'ID dans l'URL ne correspond pas à l'ID dans le corps de la requête"));
+                }
                 var userId = GetCurrentUserId();
 
                 // Vérifier que le commentaire existe
@@ -361,8 +362,6 @@ namespace projet0.API.Controllers
             }
         }
 
-        // Fichier: projet0.API/Controllers/CommentaireController.cs
-
         /// <summary>
         /// Récupère les pièces jointes d'un commentaire
         /// </summary>
@@ -398,5 +397,4 @@ namespace projet0.API.Controllers
             }
         }
     }
-
 }

@@ -21,14 +21,15 @@ namespace projet0.Application.Commun.DTOs.Ticket
 
         // public Guid? AssigneeId { get; set; }
 
-        // ✅ NOUVEAU: Commentaire initial
+        // NOUVEAU: Commentaire initial
         [StringLength(2000, ErrorMessage = "Le commentaire ne peut pas dépasser 2000 caractères")]
         public string? CommentaireInitial { get; set; }
 
-        // ✅ NOUVEAU: Indique si le commentaire est interne
+        // NOUVEAU: Indique si le commentaire est interne
         public bool CommentaireInterne { get; set; } = false;
 
-        // ✅ NOUVEAU: Fichiers joints
+        // NOUVEAU: Fichiers joints
+
         //public List<IFormFile>? Fichiers { get; set; }
 
         public List<CreatePieceJointeDTO>? Fichiers { get; set; }

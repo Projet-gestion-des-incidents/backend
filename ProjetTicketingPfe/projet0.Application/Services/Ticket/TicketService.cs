@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using projet0.Application.Common.Models.Pagination;
@@ -22,27 +23,27 @@ namespace projet0.Application.Services.Ticket
         private readonly IUserRepository _userRepository;
         private readonly ILogger<TicketService> _logger;
         private readonly IMapper _mapper;
-        private readonly IWebHostEnvironment _environment; // ← ajouter
+        private readonly IWebHostEnvironment _environment; 
+        private readonly IPieceJointeService _pieceJointeService; 
 
 
         public TicketService(
             ITicketRepository ticketRepository,
             IUserRepository userRepository,
             ILogger<TicketService> logger,
-                IWebHostEnvironment environment,   // ← ajouter
-
+            IWebHostEnvironment environment,   
+            IPieceJointeService pieceJointeService,
             IMapper mapper)
         {
             _ticketRepository = ticketRepository;
             _userRepository = userRepository;
             _logger = logger;
-            _environment = environment;       // ← initialiser
-
+            _environment = environment;     
+            _pieceJointeService = pieceJointeService;
             _mapper = mapper;
         }
 
         #region Private Methods
-
         private async Task<T> MeasureAsync<T>(string actionName, object input, Func<Task<T>> action)
         {
             var sw = Stopwatch.StartNew();
@@ -101,7 +102,7 @@ namespace projet0.Application.Services.Ticket
                     }
                 }
 
-                // ✅ VERSION ROBUSTE - Compter les relations avec vérifications null
+                // VERSION ROBUSTE - Compter les relations avec vérifications null
                 if (ticket.Commentaires != null)
                 {
                     dto.NombreCommentaires = ticket.Commentaires.Count;
@@ -159,16 +160,9 @@ namespace projet0.Application.Services.Ticket
                 _ => priorite.ToString()
             };
         }
-
         #endregion
 
         #region CRUD Operations
-
-        // Fichier: projet0.Application/Services/Ticket/TicketService.cs
-
-        // Fichier: projet0.Application/Services/Ticket/TicketService.cs
-
-        // ✅ AJOUTER LA MÉTHODE BUILDFILTER ICI
         private Expression<Func<TicketEntity, bool>>? BuildFilter(TicketPagedRequest request)
         {
             if (request == null)
@@ -189,7 +183,7 @@ namespace projet0.Application.Services.Ticket
                 predicates.Add(t => t.PrioriteTicket == request.Priorite.Value);
             }
 
-            // ✅ OPTION 1: Date exacte (si vous voulez les tickets d'un jour précis)
+            // OPTION 1: Date exacte (si vous voulez les tickets d'un jour précis)
             if (request.DateDebut.HasValue && !request.DateFin.HasValue)
             {
                 var date = request.DateDebut.Value.Date;
@@ -198,7 +192,7 @@ namespace projet0.Application.Services.Ticket
                     date, dateSuivante);
                 predicates.Add(t => t.DateCreation >= date && t.DateCreation < dateSuivante);
             }
-            // ✅ OPTION 2: Plage de dates (si les deux dates sont fournies)
+            // OPTION 2: Plage de dates (si les deux dates sont fournies)
             else if (request.DateDebut.HasValue && request.DateFin.HasValue)
             {
                 var dateDebut = request.DateDebut.Value.Date;
@@ -207,14 +201,14 @@ namespace projet0.Application.Services.Ticket
                     dateDebut, dateFin);
                 predicates.Add(t => t.DateCreation >= dateDebut && t.DateCreation < dateFin);
             }
-            // ✅ OPTION 3: DateDebut seule (>=)
+            // OPTION 3: DateDebut seule (>=)
             else if (request.DateDebut.HasValue)
             {
                 var dateDebut = request.DateDebut.Value.Date;
                 _logger.LogInformation("Filtre DateDebut seule: tickets avec DateCreation >= {DateDebut}", dateDebut);
                 predicates.Add(t => t.DateCreation >= dateDebut);
             }
-            // ✅ OPTION 4: DateFin seule (<=)
+            // OPTION 4: DateFin seule (<=)
             else if (request.DateFin.HasValue)
             {
                 var dateFin = request.DateFin.Value.Date.AddDays(1);
@@ -223,7 +217,7 @@ namespace projet0.Application.Services.Ticket
             }
 
 
-            // 🔍 RECHERCHE AVANCÉE - Sur le nom du créateur, la référence et le titre
+            // RECHERCHE AVANCÉE - Sur le nom du créateur, la référence et le titre
             if (!string.IsNullOrWhiteSpace(request.SearchTerm))
             {
                 var term = request.SearchTerm.ToLower().Trim();
@@ -317,7 +311,6 @@ namespace projet0.Application.Services.Ticket
         }
 
         // Méthode de tri améliorée
-        // ✅ CORRIGER LA MÉTHODE ApplySorting
         private IQueryable<TicketEntity> ApplySorting(IQueryable<TicketEntity> query, string sortBy, bool descending)
         {
             if (string.IsNullOrWhiteSpace(sortBy))
@@ -462,7 +455,7 @@ namespace projet0.Application.Services.Ticket
             }
         }
 
-        // ✅ NOUVELLE MÉTHODE: GetTicketDetailAsync
+        // NOUVELLE MÉTHODE: GetTicketDetailAsync
         public async Task<ApiResponse<TicketDetailDTO>> GetTicketDetailAsync(Guid id)
         {
             _logger.LogInformation("=== TicketService.GetTicketDetailAsync ===");
@@ -497,7 +490,6 @@ namespace projet0.Application.Services.Ticket
                 }
             });
         }
-
 
         public async Task<ApiResponse<TicketDTO>> GetTicketByIdAsync(Guid id)
         {
@@ -575,11 +567,6 @@ namespace projet0.Application.Services.Ticket
                 _ => TypePieceJointe.Autre
             };
         }
-
-        
-
-
-    // Fichier: projet0.Application/Services/Ticket/TicketService.cs
 
 private async Task<TicketDetailDTO> MapToDetailDto(TicketEntity ticket)
         {
@@ -671,9 +658,238 @@ private async Task<TicketDetailDTO> MapToDetailDto(TicketEntity ticket)
             }
         }
 
-        
+        public async Task<ApiResponse<UpdateTicketResponseDTO>> UpdateTicketAsync(Guid id, UpdateTicketDTO dto, Guid userId)
+        {
+            return await MeasureAsync(nameof(UpdateTicketAsync), new { id, dto }, async () =>
+            {
+                try
+                {
+                    _logger.LogInformation("Début UpdateTicketAsync pour ticket {Id}", id);
 
+                    // 1. Récupérer le ticket avec tous ses commentaires
+                    var ticket = await _ticketRepository.GetTicketWithDetailsAsync(id);
+                    if (ticket == null)
+                        return ApiResponse<UpdateTicketResponseDTO>.Failure($"Ticket avec ID {id} non trouvé");
+
+                    var commentairesModifies = new List<Guid>();
+                    var piecesJointesSupprimees = new Dictionary<Guid, List<Guid>>();
+                    var piecesJointesAjoutees = new Dictionary<Guid, List<Guid>>();
+
+                    // 2. Mettre à jour les champs simples du ticket
+                    if (!string.IsNullOrWhiteSpace(dto.TitreTicket))
+                        ticket.TitreTicket = dto.TitreTicket;
+
+                    if (dto.DescriptionTicket != null)
+                        ticket.DescriptionTicket = dto.DescriptionTicket;
+
+                    if (dto.PrioriteTicket.HasValue)
+                        ticket.PrioriteTicket = dto.PrioriteTicket.Value;
+
+                    if (dto.StatutTicket.HasValue)
+                    {
+                        var ancienStatut = ticket.StatutTicket;
+                        ticket.StatutTicket = dto.StatutTicket.Value;
+
+                        if (ancienStatut != dto.StatutTicket.Value)
+                        {
+                            ticket.Historiques ??= new List<HistoriqueTicket>();
+                            ticket.Historiques.Add(new HistoriqueTicket
+                            {
+                                Id = Guid.NewGuid(),
+                                TicketId = ticket.Id,
+                                AncienStatut = ancienStatut,
+                                NouveauStatut = dto.StatutTicket.Value,
+                                DateChangement = DateTime.UtcNow,
+                                ModifieParId = userId
+                            });
+                        }
+                    }
+
+                    if (dto.AssigneeId.HasValue)
+                    {
+                        var assignee = await _userRepository.GetByIdAsync(dto.AssigneeId.Value);
+                        if (assignee == null)
+                            return ApiResponse<UpdateTicketResponseDTO>.Failure("L'utilisateur assigné n'existe pas");
+
+                        ticket.AssigneeId = dto.AssigneeId;
+                    }
+
+                    ticket.UpdatedAt = DateTime.UtcNow;
+
+                    // 3. Gérer les commentaires existants
+                    if (dto.Commentaires != null && dto.Commentaires.Any())
+                    {
+                        _logger.LogInformation("Traitement de {Count} commentaire(s)", dto.Commentaires.Count);
+
+                        foreach (var commentaireDto in dto.Commentaires)
+                        {
+                            var commentaireExistant = ticket.Commentaires?
+                                .FirstOrDefault(c => c.Id == commentaireDto.Id);
+
+                            if (commentaireExistant != null)
+                            {
+                                await MettreAJourCommentaire(
+                                    commentaireExistant,
+                                    commentaireDto,
+                                    userId,
+                                    piecesJointesSupprimees,
+                                    piecesJointesAjoutees);
+
+                                commentairesModifies.Add(commentaireExistant.Id);
+                            }
+                        }
+                    }
+
+                    // 4. SAUVEGARDER UNE SEULE FOIS (et avant de recharger)
+                    await _ticketRepository.SaveChangesAsync();
+
+                    // 5. MAINTENANT on peut recharger pour la réponse
+                    var ticketMisAJour = await _ticketRepository.GetTicketWithDetailsAsync(id);
+                    var responseDto = await MapToDetailDto(ticketMisAJour);
+
+                    var updateResponse = new UpdateTicketResponseDTO
+                    {
+                        Id = responseDto.Id,
+                        ReferenceTicket = responseDto.ReferenceTicket,
+                        TitreTicket = responseDto.TitreTicket,
+                        DescriptionTicket = responseDto.DescriptionTicket,
+                        StatutTicket = responseDto.StatutTicket,
+                        StatutTicketLibelle = responseDto.StatutTicketLibelle,
+                        PrioriteTicket = responseDto.PrioriteTicket,
+                        PrioriteTicketLibelle = responseDto.PrioriteTicketLibelle,
+                        DateCreation = responseDto.DateCreation,
+                        DateCloture = responseDto.DateCloture,
+                        CreateurId = responseDto.CreateurId,
+                        CreateurNom = responseDto.CreateurNom,
+                        AssigneeId = responseDto.AssigneeId,
+                        AssigneeNom = responseDto.AssigneeNom,
+                        NombreCommentaires = responseDto.NombreCommentaires,
+                        NombrePiecesJointes = responseDto.NombrePiecesJointes,
+                        Commentaires = responseDto.Commentaires,
+                        CommentairesModifies = commentairesModifies,
+                        PiecesJointesSupprimees = piecesJointesSupprimees,
+                        PiecesJointesAjoutees = piecesJointesAjoutees
+                    };
+
+                    return ApiResponse<UpdateTicketResponseDTO>.Success(updateResponse, "Ticket mis à jour avec succès");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Erreur lors de la mise à jour du ticket {Id}", id);
+                    return ApiResponse<UpdateTicketResponseDTO>.Failure($"Erreur interne: {ex.Message}");
+                }
+            });
+        }
+
+        private async Task MettreAJourCommentaire(
+            CommentaireTicket commentaire,
+            UpdateCommentaireDTO dto,
+            Guid userId,
+            Dictionary<Guid, List<Guid>> piecesJointesSupprimees,
+            Dictionary<Guid, List<Guid>> piecesJointesAjoutees)
+        {
+            _logger.LogInformation("=== DÉBUT MISE À JOUR COMMENTAIRE {CommentaireId} ===", commentaire.Id);
+
+            // Gérer le message
+            if (dto.EffacerMessage)
+            {
+                commentaire.Message = string.Empty;
+                _logger.LogInformation("Message effacé pour commentaire {CommentaireId}", commentaire.Id);
+            }
+            else if (dto.Message != null)
+            {
+                commentaire.Message = dto.Message;
+                _logger.LogInformation("Message mis à jour pour commentaire {CommentaireId}: '{Message}'",
+                    commentaire.Id, dto.Message);
+            }
+
+            // Mettre à jour EstInterne
+            commentaire.EstInterne = dto.EstInterne;
+            _logger.LogInformation("EstInterne mis à jour: {EstInterne}", dto.EstInterne);
+
+            // Supprimer les pièces jointes
+            if (dto.PiecesJointesASupprimer != null && dto.PiecesJointesASupprimer.Any())
+            {
+                _logger.LogInformation("Suppression de {Count} pièce(s) jointe(s)", dto.PiecesJointesASupprimer.Count);
+
+                var piecesSupprimees = new List<Guid>();
+
+                foreach (var pieceId in dto.PiecesJointesASupprimer)
+                {
+                    _logger.LogInformation("Tentative de suppression de la pièce jointe {PieceId}", pieceId);
+
+                    var piece = commentaire.PiecesJointes?.FirstOrDefault(p => p.Id == pieceId);
+                    if (piece != null)
+                    {
+                        var success = await _pieceJointeService.SupprimerFichierAsync(pieceId);
+                        if (success)
+                        {
+                            piecesSupprimees.Add(pieceId);
+                            _logger.LogInformation("Pièce jointe {PieceId} supprimée avec succès", pieceId);
+                        }
+                        else
+                        {
+                            _logger.LogWarning("Échec de suppression de la pièce jointe {PieceId}", pieceId);
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Pièce jointe {PieceId} non trouvée dans le commentaire", pieceId);
+                    }
+                }
+
+                if (piecesSupprimees.Any())
+                {
+                    piecesJointesSupprimees[commentaire.Id] = piecesSupprimees;
+                }
+            }
+
+            // Ajouter de nouveaux fichiers
+            if (dto.NouveauxFichiers != null && dto.NouveauxFichiers.Any())
+            {
+                _logger.LogInformation("Ajout de {Count} nouveau(x) fichier(s)", dto.NouveauxFichiers.Count);
+
+                var piecesAjoutees = new List<Guid>();
+
+                foreach (var fichier in dto.NouveauxFichiers)
+                {
+                    _logger.LogInformation("Traitement du fichier: {FileName}", fichier.FileName);
+
+                    var base64Data = await ConvertirFichierEnBase64(fichier);
+
+                    var pieceDto = new CreatePieceJointeDTO
+                    {
+                        NomFichier = fichier.FileName,
+                        Taille = fichier.Length,
+                        ContentType = fichier.ContentType,
+                        TypePieceJointe = DeterminerTypePieceJointe(fichier.FileName),
+                        ContenuBase64 = base64Data
+                    };
+
+                    var pieceJointe = await _pieceJointeService.SauvegarderFichierAsync(
+                        pieceDto, commentaire.Id, userId);
+
+                    piecesAjoutees.Add(pieceJointe.Id);
+                    _logger.LogInformation("Fichier sauvegardé avec ID: {PieceId}", pieceJointe.Id);
+                }
+
+                if (piecesAjoutees.Any())
+                {
+                    piecesJointesAjoutees[commentaire.Id] = piecesAjoutees;
+                }
+            }
+
+            _logger.LogInformation("=== FIN MISE À JOUR COMMENTAIRE {CommentaireId} ===", commentaire.Id);
+        }
+
+        // Helper pour convertir IFormFile en Base64
+        private async Task<string> ConvertirFichierEnBase64(IFormFile fichier)
+        {
+            using var memoryStream = new MemoryStream();
+            await fichier.CopyToAsync(memoryStream);
+            var bytes = memoryStream.ToArray();
+            return Convert.ToBase64String(bytes);
+        }
         #endregion
-
-
-    } }
+    } 
+}

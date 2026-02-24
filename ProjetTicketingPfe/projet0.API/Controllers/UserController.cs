@@ -103,7 +103,6 @@ namespace projet0.API.Controllers
             return Ok(result);
         }
 
-
         [HttpDelete("desactivate/{id}")]
         [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> Desactivate(Guid id)

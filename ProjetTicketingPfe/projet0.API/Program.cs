@@ -91,7 +91,6 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
     options.Password.RequireUppercase = false;
     options.Password.RequireLowercase = false;
     options.User.RequireUniqueEmail = true;
-
     options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
     options.Lockout.MaxFailedAccessAttempts = 3;
     options.Lockout.AllowedForNewUsers = true;
@@ -203,9 +202,13 @@ builder.Services.AddAuthorization(options =>
         policy.RequireAuthenticatedUser();
         policy.RequireRole("Admin", "Technicien", "Commercant"); 
     });
+
+    options.AddPolicy("TicketUpdate", policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.RequireRole("Admin", "Technicien", "Commercant"); 
+    });
 });
-
-
 #endregion
 
 #region 🔹 Swagger + JWT
@@ -265,8 +268,6 @@ builder.Services.Configure<FormOptions>(options =>
     options.MultipartBodyLengthLimit = int.MaxValue; // Limite de taille de fichier
     options.MemoryBufferThreshold = int.MaxValue;
 });
-
-
 #endregion
 
 #region 🔹 OTP & Email Services

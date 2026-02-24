@@ -37,5 +37,4 @@ namespace projet0.API.Controllers
             ));
         }
     }
-
 }

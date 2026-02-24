@@ -28,6 +28,5 @@ namespace projet0.Application.Interfaces
         Task DeleteRangeAsync(IEnumerable<T> entities);
         Task<int> SaveChangesAsync(); 
 
-
     }
 }
