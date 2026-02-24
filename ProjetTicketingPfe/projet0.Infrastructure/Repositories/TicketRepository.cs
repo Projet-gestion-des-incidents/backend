@@ -1,13 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;  // ← AJOUTER
 using projet0.Application.Interfaces;
 using projet0.Domain.Entities;
 using projet0.Domain.Enums;
-using Microsoft.Extensions.Logging;  // ← AJOUTER
-
 using projet0.Infrastructure.Data;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Linq.Expressions;
+using System.Text;
 
 namespace projet0.Infrastructure.Repositories
 {
@@ -231,6 +232,37 @@ namespace projet0.Infrastructure.Repositories
 
             if (assigneeId.HasValue)
                 query = query.Where(t => t.AssigneeId == assigneeId.Value);
+
+            return query;
+        }
+
+        // Fichier: projet0.Infrastructure/Repositories/TicketRepository.cs
+
+        public IQueryable<Ticket> GetQueryWithIncludes()
+        {
+            return _context.Tickets
+                .Include(t => t.Createur)
+                .Include(t => t.Assignee)
+                .Include(t => t.Commentaires)
+                    .ThenInclude(c => c.PiecesJointes)
+                .AsQueryable();
+        }
+
+        // Fichier: projet0.Infrastructure/Repositories/TicketRepository.cs
+
+        public IQueryable<Ticket> GetFilteredQuery(Expression<Func<Ticket, bool>>? filter = null)
+        {
+            var query = _context.Tickets
+                .Include(t => t.Createur)      // ← ESSENTIEL pour la recherche par nom
+                .Include(t => t.Assignee)       // ← Optionnel mais utile
+                .Include(t => t.Commentaires)
+                    .ThenInclude(c => c.PiecesJointes)
+                .AsQueryable();
+
+            if (filter != null)
+            {
+                query = query.Where(filter);
+            }
 
             return query;
         }

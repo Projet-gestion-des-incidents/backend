@@ -1,7 +1,9 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using projet0.Application.Common.Models.Pagination;
 using projet0.Application.Commun.DTOs.Ticket;
 using projet0.Application.Commun.Ressources;
+using projet0.Application.Commun.Ressources.Pagination;
 using projet0.Application.Services.Ticket;
 using projet0.Domain.Enums;
 using System.Security.Claims;
@@ -36,19 +38,27 @@ namespace projet0.API.Controllers
 
         #region CRUD Operations
 
-        [HttpGet("all")]
+        [HttpGet]  // ← Plus de "all", juste [HttpGet]
         [Authorize(Policy = "TicketRead")]
-        public async Task<ActionResult<ApiResponse<List<TicketDTO>>>> GetAllTickets()
+        public async Task<ActionResult<ApiResponse<PagedResult<TicketDTO>>>> GetTicketsPaged(
+       [FromQuery] TicketPagedRequest request)  // ← Paramètre ajouté
         {
             try
             {
-                var result = await _ticketService.GetAllTicketsAsync();
+                _logger.LogInformation("Récupération paginée des tickets - Page: {Page}, PageSize: {PageSize}",
+                    request.Page, request.PageSize);
+
+                var result = await _ticketService.GetTicketsPagedAsync(request);
+
+                if (!result.IsSuccess)
+                    return BadRequest(result);
+
                 return Ok(result);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Erreur lors de la récupération de tous les tickets");
-                return StatusCode(500, ApiResponse<List<TicketDTO>>.Failure(
+                _logger.LogError(ex, "Erreur lors de la récupération paginée des tickets");
+                return StatusCode(500, ApiResponse<PagedResult<TicketDTO>>.Failure(
                     "Erreur interne du serveur"));
             }
         }

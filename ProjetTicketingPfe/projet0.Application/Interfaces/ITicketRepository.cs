@@ -1,8 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using projet0.Domain.Entities;
+﻿using projet0.Domain.Entities;
 using projet0.Domain.Enums;
+using System;
+using System.Collections.Generic;
+using System.Linq.Expressions;
+using System.Text;
 
 namespace projet0.Application.Interfaces
 {
@@ -19,5 +20,12 @@ namespace projet0.Application.Interfaces
         Task<string> GenerateReferenceTicketAsync();
         Task<int> GetNextTicketNumberAsync(int year);
         IQueryable<Ticket> QueryWithDetails(Guid? createurId = null, Guid? assigneeId = null);
+
+        // ✅ NOUVELLE MÉTHODE: Obtenir une requête avec les includes par défaut
+        IQueryable<Ticket> GetQueryWithIncludes();
+
+        // ✅ NOUVELLE MÉTHODE: Obtenir une requête filtrée
+        IQueryable<Ticket> GetFilteredQuery(Expression<Func<Ticket, bool>>? filter = null);
+
     }
 }

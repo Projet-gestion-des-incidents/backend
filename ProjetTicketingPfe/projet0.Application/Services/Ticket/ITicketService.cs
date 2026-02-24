@@ -1,15 +1,17 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using projet0.Application.Common.Models.Pagination;
 using projet0.Application.Commun.DTOs.Ticket;
 using projet0.Application.Commun.Ressources;
+using projet0.Application.Commun.Ressources.Pagination;
+using System;
+using System.Collections.Generic;
+using System.Text;
 
 namespace projet0.Application.Services.Ticket
 {
     public interface ITicketService
     {
         // Récupérer tous les tickets
-        Task<ApiResponse<List<TicketDTO>>> GetAllTicketsAsync();
+        Task<ApiResponse<PagedResult<TicketDTO>>> GetTicketsPagedAsync(TicketPagedRequest request);
 
         // Récupérer un ticket par son ID
         Task<ApiResponse<TicketDTO>> GetTicketByIdAsync(Guid id);

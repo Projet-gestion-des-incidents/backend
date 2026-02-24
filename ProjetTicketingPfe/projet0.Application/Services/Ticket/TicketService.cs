@@ -1,12 +1,16 @@
 ﻿using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using projet0.Application.Common.Models.Pagination;
 using projet0.Application.Commun.DTOs.Ticket;
 using projet0.Application.Commun.Ressources;
+using projet0.Application.Commun.Ressources.Pagination;
+using projet0.Application.Extensions;
 using projet0.Application.Interfaces;
 using projet0.Domain.Entities;
 using projet0.Domain.Enums;
 using System.Diagnostics;
+using System.Linq.Expressions;
 using TicketEntity = projet0.Domain.Entities.Ticket;
 
 namespace projet0.Application.Services.Ticket
@@ -155,33 +159,160 @@ namespace projet0.Application.Services.Ticket
 
         // Fichier: projet0.Application/Services/Ticket/TicketService.cs
 
-        public async Task<ApiResponse<List<TicketDTO>>> GetAllTicketsAsync()
+        // Fichier: projet0.Application/Services/Ticket/TicketService.cs
+
+        // ✅ AJOUTER LA MÉTHODE BUILDFILTER ICI
+        private Expression<Func<TicketEntity, bool>>? BuildFilter(TicketPagedRequest request)
         {
-            return await MeasureAsync(nameof(GetAllTicketsAsync), null, async () =>
+            if (request == null)
+                return null;
+
+            // Commencer avec une collection de conditions
+            var predicates = new List<Expression<Func<TicketEntity, bool>>>();
+
+            // Filtre par statut
+            if (request.Statut.HasValue)
+            {
+                predicates.Add(t => t.StatutTicket == request.Statut.Value);
+            }
+
+            // Filtre par priorité
+            if (request.Priorite.HasValue)
+            {
+                predicates.Add(t => t.PrioriteTicket == request.Priorite.Value);
+            }
+
+            // ✅ CORRECTION: Filtres par dates
+            if (request.DateDebut.HasValue)
+            {
+                var dateDebut = request.DateDebut.Value.Date; // Prendre seulement la date (sans heure)
+                predicates.Add(t => t.DateCreation.Date >= dateDebut);
+                _logger.LogDebug("Filtre DateDebut appliqué: {DateDebut}", dateDebut);
+            }
+
+            if (request.DateFin.HasValue)
+            {
+                var dateFin = request.DateFin.Value.Date.AddDays(1).AddTicks(-1); // Fin de la journée
+                predicates.Add(t => t.DateCreation <= dateFin);
+                _logger.LogDebug("Filtre DateFin appliqué: {DateFin}", dateFin);
+            }
+
+            // 🔍 RECHERCHE AVANCÉE - Sur le nom du créateur, la référence et le titre
+            if (!string.IsNullOrWhiteSpace(request.SearchTerm))
+            {
+                var term = request.SearchTerm.ToLower().Trim();
+
+                predicates.Add(t =>
+                    // Recherche dans la référence du ticket
+                    t.ReferenceTicket.ToLower().Contains(term) ||
+
+                    // Recherche dans le titre du ticket
+                    t.TitreTicket.ToLower().Contains(term) ||
+
+                    // Recherche dans le nom du créateur (prénom + nom)
+                    (t.Createur != null && (
+                        (t.Createur.Nom.ToLower().Contains(term)) ||
+                        (t.Createur.Prenom.ToLower().Contains(term)) ||
+                        (t.Createur.Nom.ToLower() + " " + t.Createur.Prenom.ToLower()).Contains(term) ||
+                        (t.Createur.Prenom.ToLower() + " " + t.Createur.Nom.ToLower()).Contains(term)
+                    ))
+                );
+            }
+
+            // Combiner tous les prédicats avec AND
+            if (!predicates.Any())
+                return null;
+
+            var combined = predicates.Aggregate((current, next) => current.AndAlso(next));
+            return combined;
+        }
+
+        public async Task<ApiResponse<PagedResult<TicketDTO>>> GetTicketsPagedAsync(TicketPagedRequest request)
+        {
+            return await MeasureAsync(nameof(GetTicketsPagedAsync), request, async () =>
             {
                 try
                 {
-                    _logger.LogInformation("Début GetAllTicketsAsync");
+                    _logger.LogInformation("Début GetTicketsPagedAsync - Page: {Page}, PageSize: {PageSize}, SearchTerm: {SearchTerm}",
+                        request.Page, request.PageSize, request.SearchTerm);
 
-                    var tickets = await _ticketRepository.GetAllAsync();
-                    _logger.LogInformation("{Count} tickets récupérés du repository", tickets.Count());
+                    // 1. Construire le filtre
+                    var filter = BuildFilter(request);
 
-                    var dtos = new List<TicketDTO>();
-                    foreach (var ticket in tickets)
+                    // 2. Obtenir la requête de base
+                    var query = _ticketRepository.GetFilteredQuery(filter);
+
+                    // 3. Appliquer le tri
+                    if (!string.IsNullOrWhiteSpace(request.SortBy))
                     {
-                        _logger.LogDebug("Mapping ticket {Id} - {Reference}", ticket.Id, ticket.ReferenceTicket);
+                        query = ApplySorting(query, request.SortBy, request.SortDescending);
+                    }
+                    else
+                    {
+                        // Tri par défaut
+                        query = query.OrderByDescending(t => t.DateCreation);
+                    }
+
+                    // 4. Compter le total (AVANT pagination)
+                    var totalCount = await query.CountAsync();
+                    _logger.LogInformation("Total tickets trouvés: {TotalCount}", totalCount);
+
+                    // 5. Appliquer la pagination
+                    var items = await query
+                        .Skip((request.Page - 1) * request.PageSize)
+                        .Take(request.PageSize)
+                        .ToListAsync();
+
+                    _logger.LogInformation("{Count} tickets récupérés pour la page {Page}", items.Count, request.Page);
+
+                    // 6. Mapper vers DTO
+                    var dtos = new List<TicketDTO>();
+                    foreach (var ticket in items)
+                    {
                         dtos.Add(await MapToDto(ticket));
                     }
 
-                    _logger.LogInformation("{Count} tickets mappés avec succès", dtos.Count);
-                    return ApiResponse<List<TicketDTO>>.Success(dtos);
+                    // 7. Créer le résultat paginé
+                    var pagedResult = PagedResult<TicketDTO>.Create(
+                        dtos,
+                        totalCount,
+                        request.Page,
+                        request.PageSize
+                    );
+
+                    return ApiResponse<PagedResult<TicketDTO>>.Success(pagedResult);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Erreur lors de la récupération de tous les tickets");
-                    return ApiResponse<List<TicketDTO>>.Failure("Erreur interne du serveur: " + ex.Message);
+                    _logger.LogError(ex, "Erreur lors de la récupération paginée des tickets");
+                    return ApiResponse<PagedResult<TicketDTO>>.Failure("Erreur interne du serveur: " + ex.Message);
                 }
             });
+        }
+
+        // Méthode de tri améliorée
+        // ✅ CORRIGER LA MÉTHODE ApplySorting
+        private IQueryable<TicketEntity> ApplySorting(IQueryable<TicketEntity> query, string sortBy, bool descending)
+        {
+            if (string.IsNullOrWhiteSpace(sortBy))
+                return query.OrderByDescending(t => t.DateCreation);
+
+            sortBy = sortBy.ToLower();
+
+            return (sortBy, descending) switch
+            {
+                ("reference", false) => query.OrderBy(t => t.ReferenceTicket),
+                ("reference", true) => query.OrderByDescending(t => t.ReferenceTicket),
+                ("titre", false) => query.OrderBy(t => t.TitreTicket),
+                ("titre", true) => query.OrderByDescending(t => t.TitreTicket),
+                ("date", false) => query.OrderBy(t => t.DateCreation),
+                ("date", true) => query.OrderByDescending(t => t.DateCreation),
+                ("statut", false) => query.OrderBy(t => t.StatutTicket),
+                ("statut", true) => query.OrderByDescending(t => t.StatutTicket),
+                ("priorite", false) => query.OrderBy(t => t.PrioriteTicket),
+                ("priorite", true) => query.OrderByDescending(t => t.PrioriteTicket),
+                _ => query.OrderByDescending(t => t.DateCreation)
+            };
         }
 
         public async Task<ApiResponse<TicketDTO>> CreateTicketAsync(CreateTicketDTO dto, Guid createurId)
@@ -496,5 +627,9 @@ private async Task<TicketDetailDTO> MapToDetailDto(TicketEntity ticket)
             }
         }
 
+        
+
         #endregion
+
+
     } }
