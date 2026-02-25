@@ -662,55 +662,10 @@ private async Task<TicketDetailDTO> MapToDetailDto(TicketEntity ticket)
 
                     ticket.UpdatedAt = DateTime.UtcNow;
 
-                    // 3. Gérer les commentaires existants
-                    if (dto.Commentaires != null && dto.Commentaires.Any())
-                    {
-                        _logger.LogInformation("Traitement de {Count} commentaire(s)", dto.Commentaires.Count);
-
-                        foreach (var commentaireDto in dto.Commentaires)
-                        {
-                            _logger.LogInformation("DTO reçu - ID: {Id}, Message: {Message}, EffacerMessage: {Effacer}, EstInterne: {EstInterne}",
-                                commentaireDto.Id,
-                                commentaireDto.Message ?? "null",
-                                commentaireDto.NouveauxFichiers,
-                                commentaireDto.EstInterne);
-
-                            if (commentaireDto.NouveauxFichiers != null)
-                                _logger.LogInformation("Nombre de nouveaux fichiers: {Count}", commentaireDto.NouveauxFichiers.Count);
-
-                            if (commentaireDto.PiecesJointesASupprimer != null)
-                                _logger.LogInformation("Pièces jointes à supprimer: {Ids}", string.Join(", ", commentaireDto.PiecesJointesASupprimer));
-
-                            var commentaireExistant = ticket.Commentaires?
-                                .FirstOrDefault(c => c.Id == commentaireDto.Id);
-
-                            if (commentaireExistant != null)
-                            {
-                                _logger.LogInformation("Commentaire trouvé, message actuel: '{Message}'", commentaireExistant.Message);
-
-                                // ✅ CORRECTION: Ajouter tous les paramètres
-                                await MettreAJourCommentaire(
-                                    commentaireExistant,           // commentaire
-                                    commentaireDto,                 // dto
-                                    userId,                         // userId
-                                    piecesJointesSupprimees,        // piecesJointesSupprimees
-                                    piecesJointesAjoutees           // piecesJointesAjoutees
-                                );
-
-                                commentairesModifies.Add(commentaireExistant.Id);
-                                _logger.LogInformation("Commentaire {CommentaireId} mis à jour", commentaireExistant.Id);
-                            }
-                            else
-                            {
-                                _logger.LogWarning("Commentaire avec ID {CommentaireId} NON TROUVÉ dans le ticket", commentaireDto.Id);
-                            }
-                        }
-                    }
-
-                    // 4. SAUVEGARDER UNE SEULE FOIS (et avant de recharger)
+                    // 3. SAUVEGARDER UNE SEULE FOIS (et avant de recharger)
                     await _ticketRepository.SaveChangesAsync();
 
-                    // 5. MAINTENANT on peut recharger pour la réponse
+                    // 4. MAINTENANT on peut recharger pour la réponse
                     var responseDto = await MapToDetailDto(ticket);
 
                     var updateResponse = new UpdateTicketResponseDTO

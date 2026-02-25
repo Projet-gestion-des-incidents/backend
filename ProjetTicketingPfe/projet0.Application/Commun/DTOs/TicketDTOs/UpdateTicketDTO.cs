@@ -21,8 +21,5 @@ namespace projet0.Application.Commun.DTOs.Ticket
         public StatutTicket? StatutTicket { get; set; }
 
         public Guid? AssigneeId { get; set; }
-
-        // Réutilisation de UpdateCommentaireDTO
-        public List<UpdateCommentaireDTO>? Commentaires { get; set; }
     }
 }
