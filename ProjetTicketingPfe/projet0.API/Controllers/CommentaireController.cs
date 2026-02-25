@@ -90,14 +90,13 @@ namespace projet0.API.Controllers
         [Authorize(Policy = "TicketComment")]
         public async Task<ActionResult<ApiResponse<CommentaireDTO>>> AjouterCommentaire(
     Guid ticketId,
-    [FromForm] CreateCommentaireDTO dto,
-    [FromForm] List<IFormFile>? fichiers)
+    [FromForm] CreateCommentaireDTO dto)
         {
             try
             {
                 _logger.LogInformation("=== DÉBUT AJOUT COMMENTAIRE ===");
                
-                if (string.IsNullOrWhiteSpace(dto.Message) && (fichiers == null || !fichiers.Any()))
+                if (string.IsNullOrWhiteSpace(dto.Message) && (dto.Fichiers == null || !dto.Fichiers.Any()))
                 {
                     _logger.LogWarning("Tentative de création d'un commentaire vide");
                     return BadRequest(ApiResponse<CommentaireDTO>.Failure(
@@ -107,7 +106,7 @@ namespace projet0.API.Controllers
                 _logger.LogInformation("TicketId en chaîne: {TicketIdString}", ticketId.ToString());
                 _logger.LogInformation("Message: {Message}", dto.Message);
                 _logger.LogInformation("EstInterne: {EstInterne}", dto.EstInterne);
-                _logger.LogInformation("Nombre de fichiers: {NbFichiers}", fichiers?.Count ?? 0);
+                _logger.LogInformation("Nombre de fichiers: {NbFichiers}", dto.Fichiers?.Count ?? 0);
 
                 var userId = GetCurrentUserId();
                 _logger.LogInformation("Utilisateur connecté: {UserId}", userId);
@@ -148,11 +147,11 @@ namespace projet0.API.Controllers
                 _logger.LogInformation("Commentaire ajouté en base");
 
                 // Gérer les fichiers uploadés
-                if (fichiers != null && fichiers.Any())
+                if (dto.Fichiers != null && dto.Fichiers.Any())
                 {
-                    _logger.LogInformation("Traitement de {Count} fichier(s)", fichiers.Count);
+                    _logger.LogInformation("Traitement de {Count} fichier(s)", dto.Fichiers.Count);
 
-                    foreach (var fichier in fichiers)
+                    foreach (var fichier in dto.Fichiers)
                     {
                         try
                         {
@@ -165,7 +164,7 @@ namespace projet0.API.Controllers
                                 Taille = fichier.Length,
                                 ContentType = fichier.ContentType,
                                 TypePieceJointe = DeterminerTypePieceJointe(fichier.FileName),
-                                //Fichier = fichier
+                                Fichier = fichier
                             };
 
                             var pieceJointe = await _pieceJointeService.SauvegarderFichierAsync(

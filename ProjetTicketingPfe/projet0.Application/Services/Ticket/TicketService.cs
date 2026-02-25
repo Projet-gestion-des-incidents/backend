@@ -24,8 +24,8 @@ namespace projet0.Application.Services.Ticket
         private readonly ILogger<TicketService> _logger;
         private readonly IMapper _mapper;
         private readonly IWebHostEnvironment _environment; 
-        private readonly IPieceJointeService _pieceJointeService; 
-
+        private readonly IPieceJointeService _pieceJointeService;
+        private readonly ICommentaireService _commentaireService; 
 
         public TicketService(
             ITicketRepository ticketRepository,
@@ -33,6 +33,7 @@ namespace projet0.Application.Services.Ticket
             ILogger<TicketService> logger,
             IWebHostEnvironment environment,   
             IPieceJointeService pieceJointeService,
+            ICommentaireService commentaireService,  
             IMapper mapper)
         {
             _ticketRepository = ticketRepository;
@@ -40,6 +41,7 @@ namespace projet0.Application.Services.Ticket
             _logger = logger;
             _environment = environment;     
             _pieceJointeService = pieceJointeService;
+            _commentaireService = commentaireService;  
             _mapper = mapper;
         }
 
@@ -378,74 +380,18 @@ namespace projet0.Application.Services.Ticket
                     ModifieParId = createurId
                 });
 
-                // Ajouter un commentaire initial si présent
-                if (!string.IsNullOrWhiteSpace(dto.CommentaireInitial))
-                {
-                    var commentaire = new CommentaireTicket
-                    {
-                        Id = Guid.NewGuid(),
-                        Message = dto.CommentaireInitial,
-                        DateCreation = DateTime.UtcNow,
-                        EstInterne = dto.CommentaireInterne,
-                        TicketId = ticket.Id,
-                        AuteurId = createurId,
-                        PiecesJointes = new List<PieceJointe>()
-                    };
-
-                    // Ajouter les pièces jointes si présentes
-                    if (dto.Fichiers != null && dto.Fichiers.Any())
-                    {
-                        // Créer le dossier uploads si nécessaire
-                        var uploadsFolder = Path.Combine(_environment.WebRootPath ?? _environment.ContentRootPath, "uploads");
-                        if (!Directory.Exists(uploadsFolder))
-                        {
-                            Directory.CreateDirectory(uploadsFolder);
-                        }
-
-                        foreach (var fichier in dto.Fichiers)
-                        {
-                            // Convertir base64 en byte[]
-                            var bytes = Convert.FromBase64String(fichier.ContenuBase64);
-
-                            // Générer un nom unique sécurisé
-                            var sanitizedFileName = Path.GetFileName(fichier.NomFichier); // enlève chemins éventuels
-                            var uniqueFileName = $"{Guid.NewGuid()}_{sanitizedFileName}";
-                            var filePath = Path.Combine(uploadsFolder, uniqueFileName);
-
-                            // Écrire le fichier
-                            await File.WriteAllBytesAsync(filePath, bytes);
-
-                            var pieceJointe = new PieceJointe
-                            {
-                                Id = Guid.NewGuid(),
-                                NomFichier = fichier.NomFichier,
-                                Taille = fichier.Taille,
-                                ContentType = fichier.ContentType,
-                                TypePieceJointe = DeterminerTypePieceJointe(fichier.NomFichier),
-                                DateAjout = DateTime.UtcNow,
-                                CommentaireId = commentaire.Id,
-                                UploadedById = createurId,
-                                CheminStockage = Path.Combine("uploads", uniqueFileName) // chemin relatif depuis wwwroot
-                            };
-
-                            commentaire.PiecesJointes.Add(pieceJointe);
-                        }
-                    }
-                    ticket.Commentaires.Add(commentaire);
-                }
-
+                // Sauvegarder le ticket d'abord
                 await _ticketRepository.AddAsync(ticket);
                 await _ticketRepository.SaveChangesAsync();
 
+                // Mapper le résultat
                 var result = await MapToDto(ticket);
 
                 sw.Stop();
-                _logger.LogInformation("CreateTicket SUCCESS | Ref: {Reference} | Duration: {Ms} ms | Commentaires: {NbCommentaires}, Fichiers: {NbFichiers}",
-                    reference, sw.ElapsedMilliseconds,
-                    ticket.Commentaires?.Count ?? 0,
-                    ticket.Commentaires?.SelectMany(c => c.PiecesJointes).Count() ?? 0);
+                _logger.LogInformation("CreateTicket SUCCESS | Ref: {Reference} | Duration: {Ms} ms",
+                    reference, sw.ElapsedMilliseconds);
 
-                return ApiResponse<TicketDTO>.Success(result, $"Ticket {reference} créé avec succès");
+                return ApiResponse<TicketDTO>.Success(result, $"Ticket {reference} créé avec succès. Utilisez POST /api/commentaires?ticketId={ticket.Id} pour ajouter des commentaires.");
             }
             catch (Exception ex)
             {
@@ -723,19 +669,40 @@ private async Task<TicketDetailDTO> MapToDetailDto(TicketEntity ticket)
 
                         foreach (var commentaireDto in dto.Commentaires)
                         {
+                            _logger.LogInformation("DTO reçu - ID: {Id}, Message: {Message}, EffacerMessage: {Effacer}, EstInterne: {EstInterne}",
+                                commentaireDto.Id,
+                                commentaireDto.Message ?? "null",
+                                commentaireDto.NouveauxFichiers,
+                                commentaireDto.EstInterne);
+
+                            if (commentaireDto.NouveauxFichiers != null)
+                                _logger.LogInformation("Nombre de nouveaux fichiers: {Count}", commentaireDto.NouveauxFichiers.Count);
+
+                            if (commentaireDto.PiecesJointesASupprimer != null)
+                                _logger.LogInformation("Pièces jointes à supprimer: {Ids}", string.Join(", ", commentaireDto.PiecesJointesASupprimer));
+
                             var commentaireExistant = ticket.Commentaires?
                                 .FirstOrDefault(c => c.Id == commentaireDto.Id);
 
                             if (commentaireExistant != null)
                             {
+                                _logger.LogInformation("Commentaire trouvé, message actuel: '{Message}'", commentaireExistant.Message);
+
+                                // ✅ CORRECTION: Ajouter tous les paramètres
                                 await MettreAJourCommentaire(
-                                    commentaireExistant,
-                                    commentaireDto,
-                                    userId,
-                                    piecesJointesSupprimees,
-                                    piecesJointesAjoutees);
+                                    commentaireExistant,           // commentaire
+                                    commentaireDto,                 // dto
+                                    userId,                         // userId
+                                    piecesJointesSupprimees,        // piecesJointesSupprimees
+                                    piecesJointesAjoutees           // piecesJointesAjoutees
+                                );
 
                                 commentairesModifies.Add(commentaireExistant.Id);
+                                _logger.LogInformation("Commentaire {CommentaireId} mis à jour", commentaireExistant.Id);
+                            }
+                            else
+                            {
+                                _logger.LogWarning("Commentaire avec ID {CommentaireId} NON TROUVÉ dans le ticket", commentaireDto.Id);
                             }
                         }
                     }
@@ -744,8 +711,7 @@ private async Task<TicketDetailDTO> MapToDetailDto(TicketEntity ticket)
                     await _ticketRepository.SaveChangesAsync();
 
                     // 5. MAINTENANT on peut recharger pour la réponse
-                    var ticketMisAJour = await _ticketRepository.GetTicketWithDetailsAsync(id);
-                    var responseDto = await MapToDetailDto(ticketMisAJour);
+                    var responseDto = await MapToDetailDto(ticket);
 
                     var updateResponse = new UpdateTicketResponseDTO
                     {

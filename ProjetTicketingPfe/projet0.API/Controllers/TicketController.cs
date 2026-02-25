@@ -64,7 +64,7 @@ namespace projet0.API.Controllers
 
         [HttpPost]
         [Authorize(Policy = "TicketCreate")]
-        public async Task<ActionResult<ApiResponse<TicketDTO>>> Create([FromBody] CreateTicketDTO dto)
+        public async Task<ActionResult<ApiResponse<TicketDTO>>> Create([FromForm] CreateTicketDTO dto)
         {
             try
             {
@@ -77,6 +77,7 @@ namespace projet0.API.Controllers
                 if (!result.IsSuccess)
                     return BadRequest(result);
 
+                // ✅ Le message de succès indique comment ajouter des commentaires
                 return CreatedAtAction(
                     nameof(GetById),
                     new { id = result.Data?.Id },

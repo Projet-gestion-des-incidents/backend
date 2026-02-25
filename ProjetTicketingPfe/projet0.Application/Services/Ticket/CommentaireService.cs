@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 using projet0.Application.Commun.DTOs.Ticket;
 using projet0.Application.Commun.DTOs.TicketDTOs;
 using projet0.Application.Commun.Ressources;
@@ -16,6 +17,7 @@ namespace projet0.Application.Services.Ticket
         Task<ApiResponse<CommentaireDTO>> GetCommentaireByIdAsync(Guid id);
         Task<ApiResponse<UpdateCommentaireResponseDTO>> UpdateCommentaireAsync(Guid id, UpdateCommentaireDTO dto, Guid userId);
         Task<ApiResponse<bool>> DeleteCommentaireAsync(Guid id);
+        Task<CommentaireDTO> CreateCommentaireAsync(Guid ticketId, CreateCommentaireDTO dto, Guid userId);
     }
 
     public class CommentaireService : ICommentaireService
@@ -99,7 +101,7 @@ namespace projet0.Application.Services.Ticket
                             Taille = fichier.Length,
                             ContentType = fichier.ContentType,
                             TypePieceJointe = DeterminerTypePieceJointe(fichier.FileName),
-                            //Fichier = fichier
+                            Fichier = fichier
                         };
 
                         var pieceJointe = await _pieceJointeService.SauvegarderFichierAsync(
@@ -266,6 +268,62 @@ namespace projet0.Application.Services.Ticket
                 ".zip" or ".rar" or ".7z" => TypePieceJointe.Archive,
                 _ => TypePieceJointe.Autre
             };
+        }
+
+        public async Task<CommentaireDTO> CreateCommentaireAsync(Guid ticketId, CreateCommentaireDTO dto, Guid userId)
+        {
+            _logger.LogInformation("Création commentaire pour ticket {TicketId}", ticketId);
+
+            // 1. Créer le commentaire
+            var commentaire = new CommentaireTicket
+            {
+                Id = Guid.NewGuid(),
+                Message = dto.Message ?? string.Empty,
+                DateCreation = DateTime.UtcNow,
+                EstInterne = dto.EstInterne,
+                TicketId = ticketId,
+                AuteurId = userId,
+                PiecesJointes = new List<PieceJointe>()
+            };
+
+            await _commentaireRepository.AddAsync(commentaire);
+
+            // 2. Ajouter les fichiers si présents
+            if (dto.Fichiers != null && dto.Fichiers.Any())
+            {
+                _logger.LogInformation("Ajout de {Count} fichier(s) au commentaire", dto.Fichiers.Count);
+
+                foreach (var fichier in dto.Fichiers)
+                {
+                    var base64Data = await ConvertirFichierEnBase64(fichier);
+
+                    var pieceDto = new CreatePieceJointeDTO
+                    {
+                        NomFichier = fichier.FileName,
+                        Taille = fichier.Length,
+                        ContentType = fichier.ContentType,
+                        TypePieceJointe = DeterminerTypePieceJointe(fichier.FileName),
+                        ContenuBase64 = base64Data
+                    };
+
+                    var pieceJointe = await _pieceJointeService.SauvegarderFichierAsync(
+                        pieceDto, commentaire.Id, userId);
+                }
+            }
+
+            await _commentaireRepository.SaveChangesAsync();
+
+            // 3. Retourner le DTO
+            var commentaireComplet = await _commentaireRepository.GetCommentaireWithPiecesJointesAsync(commentaire.Id);
+            return MapToDto(commentaireComplet);
+        }
+
+        private async Task<string> ConvertirFichierEnBase64(IFormFile fichier)
+        {
+            using var memoryStream = new MemoryStream();
+            await fichier.CopyToAsync(memoryStream);
+            var bytes = memoryStream.ToArray();
+            return Convert.ToBase64String(bytes);
         }
         #endregion
     }

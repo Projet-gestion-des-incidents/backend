@@ -45,53 +45,37 @@ namespace projet0.Application.Services
     Guid commentaireId,
     Guid uploadedById)
         {
-            _logger.LogInformation("Sauvegarde fichier - CommentaireId: {CommentaireId}, Nom: {NomFichier}",
-                commentaireId, dto.NomFichier);
+            // ✅ Utiliser directement dto.Fichier (IFormFile)
+            var uploadsFolder = Path.Combine(_environment.ContentRootPath, "uploads", "pieces-jointes");
+            if (!Directory.Exists(uploadsFolder))
+                Directory.CreateDirectory(uploadsFolder);
 
-            try
+            var uniqueFileName = $"{Guid.NewGuid()}_{dto.Fichier.FileName}";
+            var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+            using (var fileStream = new FileStream(filePath, FileMode.Create))
             {
-                // 1. Vérifier que le commentaire existe
-                var commentaire = await _commentaireRepository.GetByIdAsync(commentaireId);
-                if (commentaire == null)
-                {
-                    _logger.LogWarning("Commentaire {CommentaireId} non trouvé", commentaireId);
-                    throw new ArgumentException($"Le commentaire avec ID {commentaireId} n'existe pas");
-                }
-
-                // 2. Sauvegarder le fichier physiquement
-                _logger.LogInformation("Sauvegarde physique du fichier");
-                string cheminFichier = await SauvegarderFichierPhysique(dto);
-                _logger.LogInformation("Fichier sauvegardé physiquement: {Chemin}", cheminFichier);
-
-                // 3. Créer l'entité PieceJointe
-                var pieceJointe = new PieceJointe
-                {
-                    Id = Guid.NewGuid(),
-                    NomFichier = dto.NomFichier,
-                    CheminStockage = cheminFichier,
-                    Taille = dto.Taille,
-                    ContentType = dto.ContentType,
-                    TypePieceJointe = dto.TypePieceJointe,
-                    DateAjout = DateTime.UtcNow,
-                    CommentaireId = commentaireId,
-                    UploadedById = uploadedById
-                };
-
-                // 4. Sauvegarder dans la base via le repository
-                _logger.LogInformation("Sauvegarde en base");
-                await _pieceJointeRepository.AddAsync(pieceJointe);
-                await _pieceJointeRepository.SaveChangesAsync();
-
-                _logger.LogInformation("Fichier sauvegardé avec succès ID: {PieceJointeId}", pieceJointe.Id);
-                return pieceJointe;
+                await dto.Fichier.CopyToAsync(fileStream);
             }
-            catch (Exception ex)
+
+            var pieceJointe = new PieceJointe
             {
-                _logger.LogError(ex, "Erreur dans SauvegarderFichierAsync pour {NomFichier}", dto.NomFichier);
-                throw;
-            }
+                Id = Guid.NewGuid(),
+                NomFichier = dto.Fichier.FileName,
+                CheminStockage = Path.Combine("uploads", "pieces-jointes", uniqueFileName),
+                Taille = dto.Fichier.Length,
+                ContentType = dto.Fichier.ContentType,
+                TypePieceJointe = dto.TypePieceJointe,
+                DateAjout = DateTime.UtcNow,
+                CommentaireId = commentaireId,
+                UploadedById = uploadedById
+            };
+
+            await _pieceJointeRepository.AddAsync(pieceJointe);
+            await _pieceJointeRepository.SaveChangesAsync();
+
+            return pieceJointe;
         }
-
         /// <summary>
         /// Récupère l'URL d'un fichier
         /// </summary>
@@ -168,31 +152,56 @@ namespace projet0.Application.Services
         /// <summary>
         /// Sauvegarde le fichier physique
         /// </summary>
+        // Fichier: projet0.Application/Services/Ticket/PieceJointeService.cs
+
         private async Task<string> SauvegarderFichierPhysique(CreatePieceJointeDTO dto)
         {
-            var uploadsFolder = Path.Combine(_environment.ContentRootPath, "uploads", "pieces-jointes");
-
-            if (!Directory.Exists(uploadsFolder))
+            // ✅ Vérifier les deux possibilités : Fichier ou ContenuBase64
+            if (dto.Fichier != null && dto.Fichier.Length > 0)
             {
-                Directory.CreateDirectory(uploadsFolder);
+                // Cas 1: Upload direct via IFormFile
+                var uploadsFolder = Path.Combine(_environment.ContentRootPath, "uploads", "pieces-jointes");
+                if (!Directory.Exists(uploadsFolder))
+                    Directory.CreateDirectory(uploadsFolder);
+
+                var uniqueFileName = $"{Guid.NewGuid()}_{dto.Fichier.FileName}";
+                var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+                using (var fileStream = new FileStream(filePath, FileMode.Create))
+                {
+                    await dto.Fichier.CopyToAsync(fileStream);
+                }
+
+                _logger.LogInformation("Fichier sauvegardé physiquement via IFormFile: {Chemin}", filePath);
+                return Path.Combine("uploads", "pieces-jointes", uniqueFileName);
             }
+            else if (!string.IsNullOrEmpty(dto.ContenuBase64))
+            {
+                // Cas 2: Upload via Base64
+                var uploadsFolder = Path.Combine(_environment.ContentRootPath, "uploads", "pieces-jointes");
+                if (!Directory.Exists(uploadsFolder))
+                    Directory.CreateDirectory(uploadsFolder);
 
-            var uniqueFileName = $"{Guid.NewGuid()}_{dto.NomFichier}";
-            var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+                var uniqueFileName = $"{Guid.NewGuid()}_{dto.NomFichier}";
+                var filePath = Path.Combine(uploadsFolder, uniqueFileName);
 
-            if (string.IsNullOrEmpty(dto.ContenuBase64))
+                // Nettoyer la chaîne base64 (enlever le préfixe data:image/jpeg;base64, etc.)
+                var base64Data = dto.ContenuBase64.Contains(",")
+                    ? dto.ContenuBase64.Split(',')[1]
+                    : dto.ContenuBase64;
+
+                var fileBytes = Convert.FromBase64String(base64Data);
+                await File.WriteAllBytesAsync(filePath, fileBytes);
+
+                _logger.LogInformation("Fichier sauvegardé physiquement via Base64: {Chemin}", filePath);
+                return Path.Combine("uploads", "pieces-jointes", uniqueFileName);
+            }
+            else
+            {
+                _logger.LogError("Aucun fichier fourni - Fichier: null, ContenuBase64: {Base64Status}",
+                    string.IsNullOrEmpty(dto.ContenuBase64) ? "vide" : "non vide");
                 throw new ArgumentException("Aucun fichier fourni");
-
-            // Nettoyer si data:image/...;base64,...
-            var base64Data = dto.ContenuBase64.Contains(",")
-                ? dto.ContenuBase64.Split(',')[1]
-                : dto.ContenuBase64;
-
-            var fileBytes = Convert.FromBase64String(base64Data);
-
-            await File.WriteAllBytesAsync(filePath, fileBytes);
-
-            return Path.Combine("uploads", "pieces-jointes", uniqueFileName);
+            }
         }
         /// <summary>
         /// Génère l'URL pour une pièce jointe

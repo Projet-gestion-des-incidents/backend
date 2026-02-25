@@ -19,19 +19,7 @@ namespace projet0.Application.Commun.DTOs.Ticket
         [Required(ErrorMessage = "Le statut est requis")]
         public StatutTicket StatutTicket { get; set; }
 
-        // public Guid? AssigneeId { get; set; }
+        public Guid? AssigneeId { get; set; }
 
-        // NOUVEAU: Commentaire initial
-        [StringLength(2000, ErrorMessage = "Le commentaire ne peut pas dépasser 2000 caractères")]
-        public string? CommentaireInitial { get; set; }
-
-        // NOUVEAU: Indique si le commentaire est interne
-        public bool CommentaireInterne { get; set; } = false;
-
-        // NOUVEAU: Fichiers joints
-
-        //public List<IFormFile>? Fichiers { get; set; }
-
-        public List<CreatePieceJointeDTO>? Fichiers { get; set; }
     }
 }
