@@ -10,7 +10,6 @@ namespace projet0.Domain.Entities
     {
         public Guid Id { get; set; }
         public string CodeIncident { get; set; }  // Format: INC-2026-001
-        public string TitreIncident { get; set; }
         public string DescriptionIncident { get; set; }
 
         // Enums (stockés comme int)
@@ -28,6 +27,16 @@ namespace projet0.Domain.Entities
 
         // Audit
         public DateTime? UpdatedAt { get; set; }
+
+        // Nouveaux champs
+        public string Emplacement { get; set; }
+        public TypeProbleme TypeProbleme { get; set; }  // Nouvel enum à créer
+
+        // Relation avec les TPEs
+        public virtual ICollection<IncidentTPE> IncidentTPEs { get; set; }
+
+        // Relation avec les pièces jointes (manquante)
+        public virtual ICollection<PieceJointe> PiecesJointes { get; set; }
     }
 }
 

@@ -17,8 +17,7 @@ namespace projet0.Infrastructure.Data.Configurations
             builder.Property(h => h.DateChangement).HasDefaultValueSql("GETUTCDATE()");
 
             builder.Property(h => h.AncienStatut).HasConversion<int>();
-            builder.Property(h => h.NouveauStatut).HasConversion<int>();
-
+            
             builder.HasOne(h => h.Ticket)
                 .WithMany(t => t.Historiques)
                 .HasForeignKey(h => h.TicketId)

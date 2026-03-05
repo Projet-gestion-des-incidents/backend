@@ -11,7 +11,6 @@ namespace projet0.Application.Commun.DTOs.Ticket
         public string NomFichier { get; set; }
         public long Taille { get; set; }
         public string ContentType { get; set; }
-        public TypePieceJointe TypePieceJointe { get; set; }
         public DateTime DateAjout { get; set; }
         public string Url { get; set; } // Pour télécharger le fichier
     }

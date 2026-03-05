@@ -14,18 +14,17 @@ namespace projet0.Domain.Entities
 
         // Enums
         public StatutTicket StatutTicket { get; set; }
-        public PrioriteTicket PrioriteTicket { get; set; }
 
         public DateTime DateCreation { get; set; }
         public DateTime? DateCloture { get; set; }
+        public DateTime? DateLimite { get; set; }
+
 
         // Foreign Keys
         public Guid CreateurId { get; set; }     // Qui a créé le ticket
         public Guid? AssigneeId { get; set; }     // À qui est assigné
 
         // Navigation Properties
-        public virtual ApplicationUser Createur { get; set; }
-        public virtual ApplicationUser Assignee { get; set; }
         public virtual ICollection<IncidentTicket> IncidentTickets { get; set; }
         public virtual ICollection<HistoriqueTicket> Historiques { get; set; }
         public virtual ICollection<CommentaireTicket> Commentaires { get; set; }
@@ -34,5 +33,8 @@ namespace projet0.Domain.Entities
         // Audit
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
+
+        public virtual ApplicationUser Createur { get; set; }  // ← Changer de "Createur" à "Createur"
+        public virtual ApplicationUser Assignee { get; set; }
     }
 }

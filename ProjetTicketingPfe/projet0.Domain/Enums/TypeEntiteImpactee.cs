@@ -6,13 +6,10 @@ namespace projet0.Domain.Enums
 {
     public enum TypeEntiteImpactee
     {
-        Hardware = 1,
-        Software = 2,
+        MachineTPE = 1,
+        FluxTransactionnel = 2,
         Reseau = 3,
-        BaseDonnees = 4,
-        Application = 5,
-        Utilisateur = 6,
-        Securite = 7,
-        Autre = 8
+        ServiceApplicatif = 4,
+        MachineVirtuelle = 5,
     }
 }

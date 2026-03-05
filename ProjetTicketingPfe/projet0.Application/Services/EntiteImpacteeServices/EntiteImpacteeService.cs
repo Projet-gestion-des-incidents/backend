@@ -36,7 +36,7 @@ public async Task<ApiResponse<EntiteImpacteeDTO>> CreateAsync(CreateEntiteImpact
         {
             Id = Guid.NewGuid(),
             TypeEntiteImpactee = dto.TypeEntiteImpactee,
-            Nom = dto.Nom,
+            
             IncidentId = dto.IncidentId
         };
 

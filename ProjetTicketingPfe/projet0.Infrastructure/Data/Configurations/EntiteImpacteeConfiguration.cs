@@ -12,18 +12,17 @@ namespace projet0.Infrastructure.Data.Configurations
         public void Configure(EntityTypeBuilder<EntiteImpactee> builder)
         {
             builder.ToTable("EntitesImpactees");
-            builder.HasKey(e => e.Id);
-
-            builder.Property(e => e.Nom).IsRequired().HasMaxLength(200);
+            builder.HasKey(e => e.Id);   
+            
             builder.Property(e => e.TypeEntiteImpactee).HasConversion<int>();
 
             builder.Property(e => e.IncidentId)
                .IsRequired();
 
-builder.HasOne(e => e.Incident)
-       .WithMany(i => i.EntitesImpactees)
-       .HasForeignKey(e => e.IncidentId)
-      .OnDelete(DeleteBehavior.Cascade);
+            builder.HasOne(e => e.Incident)
+                   .WithMany(i => i.EntitesImpactees)
+                   .HasForeignKey(e => e.IncidentId)
+                   .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

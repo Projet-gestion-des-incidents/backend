@@ -100,7 +100,7 @@ namespace projet0.Application.Services.Ticket
                             NomFichier = fichier.FileName,
                             Taille = fichier.Length,
                             ContentType = fichier.ContentType,
-                            TypePieceJointe = DeterminerTypePieceJointe(fichier.FileName),
+                            //TypePieceJointe = DeterminerTypePieceJointe(fichier.FileName),
                             Fichier = fichier
                         };
 
@@ -222,9 +222,7 @@ namespace projet0.Application.Services.Ticket
                 {
                     Id = p.Id,
                     NomFichier = p.NomFichier,
-                    Taille = p.Taille,
-                    ContentType = p.ContentType,
-                    TypePieceJointe = p.TypePieceJointe,
+                    
                     DateAjout = p.DateAjout
                     // L'URL sera générée côté contrôleur
                 }).ToList() ?? new()
@@ -247,9 +245,7 @@ namespace projet0.Application.Services.Ticket
                 {
                     Id = p.Id,
                     NomFichier = p.NomFichier,
-                    Taille = p.Taille,
-                    ContentType = p.ContentType,
-                    TypePieceJointe = p.TypePieceJointe,
+                    
                     DateAjout = p.DateAjout
                 }).ToList() ?? new()
             };
@@ -257,7 +253,7 @@ namespace projet0.Application.Services.Ticket
             return dto;
         }
 
-        private TypePieceJointe DeterminerTypePieceJointe(string nomFichier)
+        /*private TypePieceJointe DeterminerTypePieceJointe(string nomFichier)
         {
             var extension = Path.GetExtension(nomFichier).ToLowerInvariant();
             return extension switch
@@ -268,7 +264,7 @@ namespace projet0.Application.Services.Ticket
                 ".zip" or ".rar" or ".7z" => TypePieceJointe.Archive,
                 _ => TypePieceJointe.Autre
             };
-        }
+        }*/
 
         public async Task<CommentaireDTO> CreateCommentaireAsync(Guid ticketId, CreateCommentaireDTO dto, Guid userId)
         {
@@ -302,7 +298,7 @@ namespace projet0.Application.Services.Ticket
                         NomFichier = fichier.FileName,
                         Taille = fichier.Length,
                         ContentType = fichier.ContentType,
-                        TypePieceJointe = DeterminerTypePieceJointe(fichier.FileName),
+                        //TypePieceJointe = DeterminerTypePieceJointe(fichier.FileName),
                         ContenuBase64 = base64Data
                     };
 

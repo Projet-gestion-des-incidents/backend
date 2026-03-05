@@ -67,10 +67,7 @@ namespace projet0.API.Controllers
                     PiecesJointes = c.PiecesJointes?.Select(p => new PieceJointeDTO
                     {
                         Id = p.Id,
-                        NomFichier = p.NomFichier,
-                        Taille = p.Taille,
-                        ContentType = p.ContentType,
-                        TypePieceJointe = p.TypePieceJointe,
+                        
                         DateAjout = p.DateAjout,
                         Url = $"{Request.Scheme}://{Request.Host}/api/pieces-jointes/{p.Id}"
                     }).ToList() ?? new()
@@ -163,7 +160,7 @@ namespace projet0.API.Controllers
                                 NomFichier = fichier.FileName,
                                 Taille = fichier.Length,
                                 ContentType = fichier.ContentType,
-                                TypePieceJointe = DeterminerTypePieceJointe(fichier.FileName),
+                                //TypePieceJointe = DeterminerTypePieceJointe(fichier.FileName),
                                 Fichier = fichier
                             };
 
@@ -198,9 +195,7 @@ namespace projet0.API.Controllers
                     {
                         Id = p.Id,
                         NomFichier = p.NomFichier,
-                        Taille = p.Taille,
-                        ContentType = p.ContentType,
-                        TypePieceJointe = p.TypePieceJointe,
+                        
                         DateAjout = p.DateAjout,
                         Url = $"{Request.Scheme}://{Request.Host}/api/pieces-jointes/{p.Id}"
                     }).ToList() ?? new()
@@ -215,7 +210,7 @@ namespace projet0.API.Controllers
                 return StatusCode(500, ApiResponse<CommentaireDTO>.Failure($"Erreur interne: {ex.Message}"));
             }
         }
-        private TypePieceJointe DeterminerTypePieceJointe(string nomFichier)
+        /*private TypePieceJointe DeterminerTypePieceJointe(string nomFichier)
         {
             var extension = Path.GetExtension(nomFichier).ToLowerInvariant();
 
@@ -227,7 +222,7 @@ namespace projet0.API.Controllers
                 ".zip" or ".rar" or ".7z" => TypePieceJointe.Archive,
                 _ => TypePieceJointe.Autre
             };
-        }
+        }*/
 
         /// <summary>
         /// Récupérer un commentaire par son ID
@@ -257,9 +252,7 @@ namespace projet0.API.Controllers
                     {
                         Id = p.Id,
                         NomFichier = p.NomFichier,
-                        Taille = p.Taille,
-                        ContentType = p.ContentType,
-                        TypePieceJointe = p.TypePieceJointe,
+                        
                         DateAjout = p.DateAjout,
                         Url = $"{Request.Scheme}://{Request.Host}/api/pieces-jointes/{p.Id}"
                     }).ToList() ?? new()
@@ -380,9 +373,7 @@ namespace projet0.API.Controllers
                 {
                     Id = p.Id,
                     NomFichier = p.NomFichier,
-                    Taille = p.Taille,
-                    ContentType = p.ContentType,
-                    TypePieceJointe = p.TypePieceJointe,
+                    
                     DateAjout = p.DateAjout,
                     Url = $"{Request.Scheme}://{Request.Host}/api/pieces-jointes/{p.Id}"
                 }).ToList() ?? new();

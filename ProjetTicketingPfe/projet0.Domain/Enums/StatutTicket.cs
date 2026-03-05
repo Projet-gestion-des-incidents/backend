@@ -6,12 +6,8 @@ namespace projet0.Domain.Enums
 {
     public enum StatutTicket
     {
-        Nouveau = 1,
-        Assigne = 2,
-        EnCours = 3,
-        EnAttente = 4,
-        Resolu = 5,
-        Cloture = 6,
-        Reouvert = 7
+        Assigne = 1,
+        EnCours = 2,        
+        Resolu = 3,
     }
 }

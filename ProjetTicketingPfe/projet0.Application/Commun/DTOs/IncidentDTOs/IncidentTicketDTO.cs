@@ -11,6 +11,5 @@ namespace projet0.Application.Commun.DTOs.Incident
         public string ReferenceTicket { get; set; }
         public string TitreTicket { get; set; }
         public StatutTicket StatutTicket { get; set; }
-        public PrioriteTicket PrioriteTicket { get; set; }
     }
 }

@@ -17,11 +17,12 @@ namespace projet0.Infrastructure.Data.Configurations
             builder.HasIndex(i => i.CodeIncident).IsUnique();
 
             builder.Property(i => i.CodeIncident).IsRequired().HasMaxLength(20);
-            builder.Property(i => i.TitreIncident).IsRequired().HasMaxLength(200);
             builder.Property(i => i.DescriptionIncident).HasMaxLength(2000);
             builder.Property(i => i.DateDetection).HasDefaultValueSql("GETUTCDATE()").IsRequired();
             builder.Property(i => i.CreatedById);
             builder.Property(i => i.UpdatedById);
+            builder.Property(i => i.Emplacement).HasMaxLength(500);
+            builder.Property(i => i.TypeProbleme).HasConversion<int>();
 
             // Enums
             builder.Property(i => i.SeveriteIncident).HasConversion<int>();
@@ -33,7 +34,19 @@ namespace projet0.Infrastructure.Data.Configurations
                 .HasForeignKey(it => it.IncidentId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-           
+            // Relation avec IncidentTPE
+            builder.HasMany(i => i.IncidentTPEs)
+                .WithOne(it => it.Incident)
+                .HasForeignKey(it => it.IncidentId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Relation avec PiecesJointes
+            builder.HasMany(i => i.PiecesJointes)
+                .WithOne(p => p.Incident)
+                .HasForeignKey(p => p.IncidentId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+
 
         }
     }

@@ -16,7 +16,6 @@ namespace projet0.Application.Commun.DTOs.Ticket
         [StringLength(2000, ErrorMessage = "La description ne peut pas dépasser 2000 caractères")]
         public string? DescriptionTicket { get; set; }
 
-        public PrioriteTicket? PrioriteTicket { get; set; }
 
         public StatutTicket? StatutTicket { get; set; }
 

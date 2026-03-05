@@ -11,7 +11,6 @@ namespace projet0.Application.Commun.Ressources.Pagination
     {
         // Filtres optionnels pour les tickets
         public StatutTicket? Statut { get; set; }
-        public PrioriteTicket? Priorite { get; set; }
 
         public DateTime? DateDebut { get; set; }
         

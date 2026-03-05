@@ -15,12 +15,10 @@ namespace projet0.Infrastructure.Data.Configurations
             builder.HasKey(p => p.Id);
 
             builder.Property(p => p.NomFichier).IsRequired().HasMaxLength(255);
-            builder.Property(p => p.CheminStockage).IsRequired().HasMaxLength(500);
-            builder.Property(p => p.ContentType).IsRequired().HasMaxLength(100);
-            builder.Property(p => p.Taille).IsRequired();
+            
             builder.Property(p => p.DateAjout).HasDefaultValueSql("GETUTCDATE()");
 
-            builder.Property(p => p.TypePieceJointe).HasConversion<int>();
+            
 
             builder.HasOne(p => p.Commentaire)
                 .WithMany(c => c.PiecesJointes)
@@ -31,6 +29,12 @@ namespace projet0.Infrastructure.Data.Configurations
                 .WithMany(u => u.PiecesJointes)
                 .HasForeignKey(p => p.UploadedById)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // Relation avec Incident (optionnelle)
+            builder.HasOne(p => p.Incident)
+                .WithMany(i => i.PiecesJointes)
+                .HasForeignKey(p => p.IncidentId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

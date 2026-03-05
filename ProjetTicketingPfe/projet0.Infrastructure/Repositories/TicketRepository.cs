@@ -1,262 +1,262 @@
-﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
-using projet0.Application.Interfaces;
-using projet0.Domain.Entities;
-using projet0.Domain.Enums;
-using projet0.Infrastructure.Data;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Linq.Expressions;
-using System.Text;
+﻿//using Microsoft.EntityFrameworkCore;
+//using Microsoft.Extensions.Logging;
+//using projet0.Application.Interfaces;
+//using projet0.Domain.Entities;
+//using projet0.Domain.Enums;
+//using projet0.Infrastructure.Data;
+//using System;
+//using System.Collections.Generic;
+//using System.Linq;
+//using System.Linq.Expressions;
+//using System.Text;
 
-namespace projet0.Infrastructure.Repositories
-{
-    public class TicketRepository : GenericRepository<Ticket>, ITicketRepository
-    {
-        private readonly ApplicationDbContext _context;
-        private readonly ILogger<TicketRepository> _logger; 
+//namespace projet0.Infrastructure.Repositories
+//{
+//    public class TicketRepository : GenericRepository<Ticket>, ITicketRepository
+//    {
+//        private readonly ApplicationDbContext _context;
+//        private readonly ILogger<TicketRepository> _logger; 
 
-        public TicketRepository(ApplicationDbContext context, ILogger<TicketRepository> logger) : base(context)
-        {
-            _context = context;
-            _logger = logger; 
+//        public TicketRepository(ApplicationDbContext context, ILogger<TicketRepository> logger) : base(context)
+//        {
+//            _context = context;
+//            _logger = logger; 
 
-        }
+//        }
 
-        public async Task<Ticket> GetByReferenceAsync(string reference)
-        {
-            return await _context.Tickets
-                .Include(t => t.Createur)
-                .Include(t => t.Assignee)
-                .Include(t => t.Commentaires)
-                    .ThenInclude(c => c.PiecesJointes)
-                .Include(t => t.Historiques)
-                .FirstOrDefaultAsync(t => t.ReferenceTicket == reference);
-        }
+//        public async Task<Ticket> GetByReferenceAsync(string reference)
+//        {
+//            return await _context.Tickets
+//                .Include(t => t.Createur)
+//                .Include(t => t.Assignee)
+//                .Include(t => t.Commentaires)
+//                    .ThenInclude(c => c.PiecesJointes)
+//                .Include(t => t.Historiques)
+//                .FirstOrDefaultAsync(t => t.ReferenceTicket == reference);
+//        }
 
-        public override async Task<Ticket> GetByIdAsync(Guid id)
-        {
-            _logger.LogInformation("=== TicketRepository.GetByIdAsync ===");
-            _logger.LogInformation("ID reçu: {Id}", id);
-            _logger.LogInformation("Type d'ID: {IdType}", id.GetType());
+//        public override async Task<Ticket> GetByIdAsync(Guid id)
+//        {
+//            _logger.LogInformation("=== TicketRepository.GetByIdAsync ===");
+//            _logger.LogInformation("ID reçu: {Id}", id);
+//            _logger.LogInformation("Type d'ID: {IdType}", id.GetType());
 
-            // Vérifions d'abord combien de tickets existent
-            var totalTickets = await _context.Tickets.CountAsync();
-            _logger.LogInformation("Total tickets dans la base: {Total}", totalTickets);
+//            // Vérifions d'abord combien de tickets existent
+//            var totalTickets = await _context.Tickets.CountAsync();
+//            _logger.LogInformation("Total tickets dans la base: {Total}", totalTickets);
 
-            // Récupérons tous les IDs pour comparaison
-            var allIds = await _context.Tickets
-                .Select(t => new { t.Id, t.ReferenceTicket })
-                .Take(5)
-                .ToListAsync();
+//            // Récupérons tous les IDs pour comparaison
+//            var allIds = await _context.Tickets
+//                .Select(t => new { t.Id, t.ReferenceTicket })
+//                .Take(5)
+//                .ToListAsync();
 
-            _logger.LogInformation("Premiers tickets trouvés:");
-            foreach (var t in allIds)
-            {
-                _logger.LogInformation("  - ID: {Id}, Ref: {Ref}", t.Id, t.ReferenceTicket);
-                _logger.LogInformation("    Comparaison avec ID recherché: {IsEqual}", t.Id == id);
-            }
+//            _logger.LogInformation("Premiers tickets trouvés:");
+//            foreach (var t in allIds)
+//            {
+//                _logger.LogInformation("  - ID: {Id}, Ref: {Ref}", t.Id, t.ReferenceTicket);
+//                _logger.LogInformation("    Comparaison avec ID recherché: {IsEqual}", t.Id == id);
+//            }
 
-            var ticket = await _context.Tickets
-                .Include(t => t.Createur)
-                .Include(t => t.Commentaires)
-                    .ThenInclude(c => c.PiecesJointes)
-                .FirstOrDefaultAsync(t => t.Id == id);
+//            var ticket = await _context.Tickets
+//                .Include(t => t.Createur)
+//                .Include(t => t.Commentaires)
+//                    .ThenInclude(c => c.PiecesJointes)
+//                .FirstOrDefaultAsync(t => t.Id == id);
 
-            if (ticket == null)
-            {
-                _logger.LogWarning("❌ Ticket non trouvé avec ID: {Id}", id);
-            }
-            else
-            {
-                _logger.LogInformation("✅ Ticket trouvé: {Reference}", ticket.ReferenceTicket);
-            }
+//            if (ticket == null)
+//            {
+//                _logger.LogWarning("❌ Ticket non trouvé avec ID: {Id}", id);
+//            }
+//            else
+//            {
+//                _logger.LogInformation("✅ Ticket trouvé: {Reference}", ticket.ReferenceTicket);
+//            }
 
-            return ticket;
-        }
+//            return ticket;
+//        }
 
-        public override async Task<IEnumerable<Ticket>> GetAllAsync()
-        {
-            try
-            {
-                _logger.LogInformation("Récupération de tous les tickets");
+//        /*public override async Task<IEnumerable<Ticket>> GetAllAsync()
+//        {
+//            try
+//            {
+//                _logger.LogInformation("Récupération de tous les tickets");
 
-                var tickets = await _context.Tickets
-                    .Include(t => t.Createur)
-                    .Include(t => t.Assignee)
-                    .Include(t => t.Commentaires) 
-                    .OrderByDescending(t => t.DateCreation)
-                    .ToListAsync();
+//                var tickets = await _context.Tickets
+//                    .Include(t => t.Createur)
+//                    .Include(t => t.Assignee)
+//                    .Include(t => t.Commentaires) 
+//                    .OrderByDescending(t => t.DateCreation)
+//                    .ToListAsync();
 
-                _logger.LogInformation("{Count} tickets récupérés", tickets.Count);
-                return tickets;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Erreur lors de la récupération de tous les tickets");
-                throw; // Remonter l'exception pour qu'elle soit gérée par le service
-            }
-        }
+//                _logger.LogInformation("{Count} tickets récupérés", tickets.Count);
+//                return tickets;
+//            }
+//            catch (Exception ex)
+//            {
+//                _logger.LogError(ex, "Erreur lors de la récupération de tous les tickets");
+//                throw; // Remonter l'exception pour qu'elle soit gérée par le service
+//            }
+//        }*/
 
-        public async Task<Ticket> GetTicketWithDetailsAsync(Guid id)
-        {
-            try
-            {
-                _logger.LogInformation("Récupération des détails du ticket {Id}", id);
+//        public async Task<Ticket> GetTicketWithDetailsAsync(Guid id)
+//        {
+//            try
+//            {
+//                _logger.LogInformation("Récupération des détails du ticket {Id}", id);
 
-                var ticket = await _context.Tickets
-                    .Include(t => t.Createur)
-                    .Include(t => t.Assignee)
-                    .Include(t => t.Commentaires)
-                        .ThenInclude(c => c.Auteur)
-                    .Include(t => t.Commentaires)
-                        .ThenInclude(c => c.PiecesJointes)
-                    .Include(t => t.Historiques)
-                        .ThenInclude(h => h.ModifiePar)
-                    .Include(t => t.IncidentTickets)
-                        .ThenInclude(it => it.Incident)
-                    .Include(t => t.Notifications)
-                    .FirstOrDefaultAsync(t => t.Id == id);
+//                var ticket = await _context.Tickets
+//                    //.Include(t => t.Createur)
+//                    //.Include(t => t.Assignee)
+//                    .Include(t => t.Commentaires)
+//                        .ThenInclude(c => c.Auteur)
+//                    .Include(t => t.Commentaires)
+//                        .ThenInclude(c => c.PiecesJointes)
+//                    .Include(t => t.Historiques)
+//                        .ThenInclude(h => h.ModifiePar)
+//                    .Include(t => t.IncidentTickets)
+//                        .ThenInclude(it => it.Incident)
+//                    .Include(t => t.Notifications)
+//                    .FirstOrDefaultAsync(t => t.Id == id);
 
-                if (ticket == null)
-                {
-                    _logger.LogWarning("Ticket {Id} non trouvé", id);
-                }
-                else
-                {
-                    _logger.LogInformation("Ticket {Id} trouvé avec {Commentaires} commentaires",
-                        id, ticket.Commentaires?.Count ?? 0);
-                }
+//                if (ticket == null)
+//                {
+//                    _logger.LogWarning("Ticket {Id} non trouvé", id);
+//                }
+//                else
+//                {
+//                    _logger.LogInformation("Ticket {Id} trouvé avec {Commentaires} commentaires",
+//                        id, ticket.Commentaires?.Count ?? 0);
+//                }
 
-                return ticket;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Erreur lors de la récupération des détails du ticket {Id}", id);
-                throw;
-            }
-        }
+//                return ticket;
+//            }
+//            catch (Exception ex)
+//            {
+//                _logger.LogError(ex, "Erreur lors de la récupération des détails du ticket {Id}", id);
+//                throw;
+//            }
+//        }
 
-        public async Task<List<Ticket>> GetTicketsByStatutAsync(StatutTicket statut)
-        {
-            return await _context.Tickets
-                .Include(t => t.Createur)
-                .Include(t => t.Assignee)
-                .Where(t => t.StatutTicket == statut)
-                .OrderByDescending(t => t.DateCreation)
-                .ToListAsync();
-        }
+//        /*public async Task<List<Ticket>> GetTicketsByStatutAsync(StatutTicket statut)
+//        {
+//            return await _context.Tickets
+//                .Include(t => t.Createur)
+//                .Include(t => t.Assignee)
+//                .Where(t => t.StatutTicket == statut)
+//                .OrderByDescending(t => t.DateCreation)
+//                .ToListAsync();
+//        }*/
 
-        public async Task<List<Ticket>> GetTicketsByPrioriteAsync(PrioriteTicket priorite)
-        {
-            return await _context.Tickets
-                .Include(t => t.Createur)
-                .Include(t => t.Assignee)
-                .Where(t => t.PrioriteTicket == priorite)
-                .OrderByDescending(t => t.DateCreation)
-                .ToListAsync();
-        }
+//        /*public async Task<List<Ticket>> GetTicketsByPrioriteAsync(PrioriteTicket priorite)
+//        {
+//            return await _context.Tickets
+//                .Include(t => t.Createur)
+//                .Include(t => t.Assignee)
+//                .Where(t => t.PrioriteTicket == priorite)
+//                .OrderByDescending(t => t.DateCreation)
+//                .ToListAsync();
+//        }*/
 
-        public async Task<List<Ticket>> GetTicketsByCreateurAsync(Guid createurId)
-        {
-            return await _context.Tickets
-                .Include(t => t.Createur)
-                .Include(t => t.Assignee)
-                .Where(t => t.CreateurId == createurId)
-                .OrderByDescending(t => t.DateCreation)
-                .ToListAsync();
-        }
+//        public async Task<List<Ticket>> GetTicketsByCreateurAsync(Guid createurId)
+//        {
+//            return await _context.Tickets
+//                //.Include(t => t.Createur)
+//                .Include(t => t.Assignee)
+//                .Where(t => t.CreateurId == createurId)
+//                .OrderByDescending(t => t.DateCreation)
+//                .ToListAsync();
+//        }
 
-        public async Task<List<Ticket>> GetTicketsByAssigneeAsync(Guid assigneeId)
-        {
-            return await _context.Tickets
-                .Include(t => t.Createur)
-                .Include(t => t.Assignee)
-                .Where(t => t.AssigneeId == assigneeId)
-                .OrderByDescending(t => t.DateCreation)
-                .ToListAsync();
-        }
+//        public async Task<List<Ticket>> GetTicketsByAssigneeAsync(Guid assigneeId)
+//        {
+//            return await _context.Tickets
+//                .Include(t => t.Createur)
+//                .Include(t => t.Assignee)
+//                .Where(t => t.AssigneeId == assigneeId)
+//                .OrderByDescending(t => t.DateCreation)
+//                .ToListAsync();
+//        }
 
-        public async Task<bool> IsReferenceUniqueAsync(string reference, Guid? excludeId = null)
-        {
-            var query = _context.Tickets.Where(t => t.ReferenceTicket == reference);
+//        public async Task<bool> IsReferenceUniqueAsync(string reference, Guid? excludeId = null)
+//        {
+//            var query = _context.Tickets.Where(t => t.ReferenceTicket == reference);
 
-            if (excludeId.HasValue)
-            {
-                query = query.Where(t => t.Id != excludeId.Value);
-            }
+//            if (excludeId.HasValue)
+//            {
+//                query = query.Where(t => t.Id != excludeId.Value);
+//            }
 
-            return !await query.AnyAsync();
-        }
+//            return !await query.AnyAsync();
+//        }
 
-        public async Task<string> GenerateReferenceTicketAsync()
-        {
-            var year = DateTime.Now.Year;
-            var nextNumber = await GetNextTicketNumberAsync(year);
-            return $"TCK-{year}-{nextNumber:D3}";
-        }
+//        public async Task<string> GenerateReferenceTicketAsync()
+//        {
+//            var year = DateTime.Now.Year;
+//            var nextNumber = await GetNextTicketNumberAsync(year);
+//            return $"TCK-{year}-{nextNumber:D3}";
+//        }
 
-        public async Task<int> GetNextTicketNumberAsync(int year)
-        {
-            var lastTicket = await _context.Tickets
-                .Where(t => t.ReferenceTicket.StartsWith($"TCK-{year}-"))
-                .OrderByDescending(t => t.ReferenceTicket)
-                .FirstOrDefaultAsync();
+//        public async Task<int> GetNextTicketNumberAsync(int year)
+//        {
+//            var lastTicket = await _context.Tickets
+//                .Where(t => t.ReferenceTicket.StartsWith($"TCK-{year}-"))
+//                .OrderByDescending(t => t.ReferenceTicket)
+//                .FirstOrDefaultAsync();
 
-            if (lastTicket == null)
-                return 1;
+//            if (lastTicket == null)
+//                return 1;
 
-            var parts = lastTicket.ReferenceTicket.Split('-');
-            if (parts.Length == 3 && int.TryParse(parts[2], out int lastNumber))
-                return lastNumber + 1;
+//            var parts = lastTicket.ReferenceTicket.Split('-');
+//            if (parts.Length == 3 && int.TryParse(parts[2], out int lastNumber))
+//                return lastNumber + 1;
 
-            return 1;
-        }
+//            return 1;
+//        }
 
-        public IQueryable<Ticket> QueryWithDetails(Guid? createurId = null, Guid? assigneeId = null)
-        {
-            var query = _context.Tickets
-                .Include(t => t.Createur)
-                .Include(t => t.Assignee)
-                .Include(t => t.Commentaires)
-                .Include(t => t.Historiques)
-                .AsQueryable();
+//        /*public IQueryable<Ticket> QueryWithDetails(Guid? createurId = null, Guid? assigneeId = null)
+//        {
+//            var query = _context.Tickets
+//                .Include(t => t.Createur)
+//                .Include(t => t.Assignee)
+//                .Include(t => t.Commentaires)
+//                .Include(t => t.Historiques)
+//                .AsQueryable();
 
-            if (createurId.HasValue)
-                query = query.Where(t => t.CreateurId == createurId.Value);
+//            if (createurId.HasValue)
+//                query = query.Where(t => t.CreateurId == createurId.Value);
 
-            if (assigneeId.HasValue)
-                query = query.Where(t => t.AssigneeId == assigneeId.Value);
+//            if (assigneeId.HasValue)
+//                query = query.Where(t => t.AssigneeId == assigneeId.Value);
 
-            return query;
-        }
+//            return query;
+//        }*/
 
-        public IQueryable<Ticket> GetQueryWithIncludes()
-        {
-            return _context.Tickets
-                .Include(t => t.Createur)
-                .Include(t => t.Assignee)
-                .Include(t => t.Commentaires)
-                    .ThenInclude(c => c.PiecesJointes)
-                .AsQueryable();
-        }
+//        /*public IQueryable<Ticket> GetQueryWithIncludes()
+//        {
+//            return _context.Tickets
+//                .Include(t => t.Createur)
+//                .Include(t => t.Assignee)
+//                .Include(t => t.Commentaires)
+//                    .ThenInclude(c => c.PiecesJointes)
+//                .AsQueryable();
+//        }
 
-        public IQueryable<Ticket> GetFilteredQuery(Expression<Func<Ticket, bool>>? filter = null)
-        {
-            var query = _context.Tickets
-                .Include(t => t.Createur)      
-                .Include(t => t.Assignee)     
-                .Include(t => t.Commentaires)
-                    .ThenInclude(c => c.PiecesJointes)
-                .AsQueryable();
+//        public IQueryable<Ticket> GetFilteredQuery(Expression<Func<Ticket, bool>>? filter = null)
+//        {
+//            var query = _context.Tickets
+//                .Include(t => t.Createur)      
+//                .Include(t => t.Assignee)     
+//                .Include(t => t.Commentaires)
+//                    .ThenInclude(c => c.PiecesJointes)
+//                .AsQueryable();
 
-            if (filter != null)
-            {
-                query = query.Where(filter);
-            }
+//            if (filter != null)
+//            {
+//                query = query.Where(filter);
+//            }
 
-            return query;
-        }
-    }
-}
+//            return query;
+//        }*/
+//    }
+//}

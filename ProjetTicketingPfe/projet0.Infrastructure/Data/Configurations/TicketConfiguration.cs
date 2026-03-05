@@ -24,7 +24,6 @@ namespace projet0.Infrastructure.Data.Configurations
 
             // Enums
             builder.Property(t => t.StatutTicket).HasConversion<int>();
-            builder.Property(t => t.PrioriteTicket).HasConversion<int>();
 
             // Relations
             builder.HasOne(t => t.Createur)

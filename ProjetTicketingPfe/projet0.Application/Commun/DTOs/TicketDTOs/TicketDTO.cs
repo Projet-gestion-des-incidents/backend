@@ -13,7 +13,6 @@ namespace projet0.Application.Commun.DTOs.Ticket
         public string DescriptionTicket { get; set; }
         public StatutTicket StatutTicket { get; set; }
         public string StatutTicketLibelle { get; set; }
-        public PrioriteTicket PrioriteTicket { get; set; }
         public string PrioriteTicketLibelle { get; set; }
         public DateTime DateCreation { get; set; }
         public DateTime? DateCloture { get; set; }

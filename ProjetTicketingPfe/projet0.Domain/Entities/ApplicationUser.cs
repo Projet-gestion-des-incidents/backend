@@ -17,6 +17,8 @@ namespace projet0.Domain.Entities
         public virtual ICollection<Notification> Notifications { get; set; }
         public virtual ICollection<HistoriqueTicket> HistoriquesModifies { get; set; }
         public virtual ICollection<IncidentTicket> IncidentLiaisons { get; set; }
+        public virtual ICollection<TPE> TPEs { get; set; }
+
 
     }
 }

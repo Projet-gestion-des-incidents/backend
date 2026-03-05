@@ -11,7 +11,6 @@ namespace projet0.Domain.Entities
 
         // Statuts
         public StatutTicket AncienStatut { get; set; }
-        public StatutTicket NouveauStatut { get; set; }
         public DateTime DateChangement { get; set; }
 
         // Foreign Keys

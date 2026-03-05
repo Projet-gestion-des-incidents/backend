@@ -13,7 +13,7 @@ namespace projet0.Application.Interfaces
         Task<Ticket> GetByReferenceAsync(string reference);
         Task<Ticket> GetTicketWithDetailsAsync(Guid id);
         Task<List<Ticket>> GetTicketsByStatutAsync(StatutTicket statut);
-        Task<List<Ticket>> GetTicketsByPrioriteAsync(PrioriteTicket priorite);
+        //Task<List<Ticket>> GetTicketsByPrioriteAsync(PrioriteTicket priorite);
         Task<List<Ticket>> GetTicketsByCreateurAsync(Guid createurId);
         Task<List<Ticket>> GetTicketsByAssigneeAsync(Guid assigneeId);
         Task<bool> IsReferenceUniqueAsync(string reference, Guid? excludeId = null);

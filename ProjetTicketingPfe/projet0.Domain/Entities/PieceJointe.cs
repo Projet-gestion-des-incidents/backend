@@ -9,10 +9,7 @@ namespace projet0.Domain.Entities
     {
         public Guid Id { get; set; }
         public string NomFichier { get; set; }
-        public string CheminStockage { get; set; }
-        public long Taille { get; set; }  // En octets
-        public string ContentType { get; set; }  // MIME type
-        public TypePieceJointe TypePieceJointe { get; set; }
+      
         public DateTime DateAjout { get; set; }
 
         // Foreign Keys
@@ -23,5 +20,12 @@ namespace projet0.Domain.Entities
         // Navigation Properties
         public virtual CommentaireTicket Commentaire { get; set; }
         public virtual ApplicationUser UploadedBy { get; set; }
+
+        // Foreign Keys - Ajouter IncidentId
+        public Guid? IncidentId { get; set; } 
+        
+        // Navigation Properties - Ajouter Incident
+        public virtual Incident Incident { get; set; } 
+
     }
 }
