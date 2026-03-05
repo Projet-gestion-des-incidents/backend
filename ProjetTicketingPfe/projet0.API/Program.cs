@@ -18,6 +18,8 @@ using projet0.Application.Services.Incident;
 using projet0.Application.Services.Otp;
 using projet0.Application.Services.Ticket;
 using projet0.Application.Services.Token;
+using projet0.Application.Services.TPE;
+using projet0.Application.Services.TPEService;
 using projet0.Application.Services.User;
 using projet0.Domain.Entities;
 using projet0.Infrastructure.Data;
@@ -261,6 +263,9 @@ builder.Services.AddScoped<ICommentaireRepository, CommentaireRepository>();
 builder.Services.AddScoped<IPieceJointeRepository, PieceJointeRepository>();
 //builder.Services.AddScoped<IPieceJointeService, PieceJointeService>();
 //builder.Services.AddScoped<ICommentaireService, CommentaireService>();
+// Dans Program.cs, ajoutez :
+builder.Services.AddScoped<ITPERepository, TPERepository>();
+builder.Services.AddScoped<ITPEService, TPEService>();
 
 builder.Services.Configure<FormOptions>(options =>
 {
