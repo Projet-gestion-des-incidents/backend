@@ -119,9 +119,13 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
             }
         }
 
+        // projet0.API/Controllers/IncidentController.cs
+
         [HttpPost]
         [Authorize(Policy = "IncidentCreate")]
-        public async Task<ActionResult<ApiResponse<IncidentDTO>>> Create([FromBody] CreateIncidentDTO dto)
+        [Consumes("multipart/form-data")]  // ✅ Important !
+        public async Task<ActionResult<ApiResponse<IncidentDTO>>> Create(
+            [FromForm] CreateIncidentDTO dto)  // ✅ [FromForm] au lieu de [FromBody]
         {
             try
             {
@@ -129,6 +133,7 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
                     return BadRequest(ModelState);
 
                 var userId = GetCurrentUserId();
+
                 var result = await _incidentService.CreateIncidentAsync(dto, userId);
 
                 if (!result.IsSuccess)

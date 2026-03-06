@@ -98,8 +98,7 @@ namespace projet0.Application.Services.Ticket
                         var pieceDto = new CreatePieceJointeDTO
                         {
                             NomFichier = fichier.FileName,
-                            Taille = fichier.Length,
-                            ContentType = fichier.ContentType,
+                            
                             //TypePieceJointe = DeterminerTypePieceJointe(fichier.FileName),
                             Fichier = fichier
                         };
@@ -296,8 +295,7 @@ namespace projet0.Application.Services.Ticket
                     var pieceDto = new CreatePieceJointeDTO
                     {
                         NomFichier = fichier.FileName,
-                        Taille = fichier.Length,
-                        ContentType = fichier.ContentType,
+                       
                         //TypePieceJointe = DeterminerTypePieceJointe(fichier.FileName),
                         ContenuBase64 = base64Data
                     };

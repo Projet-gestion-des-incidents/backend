@@ -9,7 +9,7 @@ namespace projet0.Application.Commun.DTOs.Incident
     {
         public Guid Id { get; set; }
         public string CodeIncident { get; set; }
-        public string TitreIncident { get; set; }
+       
         public string DescriptionIncident { get; set; }
         public SeveriteIncident SeveriteIncident { get; set; }
         public string SeveriteIncidentLibelle { get; set; }
@@ -17,11 +17,12 @@ namespace projet0.Application.Commun.DTOs.Incident
         public string StatutIncidentLibelle { get; set; }
         public DateTime DateDetection { get; set; }
         public DateTime? DateResolution { get; set; }
-        public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
         public Guid? CreatedById { get; set; }
         public string CreatedByName { get; set; }
         public int NombreTickets { get; set; }
         public int NombreEntitesImpactees { get; set; }
+        public TypeProbleme TypeProbleme { get; set; }
+        public string TypeProblemeLibelle { get; set; }
     }
 }

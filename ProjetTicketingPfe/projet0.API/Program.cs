@@ -252,7 +252,7 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IIncidentRepository, IncidentRepository>();
-//builder.Services.AddScoped<IIncidentService, IncidentService>();
+builder.Services.AddScoped<IIncidentService, IncidentService>();
 builder.Services.AddScoped<IEntiteImpacteeRepository, EntiteImpacteeRepository>();
 //builder.Services.AddScoped<ITicketRepository, TicketRepository>();
 //builder.Services.AddScoped<ITicketService, TicketService>();
@@ -261,7 +261,7 @@ builder.Services.AddScoped<IEntiteImpacteeService, EntiteImpacteeService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICommentaireRepository, CommentaireRepository>();
 builder.Services.AddScoped<IPieceJointeRepository, PieceJointeRepository>();
-//builder.Services.AddScoped<IPieceJointeService, PieceJointeService>();
+builder.Services.AddScoped<IPieceJointeService, PieceJointeService>();
 //builder.Services.AddScoped<ICommentaireService, CommentaireService>();
 // Dans Program.cs, ajoutez :
 builder.Services.AddScoped<ITPERepository, TPERepository>();

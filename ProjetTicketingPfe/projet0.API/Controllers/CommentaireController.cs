@@ -158,8 +158,7 @@ namespace projet0.API.Controllers
                             var pieceDto = new CreatePieceJointeDTO
                             {
                                 NomFichier = fichier.FileName,
-                                Taille = fichier.Length,
-                                ContentType = fichier.ContentType,
+                                
                                 //TypePieceJointe = DeterminerTypePieceJointe(fichier.FileName),
                                 Fichier = fichier
                             };
