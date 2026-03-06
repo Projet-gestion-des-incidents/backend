@@ -32,10 +32,6 @@ namespace projet0.API.Controllers
         [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> Update(Guid id, UpdateTPEDto dto)
         {
-            if (id != dto.Id)
-                return BadRequest(ApiResponse<TPEDto>.Failure(message: "ID mismatch",
-                                                              resultCode: 43));
-
             var result = await _tpeService.UpdateAsync(id, dto);
             return result.ResultCode == 0 ? Ok(result) : BadRequest(result);
         }

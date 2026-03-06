@@ -10,6 +10,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
+// Ajouter un alias pour éviter le conflit avec l'espace de noms
+using TpeEntity = projet0.Domain.Entities.TPE;
 
 namespace projet0.Application.Services.TPEService
 {
@@ -54,32 +56,50 @@ namespace projet0.Application.Services.TPEService
         {
             return await MeasureAsync("CreateTPE", dto, async () =>
             {
-                // 1. Vérifier que le commerçant existe
+                // 1. Vérifier que l'utilisateur existe
                 var commercant = await _userRepository.GetByIdAsync(dto.CommercantId);
                 if (commercant == null)
                 {
-                    _logger.LogWarning("Commercant not found | CommercantId = {CommercantId}", dto.CommercantId);
+                    _logger.LogWarning("User not found | UserId = {UserId}", dto.CommercantId);
                     return ApiResponse<TPEDto>.Failure(
-                        message: "Le commerçant spécifié n'existe pas",
+                        message: "L'utilisateur spécifié n'existe pas",
                         resultCode: 40
                     );
                 }
 
-                // 2. Vérifier l'unicité du numéro de série
-                if (!await _tpeRepository.IsNumSerieUniqueAsync(dto.NumSerie))
+                // 2. 🔴 NOUVELLE VÉRIFICATION : Vérifier que l'utilisateur a le rôle "Commercant"
+                var roles = await _userRepository.GetUserRolesAsync(dto.CommercantId);
+                if (!roles.Contains("Commercant"))
                 {
-                    _logger.LogWarning("NumSerie already used | {NumSerie}", dto.NumSerie);
+                    _logger.LogWarning("User is not a commercant | UserId = {UserId}, Roles: {@Roles}",
+                        dto.CommercantId, roles);
                     return ApiResponse<TPEDto>.Failure(
-                        message: "Ce numéro de série est déjà utilisé",
+                        message: "Seuls les utilisateurs avec le rôle 'Commerçant' peuvent avoir des TPEs",
+                        resultCode: 45
+                    );
+                }
+
+                // 3. Vérifier l'unicité du numéro de série pour ce modèle
+                if (!await _tpeRepository.IsNumSerieUniqueForModeleAsync(dto.NumSerie, dto.Modele))
+                {
+                    _logger.LogWarning("NumSerie already used for this model | {NumSerie} | Modele: {Modele}",
+                        dto.NumSerie, dto.Modele);
+                    return ApiResponse<TPEDto>.Failure(
+                        message: $"Ce numéro de série est déjà utilisé pour le modèle {dto.Modele}",
                         resultCode: 41
                     );
                 }
 
-                // 3. Créer le TPE
-                var tpe = new projet0.Domain.Entities.TPE
+                // 4. Générer le numéro de série complet avec abréviation
+                var abbreviation = ModeleTPEHelper.GetAbbreviation(dto.Modele);
+                var numSerieComplet = $"{abbreviation}-{dto.NumSerie}";
+
+                // 5. Créer le TPE
+                var tpe = new TpeEntity
                 {
                     Id = Guid.NewGuid(),
                     NumSerie = dto.NumSerie,
+                    NumSerieComplet = numSerieComplet,
                     Modele = dto.Modele,
                     CommercantId = dto.CommercantId,
                 };
@@ -87,25 +107,25 @@ namespace projet0.Application.Services.TPEService
                 await _tpeRepository.AddAsync(tpe);
                 await _tpeRepository.SaveChangesAsync();
 
-                // 4. Mapper vers DTO
+                // 6. Mapper vers DTO
                 var tpeDto = new TPEDto
                 {
                     Id = tpe.Id,
                     NumSerie = tpe.NumSerie,
+                    NumSerieComplet = tpe.NumSerieComplet,
                     Modele = tpe.Modele,
                     CommercantId = tpe.CommercantId,
                     CommercantNom = $"{commercant.Nom} {commercant.Prenom}",
-                    
                 };
 
                 _logger.LogInformation(
-                    "TPE created successfully | Id: {Id} | NumSerie: {NumSerie} | Commercant: {Commercant}",
-                    tpe.Id, tpe.NumSerie, commercant.Email
+                    "TPE created successfully | Id: {Id} | NumSerieComplet: {NumSerieComplet} | Commercant: {Commercant}",
+                    tpe.Id, tpe.NumSerieComplet, commercant.Email
                 );
 
                 return ApiResponse<TPEDto>.Success(
                     data: tpeDto,
-                    message: "TPE créé avec succès",
+                    message: $"TPE créé avec succès. Numéro complet: {numSerieComplet}",
                     resultCode: 0
                 );
             });
@@ -125,35 +145,77 @@ namespace projet0.Application.Services.TPEService
                     );
                 }
 
-                // Vérifier unicité du numéro de série si modifié
-                if (tpe.NumSerie != dto.NumSerie)
+                // Vérifier unicité du numéro de série pour ce modèle si modifié
+                bool modeleChanged = tpe.Modele != dto.Modele;
+                bool numSerieChanged = tpe.NumSerie != dto.NumSerie;
+
+                if (modeleChanged || numSerieChanged)
                 {
-                    if (!await _tpeRepository.IsNumSerieUniqueAsync(dto.NumSerie, id))
+                    if (!await _tpeRepository.IsNumSerieUniqueForModeleAsync(dto.NumSerie, dto.Modele, id))
                     {
-                        _logger.LogWarning("NumSerie already used | {NumSerie}", dto.NumSerie);
+                        _logger.LogWarning("NumSerie already used for this model | {NumSerie} | Modele: {Modele}",
+                            dto.NumSerie, dto.Modele);
                         return ApiResponse<TPEDto>.Failure(
-                            message: "Ce numéro de série est déjà utilisé",
+                            message: $"Ce numéro de série est déjà utilisé pour le modèle {dto.Modele}",
                             resultCode: 41
                         );
                     }
                 }
 
+                // Vérifier que le nouveau commerçant existe
+                ApplicationUser nouveauCommercant = null;
+                // Dans UpdateAsync, après avoir vérifié que le nouveau commerçant existe
+                if (tpe.CommercantId != dto.CommercantId)
+                {
+                    nouveauCommercant = await _userRepository.GetByIdAsync(dto.CommercantId);
+                    if (nouveauCommercant == null)
+                    {
+                        _logger.LogWarning("New commercant not found | CommercantId = {CommercantId}", dto.CommercantId);
+                        return ApiResponse<TPEDto>.Failure(
+                            message: "Le nouveau commerçant spécifié n'existe pas",
+                            resultCode: 40
+                        );
+                    }
+
+                    // 🔴 Vérifier que le nouveau propriétaire a le rôle "Commercant"
+                    var roles = await _userRepository.GetUserRolesAsync(dto.CommercantId);
+                    if (!roles.Contains("Commercant"))
+                    {
+                        _logger.LogWarning("New owner is not a commercant | UserId = {UserId}, Roles: {@Roles}",
+                            dto.CommercantId, roles);
+                        return ApiResponse<TPEDto>.Failure(
+                            message: "Le nouveau propriétaire doit avoir le rôle 'Commerçant'",
+                            resultCode: 45
+                        );
+                    }
+                }
+
+                // Mettre à jour les champs
                 tpe.NumSerie = dto.NumSerie;
                 tpe.Modele = dto.Modele;
-                
+
+                // Regénérer le numéro complet si modèle ou numéro de série a changé
+                if (modeleChanged || numSerieChanged)
+                {
+                    var abbreviation = ModeleTPEHelper.GetAbbreviation(dto.Modele);
+                    tpe.NumSerieComplet = $"{abbreviation}-{dto.NumSerie}";
+                }
+
+                tpe.CommercantId = dto.CommercantId;
 
                 await _tpeRepository.UpdateAsync(tpe);
                 await _tpeRepository.SaveChangesAsync();
 
-                var commercant = await _userRepository.GetByIdAsync(tpe.CommercantId);
+                var commercant = nouveauCommercant ?? await _userRepository.GetByIdAsync(tpe.CommercantId);
+
                 var tpeDto = new TPEDto
                 {
                     Id = tpe.Id,
                     NumSerie = tpe.NumSerie,
+                    NumSerieComplet = tpe.NumSerieComplet,
                     Modele = tpe.Modele,
                     CommercantId = tpe.CommercantId,
                     CommercantNom = commercant != null ? $"{commercant.Nom} {commercant.Prenom}" : "",
-                    
                 };
 
                 return ApiResponse<TPEDto>.Success(
@@ -208,10 +270,10 @@ namespace projet0.Application.Services.TPEService
                 {
                     Id = tpe.Id,
                     NumSerie = tpe.NumSerie,
+                    NumSerieComplet = tpe.NumSerieComplet,
                     Modele = tpe.Modele,
                     CommercantId = tpe.CommercantId,
                     CommercantNom = commercant != null ? $"{commercant.Nom} {commercant.Prenom}" : "",
-                    
                 };
 
                 return ApiResponse<TPEDto>.Success(
@@ -240,10 +302,10 @@ namespace projet0.Application.Services.TPEService
                 {
                     Id = t.Id,
                     NumSerie = t.NumSerie,
+                    NumSerieComplet = t.NumSerieComplet,
                     Modele = t.Modele,
                     CommercantId = t.CommercantId,
                     CommercantNom = $"{commercant.Nom} {commercant.Prenom}",
-                    
                 });
 
                 return ApiResponse<IEnumerable<TPEDto>>.Success(
@@ -268,10 +330,10 @@ namespace projet0.Application.Services.TPEService
                     {
                         Id = tpe.Id,
                         NumSerie = tpe.NumSerie,
+                        NumSerieComplet = tpe.NumSerieComplet,
                         Modele = tpe.Modele,
                         CommercantId = tpe.CommercantId,
                         CommercantNom = commercant != null ? $"{commercant.Nom} {commercant.Prenom}" : "",
-                        
                     });
                 }
 
@@ -283,8 +345,22 @@ namespace projet0.Application.Services.TPEService
             });
         }
 
-        
+        // Déplacer ModeleTPEHelper en dehors de la classe ou la garder comme classe interne
+    }
 
-        
+    // ModeleTPEHelper peut être une classe séparée dans le même fichier
+    public static class ModeleTPEHelper
+    {
+        private static readonly Dictionary<ModeleTPE, string> _abbreviations = new()
+        {
+            { ModeleTPE.Ingenico, "ICT" },
+            { ModeleTPE.Verifone, "VX" },
+            { ModeleTPE.PAX, "PAX" },
+        };
+
+        public static string GetAbbreviation(ModeleTPE modele)
+        {
+            return _abbreviations.TryGetValue(modele, out var abbr) ? abbr : "TPE";
+        }
     }
 }

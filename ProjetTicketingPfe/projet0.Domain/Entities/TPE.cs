@@ -1,4 +1,5 @@
-﻿using System;
+﻿using projet0.Domain.Enums;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -8,7 +9,8 @@ namespace projet0.Domain.Entities
     {
         public Guid Id { get; set; }
         public string NumSerie { get; set; }
-        public string Modele { get; set; }
+        public string NumSerieComplet { get; set; }
+        public ModeleTPE Modele { get; set; }
 
         // Foreign Key - Relation Many-to-One avec User (Commercant)
         public Guid CommercantId { get; set; }

@@ -14,11 +14,12 @@ namespace projet0.Infrastructure.Data.Configurations
             builder.ToTable("TPEs");
             builder.HasKey(t => t.Id);
 
-            builder.HasIndex(t => t.NumSerie).IsUnique();
             builder.Property(t => t.NumSerie).IsRequired().HasMaxLength(50);
-            builder.Property(t => t.Modele).IsRequired().HasMaxLength(100);
+            builder.Property(t => t.NumSerieComplet).IsRequired().HasMaxLength(50);
+            builder.Property(t => t.Modele).HasConversion<int>().IsRequired();
 
-            
+            // Index composite pour garantir l'unicité (NumSerie + Modele)
+            builder.HasIndex(t => new { t.NumSerie, t.Modele }).IsUnique();
 
             builder.HasOne(t => t.Commercant)
                 .WithMany(u => u.TPEs)

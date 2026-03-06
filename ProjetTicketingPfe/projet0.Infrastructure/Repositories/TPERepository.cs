@@ -1,7 +1,7 @@
-﻿// projet0.Infrastructure/Repositories/TPERepository.cs
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using projet0.Application.Interfaces;
 using projet0.Domain.Entities;
+using projet0.Domain.Enums;
 using projet0.Infrastructure.Data;
 using System;
 using System.Collections.Generic;
@@ -24,15 +24,14 @@ namespace projet0.Infrastructure.Repositories
                 .ToListAsync();
         }
 
-        public async Task<bool> IsNumSerieUniqueAsync(string numSerie, Guid? excludeId = null)
+        public async Task<bool> IsNumSerieUniqueForModeleAsync(string numSerie, ModeleTPE modele, Guid? excludeId = null)
         {
-            var query = _dbSet.Where(t => t.NumSerie == numSerie);
+            var query = _dbSet.Where(t => t.NumSerie == numSerie && t.Modele == modele);
             if (excludeId.HasValue)
                 query = query.Where(t => t.Id != excludeId.Value);
 
             return !await query.AnyAsync();
         }
 
-        
     }
 }
