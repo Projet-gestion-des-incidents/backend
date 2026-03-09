@@ -10,6 +10,7 @@ namespace projet0.Application.Commun.DTOs.Incident
         public string? SearchTerm { get; set; } 
         public SeveriteIncident? SeveriteIncident { get; set; }
         public StatutIncident? StatutIncident { get; set; }
+        public TypeProbleme? TypeProbleme { get; set; }
 
         public int? YearDetection { get; set; }
         public int? YearResolution { get; set; }

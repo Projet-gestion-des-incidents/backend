@@ -23,6 +23,8 @@ namespace projet0.Application.Commun.DTOs.Incident
         public int NombreTickets { get; set; }
         public int NombreEntitesImpactees { get; set; }
         public TypeProbleme TypeProbleme { get; set; }
-        public string TypeProblemeLibelle { get; set; }
+        public string Emplacement { get; set; }
+
+
     }
 }

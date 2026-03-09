@@ -79,9 +79,9 @@ namespace projet0.Application.Services.Incident
 
             dto.SeveriteIncidentLibelle = GetSeveriteLibelle(incident.SeveriteIncident);
             dto.StatutIncidentLibelle = GetStatutLibelle(incident.StatutIncident);
+            dto.Emplacement = incident.Emplacement; // Pas besoin si AutoMapper le fait
 
             // ✅ Ajouter le libellé du type de problème
-            dto.TypeProblemeLibelle = incident.TypeProbleme.ToString();
 
             if (incident.CreatedById.HasValue && dto.CreatedByName == null)
             {
@@ -161,43 +161,55 @@ namespace projet0.Application.Services.Incident
 
         // Appliquer les filtres pour SearchIncidentsAsync
         private IQueryable<IncidentEntity> ApplySearchFilters(
-        IQueryable<IncidentEntity> query,
-        IncidentSearchRequest request,
-        List<Guid> matchedUserIds)
+    IQueryable<IncidentEntity> query,
+    IncidentSearchRequest request,
+    List<Guid> matchedUserIds)
         {
-            // Filtre par SearchTerm
+            // 🔍 Filtre par SearchTerm (Code, Emplacement, Créateur)
             if (!string.IsNullOrWhiteSpace(request.SearchTerm))
             {
                 var term = request.SearchTerm.ToLower();
 
                 query = query.Where(i =>
+                    // Recherche dans le CodeIncident
                     (i.CodeIncident != null && i.CodeIncident.ToLower().Contains(term)) ||
 
+                    // Recherche dans l'Emplacement
+                    (i.Emplacement != null && i.Emplacement.ToLower().Contains(term)) ||
+
+                    
+
+                    // Recherche par nom du créateur (via matchedUserIds)
                     (matchedUserIds.Any() && i.CreatedById.HasValue && matchedUserIds.Contains(i.CreatedById.Value))
                 );
             }
 
-            // Filtre par sévérité si renseignée
+            // 🎯 Filtre par TypeProbleme (NOUVEAU)
+            if (request.TypeProbleme.HasValue)
+            {
+                query = query.Where(i => i.TypeProbleme == request.TypeProbleme.Value);
+            }
+
+            // 🎯 Filtre par sévérité
             if (request.SeveriteIncident.HasValue)
                 query = query.Where(i => i.SeveriteIncident == request.SeveriteIncident.Value);
 
-            // Filtre par statut si renseigné
+            // 🎯 Filtre par statut
             if (request.StatutIncident.HasValue)
                 query = query.Where(i => i.StatutIncident == request.StatutIncident.Value);
 
-            // Filtre par année de détection
+            // 📅 Filtre par année de détection
             if (request.YearDetection.HasValue)
             {
                 query = query.Where(i => i.DateDetection.Year == request.YearDetection.Value);
             }
 
-            // Filtre par année de résolution
+            // 📅 Filtre par année de résolution
             if (request.YearResolution.HasValue)
             {
                 query = query.Where(i => i.DateResolution.HasValue &&
                                          i.DateResolution.Value.Year == request.YearResolution.Value);
             }
-
 
             return query;
         }
@@ -206,21 +218,26 @@ namespace projet0.Application.Services.Incident
         private IQueryable<IncidentEntity> ApplySorting(IQueryable<IncidentEntity> query, string sortBy, bool descending)
         {
             if (string.IsNullOrWhiteSpace(sortBy))
-                return query.OrderByDescending(i => i.DateDetection);
+                sortBy = "DateDetection";  // Garder le nom exact de la propriété
 
-            sortBy = sortBy.ToLower();
+            // Normaliser pour la comparaison
+            var sortByLower = sortBy.ToLower();
 
-            return (sortBy, descending) switch
+            return (sortByLower, descending) switch
             {
                 ("code", false) => query.OrderBy(i => i.CodeIncident),
                 ("code", true) => query.OrderByDescending(i => i.CodeIncident),
 
-                ("severite", false) => query.OrderBy(i => i.SeveriteIncident),
-                ("severite", true) => query.OrderByDescending(i => i.SeveriteIncident),
-                ("statut", false) => query.OrderBy(i => i.StatutIncident),
-                ("statut", true) => query.OrderByDescending(i => i.StatutIncident),
-                ("date", false) => query.OrderBy(i => i.DateDetection),
-                ("date", true) => query.OrderByDescending(i => i.DateDetection),
+                ("severite", false) => query.OrderBy(i => i.SeveriteIncident).ThenBy(i => i.DateDetection),
+                ("severite", true) => query.OrderByDescending(i => i.SeveriteIncident).ThenBy(i => i.DateDetection),
+
+                ("statut", false) => query.OrderBy(i => i.StatutIncident).ThenBy(i => i.DateDetection),
+                ("statut", true) => query.OrderByDescending(i => i.StatutIncident).ThenBy(i => i.DateDetection),
+
+                // ✅ Maintenant on compare avec "datedetection"
+                ("datedetection", false) => query.OrderBy(i => i.DateDetection),
+                ("datedetection", true) => query.OrderByDescending(i => i.DateDetection),
+
                 _ => query.OrderByDescending(i => i.DateDetection)
             };
         }
@@ -298,6 +315,8 @@ namespace projet0.Application.Services.Incident
 
         public async Task<ApiResponse<PagedResult<IncidentDTO>>> SearchIncidentsAsync(IncidentSearchRequest request)
         {
+            _logger.LogWarning("🔥🔥🔥 SORT PARAM - SortBy: {SortBy}, Descending: {Descending}",
+            request.SortBy, request.SortDescending);
             return await MeasureAsync(nameof(SearchIncidentsAsync), request, async () =>
             {
                 try
@@ -498,88 +517,37 @@ namespace projet0.Application.Services.Incident
 
         // Méthode helper pour mapper TypeProbleme vers TypeEntiteImpactee
         // Dans IncidentService.cs, ajoutez cette méthode privée
-        
+
 
 
 
         public async Task<ApiResponse<IncidentDTO>> UpdateIncidentAsync(
-        Guid incidentId,
-        UpdateIncidentDTO dto,
-        Guid userId)
+    Guid incidentId,
+    UpdateIncidentDTO dto,
+    Guid userId)
         {
-            _logger.LogInformation("Début mise à jour incident {IncidentId}", incidentId);
-
             try
             {
                 var incident = await _incidentRepository.GetIncidentWithDetailsAsync(incidentId);
-
                 if (incident == null)
-                {
-                    _logger.LogWarning("Incident {IncidentId} introuvable", incidentId);
                     return ApiResponse<IncidentDTO>.Failure("Incident introuvable");
-                }
 
-                // Mise à jour champs principaux
+                // Mise à jour UNIQUEMENT des champs de l'incident
+                if (!string.IsNullOrWhiteSpace(dto.DescriptionIncident))
+                    incident.DescriptionIncident = dto.DescriptionIncident;
 
-                incident.DescriptionIncident = dto.DescriptionIncident;
-                incident.StatutIncident = dto.StatutIncident;
                 incident.SeveriteIncident = dto.SeveriteIncident;
+                incident.StatutIncident = dto.StatutIncident;
                 incident.UpdatedById = userId;
                 incident.UpdatedAt = DateTime.UtcNow;
 
-                var entitesExistantes = incident.EntitesImpactees.ToList();
-                var entitesDto = dto.EntitesImpactees ?? new List<UpdateEntiteImpacteeDTO>();
+                // ✅ PLUS AUCUNE GESTION DES ENTITÉS ICI
+                // Les entités impactées sont gérées via les APIs dédiées
 
-
-                // SUPPRESSION
-                foreach (var entite in entitesExistantes)
-                {
-                    if (!entitesDto.Any(e => e.Id == entite.Id))
-                    {
-                        _logger.LogInformation("Suppression entité {EntiteId}", entite.Id);
-                        incident.EntitesImpactees.Remove(entite); // EF gère la suppression
-                    }
-                }
-
-                // MODIFICATION / AJOUT
-                foreach (var entiteDto in entitesDto)
-                {
-                    if (entiteDto.Id.HasValue)
-                    {
-                        // Modification
-                        var entiteExistante = entitesExistantes.FirstOrDefault(e => e.Id == entiteDto.Id.Value);
-                        if (entiteExistante != null)
-                        {
-                            _logger.LogInformation("Modification entité {EntiteId}", entiteExistante.Id);
-
-                            entiteExistante.TypeEntiteImpactee = entiteDto.TypeEntiteImpactee;
-                            // Ne jamais changer l'ID ni recréer l'entité
-                        }
-                    }
-                    else
-                    {
-                        // Ajout nouvelle entité
-                        var nouvelleEntite = new EntiteImpactee
-                        {
-                            Id = Guid.NewGuid(),
-
-                            TypeEntiteImpactee = entiteDto.TypeEntiteImpactee,
-                            IncidentId = incident.Id
-                        };
-                        _logger.LogInformation("Ajout nouvelle entité {EntiteId} via AddEntiteImpacteeAsync", nouvelleEntite.Id);
-                        await _incidentRepository.AddEntiteImpacteeAsync(nouvelleEntite);
-                    }
-                }
-
-
-                //  Sauvegarde unique
                 await _incidentRepository.SaveChangesAsync();
 
-
-
-                return ApiResponse<IncidentDTO>.Success(
-                    _mapper.Map<IncidentDTO>(incident),
-                    "Incident mis à jour avec succès");
+                var result = await MapToDto(incident);
+                return ApiResponse<IncidentDTO>.Success(result, "Incident mis à jour avec succès");
             }
             catch (Exception ex)
             {
@@ -587,7 +555,6 @@ namespace projet0.Application.Services.Incident
                 return ApiResponse<IncidentDTO>.Failure("Erreur interne serveur");
             }
         }
-
         public async Task<ApiResponse<bool>> DeleteIncidentAsync(Guid id)
         {
             var sw = Stopwatch.StartNew();
