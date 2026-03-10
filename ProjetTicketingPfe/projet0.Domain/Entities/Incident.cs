@@ -27,15 +27,13 @@ namespace projet0.Domain.Entities
 
         // Audit
         public DateTime? UpdatedAt { get; set; }
-
-        // Nouveaux champs
         public string Emplacement { get; set; }
-        public TypeProbleme TypeProbleme { get; set; }  // Nouvel enum à créer
+        public TypeProbleme TypeProbleme { get; set; }
 
         // Relation avec les TPEs
         public virtual ICollection<IncidentTPE> IncidentTPEs { get; set; }
 
-        // Relation avec les pièces jointes (manquante)
+        // Relation avec les pièces jointes 
         public virtual ICollection<PieceJointe> PiecesJointes { get; set; }
     }
 }

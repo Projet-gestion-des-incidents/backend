@@ -23,13 +23,13 @@ namespace projet0.API.Controllers
         private readonly IIncidentTicketRepository _incidentTicketRepository;
         public IncidentController(
             IIncidentService incidentService,
-            ILogger<IncidentController> logger, ITicketService ticketService,  // ← AJOUTER
-    IIncidentTicketRepository incidentTicketRepository)  // ← AJOUTER)
+            ILogger<IncidentController> logger, ITicketService ticketService, 
+            IIncidentTicketRepository incidentTicketRepository)
         {
             _incidentService = incidentService;
             _logger = logger;
-            _ticketService = ticketService;  // ← AJOUTER
-            _incidentTicketRepository = incidentTicketRepository;  // ← AJOUTER
+            _ticketService = ticketService;  
+            _incidentTicketRepository = incidentTicketRepository;  
         }
 
 [HttpGet("all")]
@@ -126,13 +126,11 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
             }
         }
 
-        // projet0.API/Controllers/IncidentController.cs
-
         [HttpPost]
         [Authorize(Policy = "IncidentCreate")]
-        [Consumes("multipart/form-data")]  // ✅ Important !
+        [Consumes("multipart/form-data")]
         public async Task<ActionResult<ApiResponse<IncidentDTO>>> Create(
-            [FromForm] CreateIncidentDTO dto)  // ✅ [FromForm] au lieu de [FromBody]
+            [FromForm] CreateIncidentDTO dto)
         {
             try
             {
@@ -297,7 +295,6 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
                     "Erreur interne du serveur lors de la récupération de vos incidents"));
             }
         }
-        // Dans IncidentController.cs
 
         [HttpPost("{incidentId}/lier-tickets")]
         [Authorize(Policy = "AdminOnly")]
@@ -338,6 +335,8 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
                 return StatusCode(500, ApiResponse<List<TicketDTO>>.Failure("Erreur interne"));
             }
         }
+
         #endregion
+
     }
 }

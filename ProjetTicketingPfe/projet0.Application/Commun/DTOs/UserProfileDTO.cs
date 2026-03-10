@@ -14,6 +14,7 @@ namespace projet0.Application.Commun.DTOs
         public string PhoneNumber { get; set; }
         public DateTime? BirthDate { get; set; }
         public string Image { get; set; }
+
     }
 
 }

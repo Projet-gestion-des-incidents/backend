@@ -14,5 +14,6 @@ namespace projet0.Application.Commun.DTOs.Ticket
         public Guid AuteurId { get; set; }
         public string AuteurNom { get; set; }
         public List<PieceJointeDTO> PiecesJointes { get; set; } = new();
+
     }
 }

@@ -17,8 +17,7 @@ namespace projet0.Application.Commun.DTOs.IncidentDTOs
     {
         public Guid EntiteImpacteeId { get; set; }
         public Guid IncidentId { get; set; }
-    }
 
-    // Pour REMPLACER (optionnel - peut être fait en deux appels)
+    }
     
 }

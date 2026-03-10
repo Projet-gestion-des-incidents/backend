@@ -4,8 +4,6 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Text;
 
-
-
 namespace projet0.Application.Commun.DTOs.Ticket
 {
     public class UpdateTicketDTO
@@ -15,7 +13,6 @@ namespace projet0.Application.Commun.DTOs.Ticket
 
         [StringLength(2000, ErrorMessage = "La description ne peut pas dépasser 2000 caractères")]
         public string? DescriptionTicket { get; set; }
-
 
         public StatutTicket? StatutTicket { get; set; }
 

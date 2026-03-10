@@ -10,7 +10,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
-// Ajouter un alias pour éviter le conflit avec l'espace de noms
 using TpeEntity = projet0.Domain.Entities.TPE;
 
 namespace projet0.Application.Services.TPEService
@@ -56,7 +55,7 @@ namespace projet0.Application.Services.TPEService
         {
             return await MeasureAsync("CreateTPE", dto, async () =>
             {
-                // 1. 🔴 NOUVELLE VALIDATION : Vérifier que le numéro de série fait 6 caractères
+                // 1. NOUVELLE VALIDATION : Vérifier que le numéro de série fait 6 caractères
                 if (string.IsNullOrWhiteSpace(dto.NumSerie) || dto.NumSerie.Length != 6)
                 {
                     _logger.LogWarning("NumSerie must be exactly 6 characters | NumSerie: {NumSerie}", dto.NumSerie);
@@ -196,7 +195,7 @@ namespace projet0.Application.Services.TPEService
                         );
                     }
 
-                    // 🔴 Vérifier que le nouveau propriétaire a le rôle "Commercant"
+                    // Vérifier que le nouveau propriétaire a le rôle "Commercant"
                     var roles = await _userRepository.GetUserRolesAsync(dto.CommercantId);
                     if (!roles.Contains("Commercant"))
                     {
@@ -364,7 +363,6 @@ namespace projet0.Application.Services.TPEService
             });
         }
 
-        // Déplacer ModeleTPEHelper en dehors de la classe ou la garder comme classe interne
     }
 
     // ModeleTPEHelper peut être une classe séparée dans le même fichier

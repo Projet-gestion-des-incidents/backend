@@ -808,7 +808,7 @@ namespace projet0.Application.Services.User
                 Prenom = user.Prenom,
                 PhoneNumber = user.PhoneNumber,
                 BirthDate = user.BirthDate,
-                Image = user.Image
+                Image = user.Image,
             };
         }
 
@@ -944,6 +944,10 @@ namespace projet0.Application.Services.User
 
                 _ => query.OrderBy(u => u.Nom) // Tri par défaut
             };
+        }
+        public async Task<IList<string>> GetUserRolesAsync(Guid userId)
+        {
+            return await _userRepository.GetUserRolesAsync(userId);
         }
     }
 }

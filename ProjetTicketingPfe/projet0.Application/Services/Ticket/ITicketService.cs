@@ -6,7 +6,7 @@ using projet0.Domain.Enums;
 using System;
 using System.Collections.Generic;
 using System.Text;
-using TicketEntity = projet0.Domain.Entities.Ticket;  // ← AJOUTER EN HAUT
+using TicketEntity = projet0.Domain.Entities.Ticket;
 
 namespace projet0.Application.Services.Ticket
 {
@@ -21,9 +21,9 @@ namespace projet0.Application.Services.Ticket
         // Créer un nouveau ticket
         Task<ApiResponse<TicketDTO>> CreateTicketAsync(CreateTicketDTO dto, Guid createurId);
         
-       Task<ApiResponse<bool>> DeleteTicketAsync(Guid id);
+        Task<ApiResponse<bool>> DeleteTicketAsync(Guid id);
 
-        // NOUVEAU: Récupérer un ticket avec ses commentaires
+        // Récupérer un ticket avec ses commentaires
         Task<ApiResponse<TicketDetailDTO>> GetTicketDetailAsync(Guid id);
 
         Task<ApiResponse<UpdateTicketResponseDTO>> UpdateTicketAsync(Guid id, UpdateTicketDTO dto, Guid userId);

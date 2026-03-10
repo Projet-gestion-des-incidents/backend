@@ -11,7 +11,6 @@ namespace projet0.Application.Commun.DTOs.Incident
         public SeveriteIncident? SeveriteIncident { get; set; }
         public StatutIncident? StatutIncident { get; set; }
         public TypeProbleme? TypeProbleme { get; set; }
-
         public int? YearDetection { get; set; }
         public int? YearResolution { get; set; }
         public int Page { get; set; } = 1;

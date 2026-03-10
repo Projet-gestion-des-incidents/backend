@@ -12,8 +12,6 @@ namespace projet0.Application.Mappings
     {
         public IncidentMappingProfile()
         {
-            // Incident mappings
-            // Dans IncidentMappingProfile.cs
             CreateMap<Incident, IncidentDTO>()
                 .ForMember(dest => dest.SeveriteIncidentLibelle, opt => opt.Ignore())
                 .ForMember(dest => dest.StatutIncidentLibelle, opt => opt.Ignore())
@@ -47,7 +45,6 @@ namespace projet0.Application.Mappings
                 .ForMember(dest => dest.EntitesImpactees, opt => opt.Ignore())
                 .ForMember(dest => dest.Notifications, opt => opt.Ignore());
 
-            // EntiteImpactee mappings
             CreateMap<EntiteImpactee, EntiteImpacteeDTO>();
         }
     }

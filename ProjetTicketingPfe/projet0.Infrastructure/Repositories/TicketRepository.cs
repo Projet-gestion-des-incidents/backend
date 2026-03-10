@@ -66,17 +66,17 @@ namespace projet0.Infrastructure.Repositories
 
             if (ticket == null)
             {
-                _logger.LogWarning("❌ Ticket non trouvé avec ID: {Id}", id);
+                _logger.LogWarning("Ticket non trouvé avec ID: {Id}", id);
             }
             else
             {
-                _logger.LogInformation("✅ Ticket trouvé: {Reference}", ticket.ReferenceTicket);
+                _logger.LogInformation("Ticket trouvé: {Reference}", ticket.ReferenceTicket);
             }
 
             return ticket;
         }
 
-        /*public override async Task<IEnumerable<Ticket>> GetAllAsync()
+        public override async Task<IEnumerable<Ticket>> GetAllAsync()
         {
             try
             {
@@ -85,7 +85,7 @@ namespace projet0.Infrastructure.Repositories
                 var tickets = await _context.Tickets
                     .Include(t => t.Createur)
                     .Include(t => t.Assignee)
-                    .Include(t => t.Commentaires) 
+                    .Include(t => t.Commentaires)
                     .OrderByDescending(t => t.DateCreation)
                     .ToListAsync();
 
@@ -97,7 +97,7 @@ namespace projet0.Infrastructure.Repositories
                 _logger.LogError(ex, "Erreur lors de la récupération de tous les tickets");
                 throw; // Remonter l'exception pour qu'elle soit gérée par le service
             }
-        }*/
+        }
 
         public async Task<Ticket> GetTicketWithDetailsAsync(Guid id)
         {
@@ -106,8 +106,8 @@ namespace projet0.Infrastructure.Repositories
                 _logger.LogInformation("Récupération des détails du ticket {Id}", id);
 
                 var ticket = await _context.Tickets
-                    //.Include(t => t.Createur)
-                    //.Include(t => t.Assignee)
+                    .Include(t => t.Createur)
+                    .Include(t => t.Assignee)
                     .Include(t => t.Commentaires)
                         .ThenInclude(c => c.Auteur)
                     .Include(t => t.Commentaires)
@@ -138,7 +138,7 @@ namespace projet0.Infrastructure.Repositories
             }
         }
 
-        /*public async Task<List<Ticket>> GetTicketsByStatutAsync(StatutTicket statut)
+        public async Task<List<Ticket>> GetTicketsByStatutAsync(StatutTicket statut)
         {
             return await _context.Tickets
                 .Include(t => t.Createur)
@@ -146,17 +146,7 @@ namespace projet0.Infrastructure.Repositories
                 .Where(t => t.StatutTicket == statut)
                 .OrderByDescending(t => t.DateCreation)
                 .ToListAsync();
-        }*/
-
-        /*public async Task<List<Ticket>> GetTicketsByPrioriteAsync(PrioriteTicket priorite)
-        {
-            return await _context.Tickets
-                .Include(t => t.Createur)
-                .Include(t => t.Assignee)
-                .Where(t => t.PrioriteTicket == priorite)
-                .OrderByDescending(t => t.DateCreation)
-                .ToListAsync();
-        }*/
+        }
 
         public async Task<List<Ticket>> GetTicketsByCreateurAsync(Guid createurId)
         {
@@ -214,78 +204,6 @@ namespace projet0.Infrastructure.Repositories
             return 1;
         }
 
-        /*public IQueryable<Ticket> QueryWithDetails(Guid? createurId = null, Guid? assigneeId = null)
-        {
-            var query = _context.Tickets
-                .Include(t => t.Createur)
-                .Include(t => t.Assignee)
-                .Include(t => t.Commentaires)
-                .Include(t => t.Historiques)
-                .AsQueryable();
-
-            if (createurId.HasValue)
-                query = query.Where(t => t.CreateurId == createurId.Value);
-
-            if (assigneeId.HasValue)
-                query = query.Where(t => t.AssigneeId == assigneeId.Value);
-
-            return query;
-        }*/
-
-        /*public IQueryable<Ticket> GetQueryWithIncludes()
-        {
-            return _context.Tickets
-                .Include(t => t.Createur)
-                .Include(t => t.Assignee)
-                .Include(t => t.Commentaires)
-                    .ThenInclude(c => c.PiecesJointes)
-                .AsQueryable();
-        }
-
-        public IQueryable<Ticket> GetFilteredQuery(Expression<Func<Ticket, bool>>? filter = null)
-        {
-            var query = _context.Tickets
-                .Include(t => t.Createur)      
-                .Include(t => t.Assignee)     
-                .Include(t => t.Commentaires)
-                    .ThenInclude(c => c.PiecesJointes)
-                .AsQueryable();
-
-            if (filter != null)
-            {
-                query = query.Where(filter);
-            }
-
-            return query;
-        }
-    }*/
-    // Dans TicketRepository.cs
-
-public IQueryable<Ticket> QueryWithDetails(Guid? createurId = null, Guid? assigneeId = null)
-        {
-            var query = _context.Tickets
-                .Include(t => t.Createur)
-                .Include(t => t.Assignee)
-                .Include(t => t.Commentaires)
-                .Include(t => t.Historiques)
-                .AsQueryable();
-
-            if (createurId.HasValue)
-                query = query.Where(t => t.CreateurId == createurId.Value);
-
-            if (assigneeId.HasValue)
-                query = query.Where(t => t.AssigneeId == assigneeId.Value);
-
-            return query;
-        }
-
-        public async Task<List<Ticket>> GetTicketsByStatutAsync(StatutTicket statut)
-        {
-            return await _context.Tickets
-                .Where(t => t.StatutTicket == statut)
-                .OrderByDescending(t => t.DateCreation)
-                .ToListAsync();
-        }
 
         public IQueryable<Ticket> GetQueryWithIncludes()
         {
@@ -311,6 +229,25 @@ public IQueryable<Ticket> QueryWithDetails(Guid? createurId = null, Guid? assign
                 query = query.Where(filter);
             }
 
+            return query;        
+  
+        }
+
+    public IQueryable<Ticket> QueryWithDetails(Guid? createurId = null, Guid? assigneeId = null)
+        {
+            var query = _context.Tickets
+                .Include(t => t.Createur)
+                .Include(t => t.Assignee)
+                .Include(t => t.Commentaires)
+                .Include(t => t.Historiques)
+                .AsQueryable();
+
+            if (createurId.HasValue)
+                query = query.Where(t => t.CreateurId == createurId.Value);
+
+            if (assigneeId.HasValue)
+                query = query.Where(t => t.AssigneeId == assigneeId.Value);
+
             return query;
         }
 
@@ -321,4 +258,7 @@ public IQueryable<Ticket> QueryWithDetails(Guid? createurId = null, Guid? assign
                 .Select(it => it.Ticket)
                 .ToListAsync();
         }
-    } }
+    }
+
+}
+

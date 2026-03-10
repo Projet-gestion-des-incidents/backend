@@ -139,11 +139,51 @@ namespace projet0.API.Controllers
 
             var userId = Guid.Parse(userIdClaim.Value);
 
+            // 1. Récupérer l'utilisateur
             var user = await _userService.GetByIdAsync(userId);
             if (user == null)
                 return NotFound();
 
-            return Ok(user);
+            // 2. Récupérer les rôles
+            var roles = await _userService.GetUserRolesAsync(userId);
+            var role = roles.FirstOrDefault() ?? "USER";
+
+            // 3. Créer un objet anonyme avec l'utilisateur + le rôle
+            var result = new
+            {
+                // Propriétés de l'utilisateur
+                user.Nom,
+                user.Prenom,
+                user.Image,
+                user.BirthDate,
+                user.Statut,
+                user.TicketsCrees,
+                user.TicketsAssignes,
+                user.Commentaires,
+                user.PiecesJointes,
+                user.Notifications,
+                user.HistoriquesModifies,
+                user.IncidentLiaisons,
+                user.TPEs,
+                user.Id,
+                user.UserName,
+                user.NormalizedUserName,
+                user.Email,
+                user.NormalizedEmail,
+                user.EmailConfirmed,
+                user.PasswordHash,
+                user.SecurityStamp,
+                user.ConcurrencyStamp,
+                user.PhoneNumber,
+                user.PhoneNumberConfirmed,
+                user.TwoFactorEnabled,
+                user.LockoutEnd,
+                user.LockoutEnabled,
+                user.AccessFailedCount,
+                Role = role
+            };
+
+            return Ok(result);
         }
 
         [HttpDelete("{id}")]

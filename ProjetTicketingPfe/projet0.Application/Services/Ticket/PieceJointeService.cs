@@ -1,7 +1,6 @@
-﻿// Fichier: projet0.Application/Services/PieceJointeService.cs
-using Microsoft.AspNetCore.Hosting;
+﻿using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Logging;  // ← AJOUTER
+using Microsoft.Extensions.Logging; 
 using projet0.Application.Commun.DTOs.Ticket;
 using projet0.Application.Interfaces;
 using projet0.Domain.Entities;
@@ -19,7 +18,7 @@ namespace projet0.Application.Services
         private readonly ICommentaireRepository _commentaireRepository;
         private readonly IWebHostEnvironment _environment;
         private readonly IHttpContextAccessor _httpContextAccessor;
-        private readonly string _uploadPath = "uploads/pieces-jointes";
+        private readonly string _uploadPath = "uploads/incidents";
         private readonly ILogger<PieceJointeService> _logger;
 
         public PieceJointeService(
@@ -40,7 +39,6 @@ namespace projet0.Application.Services
         /// <summary>
         /// Sauvegarde un fichier et ses métadonnées
         /// </summary>
-        // Dans PieceJointeService.cs, la méthode SauvegarderFichierAsync
         public async Task<PieceJointe> SauvegarderFichierAsync(
             CreatePieceJointeDTO dto,
             Guid incidentId,
@@ -49,7 +47,7 @@ namespace projet0.Application.Services
             if (dto.Fichier == null || dto.Fichier.Length == 0)
                 throw new ArgumentException("Aucun fichier fourni");
 
-            var uploadsFolder = Path.Combine(_environment.ContentRootPath, "uploads", "incidents");
+            var uploadsFolder = Path.Combine(_environment.ContentRootPath, _uploadPath);
             if (!Directory.Exists(uploadsFolder))
                 Directory.CreateDirectory(uploadsFolder);
 
@@ -79,38 +77,18 @@ namespace projet0.Application.Services
 
             return pieceJointe;
         }
-        /// <summary>
-        /// Récupère l'URL d'un fichier
-        /// </summary>
-        /*public async Task<string> GetUrlFichierAsync(Guid pieceJointeId)
-        {
-            // Utiliser le repository pour récupérer les métadonnées
-            var pieceJointe = await _pieceJointeRepository.GetMetadataAsync(pieceJointeId);
-            if (pieceJointe == null)
-                return null;
-
-            var request = _httpContextAccessor.HttpContext.Request;
-            var baseUrl = $"{request.Scheme}://{request.Host}";
-            return $"{baseUrl}/{pieceJointe.CheminStockage.Replace("\\", "/")}";
-        }*/
 
         /// <summary>
         /// Supprime un fichier (physique et base de données)
         /// </summary>
-        // Dans PieceJointeService.cs, méthode SupprimerFichierAsync
 
-        // Dans SupprimerFichierAsync, vous avez un "else" sans "if" correspondant
         public async Task<bool> SupprimerFichierAsync(Guid pieceJointeId)
         {
             var pieceJointe = await _pieceJointeRepository.GetByIdAsync(pieceJointeId);
             if (pieceJointe == null)
                 return false;
 
-            // ❌ Erreur: 'filePath' n'est pas défini
-            // var filePath = ... 
-
-            // ✅ Correction: Construire le chemin
-            var filePath = Path.Combine(_environment.ContentRootPath, "uploads", "pieces-jointes", pieceJointe.NomFichier);
+            var filePath = Path.Combine(_environment.ContentRootPath, _uploadPath, pieceJointe.NomFichier);
 
             _logger.LogInformation("Tentative de suppression du fichier: {FilePath}", filePath);
 
@@ -150,65 +128,11 @@ namespace projet0.Application.Services
         }
 
         #region Méthodes privées
-
-        /// <summary>
-        /// Sauvegarde le fichier physique
-        /// </summary>
-        // Fichier: projet0.Application/Services/Ticket/PieceJointeService.cs
-
-        private async Task<string> SauvegarderFichierPhysique(CreatePieceJointeDTO dto)
-        {
-            // ✅ Vérifier les deux possibilités : Fichier ou ContenuBase64
-            if (dto.Fichier != null && dto.Fichier.Length > 0)
-            {
-                // Cas 1: Upload direct via IFormFile
-                var uploadsFolder = Path.Combine(_environment.ContentRootPath, "uploads", "pieces-jointes");
-                if (!Directory.Exists(uploadsFolder))
-                    Directory.CreateDirectory(uploadsFolder);
-
-                var uniqueFileName = $"{Guid.NewGuid()}_{dto.Fichier.FileName}";
-                var filePath = Path.Combine(uploadsFolder, uniqueFileName);
-
-                using (var fileStream = new FileStream(filePath, FileMode.Create))
-                {
-                    await dto.Fichier.CopyToAsync(fileStream);
-                }
-
-                _logger.LogInformation("Fichier sauvegardé physiquement via IFormFile: {Chemin}", filePath);
-                return Path.Combine("uploads", "pieces-jointes", uniqueFileName);
-            }
-            else if (!string.IsNullOrEmpty(dto.ContenuBase64))
-            {
-                // Cas 2: Upload via Base64
-                var uploadsFolder = Path.Combine(_environment.ContentRootPath, "uploads", "pieces-jointes");
-                if (!Directory.Exists(uploadsFolder))
-                    Directory.CreateDirectory(uploadsFolder);
-
-                var uniqueFileName = $"{Guid.NewGuid()}_{dto.NomFichier}";
-                var filePath = Path.Combine(uploadsFolder, uniqueFileName);
-
-                // Nettoyer la chaîne base64 (enlever le préfixe data:image/jpeg;base64, etc.)
-                var base64Data = dto.ContenuBase64.Contains(",")
-                    ? dto.ContenuBase64.Split(',')[1]
-                    : dto.ContenuBase64;
-
-                var fileBytes = Convert.FromBase64String(base64Data);
-                await File.WriteAllBytesAsync(filePath, fileBytes);
-
-                _logger.LogInformation("Fichier sauvegardé physiquement via Base64: {Chemin}", filePath);
-                return Path.Combine("uploads", "pieces-jointes", uniqueFileName);
-            }
-            else
-            {
-                _logger.LogError("Aucun fichier fourni - Fichier: null, ContenuBase64: {Base64Status}",
-                    string.IsNullOrEmpty(dto.ContenuBase64) ? "vide" : "non vide");
-                throw new ArgumentException("Aucun fichier fourni");
-            }
-        }
+        
         /// <summary>
         /// Génère l'URL pour une pièce jointe
         /// </summary>
-        // Dans GetUrlForPiece
+ 
         private string GetUrlForPiece(PieceJointe piece)
         {
             var request = _httpContextAccessor.HttpContext.Request;

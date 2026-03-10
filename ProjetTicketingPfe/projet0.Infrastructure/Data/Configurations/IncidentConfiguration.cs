@@ -46,8 +46,6 @@ namespace projet0.Infrastructure.Data.Configurations
                 .HasForeignKey(p => p.IncidentId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-
-
         }
     }
 }

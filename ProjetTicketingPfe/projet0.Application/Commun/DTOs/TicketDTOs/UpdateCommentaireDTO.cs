@@ -14,10 +14,8 @@ namespace projet0.Application.Commun.DTOs.Ticket
         public Guid Id { get; set; }
 
         [StringLength(2000, ErrorMessage = "Le message ne peut pas dépasser 2000 caractères")]
-        public string? Message { get; set; }
-       
+        public string? Message { get; set; }       
         public bool EffacerMessage { get; set; } = false;
-
         public bool EstInterne { get; set; }
 
         // Liste des IDs des pièces jointes à supprimer
@@ -25,5 +23,6 @@ namespace projet0.Application.Commun.DTOs.Ticket
 
         // Nouveaux fichiers à ajouter
         public List<IFormFile>? NouveauxFichiers { get; set; }
+
     }
 }

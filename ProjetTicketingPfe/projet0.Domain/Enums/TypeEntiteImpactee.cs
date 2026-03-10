@@ -10,6 +10,5 @@ namespace projet0.Domain.Enums
         FluxTransactionnel = 2,
         Reseau = 3,
         ServiceApplicatif = 4,
-        MachineVirtuelle = 5,
     }
 }

@@ -22,5 +22,6 @@ namespace projet0.Application.Commun.DTOs.Ticket
         public string AssigneeNom { get; set; }
         public int NombreCommentaires { get; set; }
         public int NombrePiecesJointes { get; set; }
+
     }
 }

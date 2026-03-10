@@ -9,6 +9,7 @@ namespace projet0.Application.Commun.DTOs.Incident
     {
         public List<IncidentTicketDTO> Tickets { get; set; }
         public List<EntiteImpacteeDTO> EntitesImpactees { get; set; }
-}
+
+    }
 
 }

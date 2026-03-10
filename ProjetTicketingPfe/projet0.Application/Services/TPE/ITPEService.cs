@@ -1,5 +1,4 @@
-﻿
-using projet0.Application.Commun.DTOs;
+﻿using projet0.Application.Commun.DTOs;
 using projet0.Application.Commun.Ressources;
 using System;
 using System.Collections.Generic;

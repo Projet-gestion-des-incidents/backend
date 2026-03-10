@@ -263,7 +263,6 @@ builder.Services.AddScoped<ICommentaireRepository, CommentaireRepository>();
 builder.Services.AddScoped<IPieceJointeRepository, PieceJointeRepository>();
 builder.Services.AddScoped<IPieceJointeService, PieceJointeService>();
 builder.Services.AddScoped<ICommentaireService, CommentaireService>();
-// Dans Program.cs, ajoutez :
 builder.Services.AddScoped<ITPERepository, TPERepository>();
 builder.Services.AddScoped<ITPEService, TPEService>();
 builder.Services.AddScoped<IIncidentTicketRepository, IncidentTicketRepository>();

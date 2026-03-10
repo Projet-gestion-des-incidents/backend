@@ -26,12 +26,13 @@ namespace projet0.API.Controllers
 
         public TicketController(
             ITicketService ticketService,
-            ILogger<TicketController> logger, IIncidentTicketRepository incidentTicketRepository,  // ← AJOUTER
-    IIncidentService incidentService)
+            ILogger<TicketController> logger, 
+            IIncidentTicketRepository incidentTicketRepository, 
+            IIncidentService incidentService)
         {
             _ticketService = ticketService;
             _logger = logger;
-            _incidentTicketRepository = incidentTicketRepository;  // ← AJOUTER
+            _incidentTicketRepository = incidentTicketRepository; 
             _incidentService = incidentService;
         }
 
@@ -86,7 +87,7 @@ namespace projet0.API.Controllers
                 if (!result.IsSuccess)
                     return BadRequest(result);
 
-                // ✅ Le message de succès indique comment ajouter des commentaires
+                // Le message de succès indique comment ajouter des commentaires
                 return CreatedAtAction(
                     nameof(GetById),
                     new { id = result.Data?.Id },
@@ -235,7 +236,6 @@ namespace projet0.API.Controllers
                     "Erreur interne du serveur lors de la mise à jour du ticket"));
             }
         }
-        // Dans TicketController.cs
 
         [HttpPost("{ticketId}/lier-incidents")]
         [Authorize(Policy = "AdminOnly")]
@@ -295,6 +295,7 @@ namespace projet0.API.Controllers
                 return StatusCode(500, ApiResponse<TicketDTO>.Failure("Erreur interne"));
             }
         }
+
         #endregion
     }
 }

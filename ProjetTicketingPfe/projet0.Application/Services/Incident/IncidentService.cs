@@ -12,10 +12,6 @@ using projet0.Domain.Enums;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-
-
-
-
 using IncidentEntity = projet0.Domain.Entities.Incident;
 
 namespace projet0.Application.Services.Incident
@@ -27,7 +23,7 @@ namespace projet0.Application.Services.Incident
         private readonly IEntiteImpacteeRepository _entiteImpacteeRepository;
         private readonly ILogger<IncidentService> _logger;
         private readonly IMapper _mapper;
-        private readonly ITPERepository _tpeRepository;              // ← AJOUTER
+        private readonly ITPERepository _tpeRepository;          
         private readonly IPieceJointeService _pieceJointeService;
         private readonly IIncidentTicketRepository _incidentTicketRepository;
 
@@ -47,7 +43,7 @@ namespace projet0.Application.Services.Incident
             _tpeRepository = tpeRepository;
             _pieceJointeService = pieceJointeService;
             _mapper = mapper;
-            _incidentTicketRepository = incidentTicketRepository;  // ← AJOUTER
+            _incidentTicketRepository = incidentTicketRepository;  
 
         }
 
@@ -84,7 +80,7 @@ namespace projet0.Application.Services.Incident
             dto.StatutIncidentLibelle = GetStatutLibelle(incident.StatutIncident);
             dto.Emplacement = incident.Emplacement; // Pas besoin si AutoMapper le fait
 
-            // ✅ Ajouter le libellé du type de problème
+            // Ajouter le libellé du type de problème
 
             if (incident.CreatedById.HasValue && dto.CreatedByName == null)
             {
@@ -168,7 +164,7 @@ namespace projet0.Application.Services.Incident
     IncidentSearchRequest request,
     List<Guid> matchedUserIds)
         {
-            // 🔍 Filtre par SearchTerm (Code, Emplacement, Créateur)
+            // Filtre par SearchTerm (Code, Emplacement, Créateur)
             if (!string.IsNullOrWhiteSpace(request.SearchTerm))
             {
                 var term = request.SearchTerm.ToLower();
@@ -178,36 +174,34 @@ namespace projet0.Application.Services.Incident
                     (i.CodeIncident != null && i.CodeIncident.ToLower().Contains(term)) ||
 
                     // Recherche dans l'Emplacement
-                    (i.Emplacement != null && i.Emplacement.ToLower().Contains(term)) ||
-
-                    
+                    (i.Emplacement != null && i.Emplacement.ToLower().Contains(term)) ||                    
 
                     // Recherche par nom du créateur (via matchedUserIds)
                     (matchedUserIds.Any() && i.CreatedById.HasValue && matchedUserIds.Contains(i.CreatedById.Value))
                 );
             }
 
-            // 🎯 Filtre par TypeProbleme (NOUVEAU)
+            //  Filtre par TypeProbleme 
             if (request.TypeProbleme.HasValue)
             {
                 query = query.Where(i => i.TypeProbleme == request.TypeProbleme.Value);
             }
 
-            // 🎯 Filtre par sévérité
+            //  Filtre par sévérité
             if (request.SeveriteIncident.HasValue)
                 query = query.Where(i => i.SeveriteIncident == request.SeveriteIncident.Value);
 
-            // 🎯 Filtre par statut
+            //  Filtre par statut
             if (request.StatutIncident.HasValue)
                 query = query.Where(i => i.StatutIncident == request.StatutIncident.Value);
 
-            // 📅 Filtre par année de détection
+            //  Filtre par année de détection
             if (request.YearDetection.HasValue)
             {
                 query = query.Where(i => i.DateDetection.Year == request.YearDetection.Value);
             }
 
-            // 📅 Filtre par année de résolution
+            //  Filtre par année de résolution
             if (request.YearResolution.HasValue)
             {
                 query = query.Where(i => i.DateResolution.HasValue &&
@@ -237,13 +231,14 @@ namespace projet0.Application.Services.Incident
                 ("statut", false) => query.OrderBy(i => i.StatutIncident).ThenBy(i => i.DateDetection),
                 ("statut", true) => query.OrderByDescending(i => i.StatutIncident).ThenBy(i => i.DateDetection),
 
-                // ✅ Maintenant on compare avec "datedetection"
+                //  Maintenant on compare avec "datedetection"
                 ("datedetection", false) => query.OrderBy(i => i.DateDetection),
                 ("datedetection", true) => query.OrderByDescending(i => i.DateDetection),
 
                 _ => query.OrderByDescending(i => i.DateDetection)
             };
         }
+
         #endregion
 
 
@@ -318,7 +313,7 @@ namespace projet0.Application.Services.Incident
 
         public async Task<ApiResponse<PagedResult<IncidentDTO>>> SearchIncidentsAsync(IncidentSearchRequest request)
         {
-            _logger.LogWarning("🔥🔥🔥 SORT PARAM - SortBy: {SortBy}, Descending: {Descending}",
+            _logger.LogWarning("SORT PARAM - SortBy: {SortBy}, Descending: {Descending}",
             request.SortBy, request.SortDescending);
             return await MeasureAsync(nameof(SearchIncidentsAsync), request, async () =>
             {
@@ -378,12 +373,10 @@ namespace projet0.Application.Services.Incident
             });
         }
 
-        // projet0.Application/Services/Incident/IncidentService.cs
-
         public async Task<ApiResponse<IncidentDTO>> CreateIncidentAsync(CreateIncidentDTO dto, Guid createdById)
         {
             var sw = Stopwatch.StartNew();
-            _logger.LogInformation("CreateIncident START | TypeProbleme: {TypeProbleme}", dto.TypeProbleme);  // ✅ Plus de string.Join
+            _logger.LogInformation("CreateIncident START | TypeProbleme: {TypeProbleme}", dto.TypeProbleme);
 
             try
             {
@@ -413,7 +406,7 @@ namespace projet0.Application.Services.Incident
                     }
                 }
 
-                // 3. ✅ Mapper le TypeProbleme vers TypeEntiteImpactee (un seul)
+                // 3. Mapper le TypeProbleme vers TypeEntiteImpactee (un seul)
                 var typeEntiteImpactee = MapTypeProblemeToTypeEntiteImpactee(dto.TypeProbleme);
 
                 // 4. Générer le code incident
@@ -426,7 +419,7 @@ namespace projet0.Application.Services.Incident
                     CodeIncident = code,
                     DescriptionIncident = dto.DescriptionIncident ?? "",
                     Emplacement = dto.Emplacement,
-                    TypeProbleme = dto.TypeProbleme,  // ✅ Un seul type
+                    TypeProbleme = dto.TypeProbleme,  // Un seul type
                     
                     DateDetection = DateTime.UtcNow,
                     CreatedById = createdById,
@@ -434,7 +427,7 @@ namespace projet0.Application.Services.Incident
                     IncidentTPEs = new List<IncidentTPE>()
                 };
 
-                // 6. ✅ Ajouter UNE SEULE entité impactée
+                // 6. Ajouter UNE SEULE entité impactée
                 incident.EntitesImpactees.Add(new EntiteImpactee
                 {
                     Id = Guid.NewGuid(),
@@ -460,8 +453,6 @@ namespace projet0.Application.Services.Incident
                 await _incidentRepository.AddAsync(incident);
                 await _incidentRepository.SaveChangesAsync();
 
-                // Dans IncidentService.cs
-
                 // 9. Gérer les pièces jointes si présentes (vérification plus robuste)
                 if (dto.PiecesJointes != null && dto.PiecesJointes.Any())
                 {
@@ -483,7 +474,6 @@ namespace projet0.Application.Services.Incident
                     }
                 }
 
-
                 var result = await MapToDto(incident);
 
                 sw.Stop();
@@ -500,7 +490,6 @@ namespace projet0.Application.Services.Incident
             }
         }
 
-        // ✅ Garder la méthode qui prend un seul TypeProbleme
         private TypeEntiteImpactee MapTypeProblemeToTypeEntiteImpactee(TypeProbleme typeProbleme)
         {
             return typeProbleme switch
@@ -515,14 +504,6 @@ namespace projet0.Application.Services.Incident
                 _ => TypeEntiteImpactee.MachineTPE
             };
         }
-
-        // ❌ Supprimer MapTypeProblemesToTypeEntiteImpactee (la version avec liste)
-
-        // Méthode helper pour mapper TypeProbleme vers TypeEntiteImpactee
-        // Dans IncidentService.cs, ajoutez cette méthode privée
-
-
-
 
         public async Task<ApiResponse<IncidentDTO>> UpdateIncidentAsync(
             Guid incidentId,
@@ -540,7 +521,7 @@ namespace projet0.Application.Services.Incident
                 var isAdmin = userRoles.Contains("Admin");
                 var isCommercant = userRoles.Contains("Commercant");
 
-                // ✅ Le commerçant peut modifier ces champs
+                // Le commerçant peut modifier ces champs
                 if (isCommercant || isAdmin)
                 {
                     if (!string.IsNullOrWhiteSpace(dto.DescriptionIncident))
@@ -553,13 +534,13 @@ namespace projet0.Application.Services.Incident
                         incident.TypeProbleme = dto.TypeProbleme.Value;
                 }
 
-                // ✅ Seul l'admin peut modifier la sévérité
+                // Seul l'admin peut modifier la sévérité
                 if (isAdmin && dto.SeveriteIncident.HasValue)
                 {
                     incident.SeveriteIncident = dto.SeveriteIncident.Value;
                 }
 
-                // ✅ Le statut est géré automatiquement (pas modifiable directement)
+                // Le statut est géré automatiquement (pas modifiable directement)
                 // Il sera mis à jour via la liaison avec les tickets
 
                 incident.UpdatedById = userId;
@@ -580,11 +561,6 @@ namespace projet0.Application.Services.Incident
         /// <summary>
         /// Met à jour le statut d'un incident en fonction de ses tickets
         /// </summary>
-        // Dans IncidentService.cs
-
-        /// <summary>
-        /// Met à jour le statut d'un incident en fonction de ses tickets
-        /// </summary>
         public async Task<ApiResponse<bool>> MettreAJourStatutIncident(Guid incidentId)
         {
             try
@@ -599,10 +575,15 @@ namespace projet0.Application.Services.Incident
                 // Si l'incident a au moins un ticket assigné
                 if (ticketsLies != null && ticketsLies.Any())
                 {
-                    // Vérifier si au moins un ticket est assigné à un technicien
                     var aUnTicketAssigne = ticketsLies.Any(t => t.AssigneeId.HasValue);
+                    var tousLesTicketsResolus = ticketsLies.All(t => t.StatutTicket == StatutTicket.Resolu);
 
-                    if (aUnTicketAssigne)
+                    if (tousLesTicketsResolus)
+                    {
+                        incident.StatutIncident = StatutIncident.Ferme;
+                        incident.DateResolution = DateTime.UtcNow;
+                    }
+                    else if (aUnTicketAssigne)
                     {
                         incident.StatutIncident = StatutIncident.EnCours;
                     }
@@ -756,28 +737,6 @@ namespace projet0.Application.Services.Incident
                 }
             });
         }
-
-        // Remplacer la méthode qui prend un seul TypeProbleme par une méthode qui prend une liste
-        private List<TypeEntiteImpactee> MapTypeProblemesToTypeEntiteImpactee(List<TypeProbleme> typeProblemes)
-        {
-            return typeProblemes
-                .Select(tp => tp switch
-                {
-                    TypeProbleme.PaiementRefuse => TypeEntiteImpactee.FluxTransactionnel,
-                    TypeProbleme.TerminalHorsLigne => TypeEntiteImpactee.MachineTPE,
-                    TypeProbleme.Lenteur => TypeEntiteImpactee.Reseau,
-                    TypeProbleme.BugAffichage => TypeEntiteImpactee.MachineTPE,
-                    TypeProbleme.ConnexionReseau => TypeEntiteImpactee.Reseau,
-                    TypeProbleme.ErreurFluxTransactionnel => TypeEntiteImpactee.FluxTransactionnel,
-                    TypeProbleme.ProblemeLogicielTPE => TypeEntiteImpactee.ServiceApplicatif,
-                    _ => TypeEntiteImpactee.MachineTPE
-                })
-                .Distinct()  // Éviter les doublons
-                .ToList();
-        }
-        
-
-
 
         #endregion
     }

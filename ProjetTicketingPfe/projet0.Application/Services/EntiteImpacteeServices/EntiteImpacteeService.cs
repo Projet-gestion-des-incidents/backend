@@ -28,7 +28,6 @@ namespace projet0.Application.Services.EntiteImpacteeServices
             _logger = logger;
         }
 
-
         public async Task<ApiResponse<List<EntiteImpacteeDTO>>> GetAllAsync()
         {
             try
@@ -74,26 +73,14 @@ namespace projet0.Application.Services.EntiteImpacteeServices
             }
         }
 
-        // projet0.Application/Services/EntiteImpacteeServices/EntiteImpacteeService.cs
-
         /// <summary>
         /// Ajouter une entité impactée à un incident existant
         /// </summary>
-        /// <summary>
-        /// Ajouter une entité impactée à un incident existant
-        /// </summary>
+     
         public async Task<ApiResponse<EntiteImpacteeDTO>> AddToIncidentAsync(AddEntiteImpacteeDTO dto)
         {
             try
-            {
-                // ❌ Problème: _repository n'a pas GetIncidentWithDetailsAsync
-                // var incident = await _repository.GetIncidentWithDetailsAsync(dto.IncidentId);
-
-                // ✅ Solution: Vérifier simplement que l'incident existe via un autre moyen
-                // Ou supprimer cette vérification si elle n'est pas critique
-                // Pour l'instant, on suppose que l'IncidentId est valide
-                // Si vous avez besoin de vérifier, injectez IIncidentRepository
-
+            {              
                 // Vérifier que cette entité n'existe pas déjà pour cet incident
                 var entitesExistantes = await _repository.GetByIncidentIdAsync(dto.IncidentId);
                 if (entitesExistantes.Any(e => e.TypeEntiteImpactee == dto.TypeEntiteImpactee))
@@ -135,6 +122,7 @@ namespace projet0.Application.Services.EntiteImpacteeServices
                 return ApiResponse<EntiteImpacteeDTO>.Failure("Erreur interne du serveur");
             }
         }
+
         /// <summary>
         /// Supprimer une entité impactée d'un incident
         /// </summary>
@@ -170,12 +158,6 @@ namespace projet0.Application.Services.EntiteImpacteeServices
                 return ApiResponse<bool>.Failure("Erreur interne du serveur");
             }
         }
-
-        /// <summary>
-        /// Remplacer une entité impactée par une autre
-        /// </summary>
-        
-
         
     }
 }

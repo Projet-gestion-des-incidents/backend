@@ -97,9 +97,7 @@ namespace projet0.Application.Services.Ticket
                     {
                         var pieceDto = new CreatePieceJointeDTO
                         {
-                            NomFichier = fichier.FileName,
-                            
-                            //TypePieceJointe = DeterminerTypePieceJointe(fichier.FileName),
+                            NomFichier = fichier.FileName,                                  
                             Fichier = fichier
                         };
 
@@ -252,19 +250,6 @@ namespace projet0.Application.Services.Ticket
             return dto;
         }
 
-        /*private TypePieceJointe DeterminerTypePieceJointe(string nomFichier)
-        {
-            var extension = Path.GetExtension(nomFichier).ToLowerInvariant();
-            return extension switch
-            {
-                ".jpg" or ".jpeg" or ".png" or ".gif" or ".bmp" => TypePieceJointe.Image,
-                ".pdf" or ".doc" or ".docx" or ".txt" => TypePieceJointe.Document,
-                ".xls" or ".xlsx" or ".csv" => TypePieceJointe.Tableur,
-                ".zip" or ".rar" or ".7z" => TypePieceJointe.Archive,
-                _ => TypePieceJointe.Autre
-            };
-        }*/
-
         public async Task<CommentaireDTO> CreateCommentaireAsync(Guid ticketId, CreateCommentaireDTO dto, Guid userId)
         {
             _logger.LogInformation("Création commentaire pour ticket {TicketId}", ticketId);
@@ -294,9 +279,7 @@ namespace projet0.Application.Services.Ticket
 
                     var pieceDto = new CreatePieceJointeDTO
                     {
-                        NomFichier = fichier.FileName,
-                       
-                        //TypePieceJointe = DeterminerTypePieceJointe(fichier.FileName),
+                        NomFichier = fichier.FileName,                                                                    
                         ContenuBase64 = base64Data
                     };
 

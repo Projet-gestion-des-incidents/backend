@@ -15,6 +15,5 @@ namespace projet0.Application.Commun.DTOs.Incident
         public List<Guid> TPEIds { get; set; }
         public IFormFileCollection? PiecesJointes { get; set; }
 
-
     }
 }

@@ -8,8 +8,7 @@ namespace projet0.Application.Commun.DTOs.Incident
     public class IncidentDTO
     {
         public Guid Id { get; set; }
-        public string CodeIncident { get; set; }
-       
+        public string CodeIncident { get; set; }       
         public string DescriptionIncident { get; set; }
         public SeveriteIncident SeveriteIncident { get; set; }
         public string SeveriteIncidentLibelle { get; set; }
@@ -24,7 +23,6 @@ namespace projet0.Application.Commun.DTOs.Incident
         public int NombreEntitesImpactees { get; set; }
         public TypeProbleme TypeProbleme { get; set; }
         public string Emplacement { get; set; }
-
 
     }
 }

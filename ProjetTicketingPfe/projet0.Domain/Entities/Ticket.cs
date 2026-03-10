@@ -34,7 +34,7 @@ namespace projet0.Domain.Entities
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
 
-        public virtual ApplicationUser Createur { get; set; }  // ← Changer de "Createur" à "Createur"
+        public virtual ApplicationUser Createur { get; set; } 
         public virtual ApplicationUser Assignee { get; set; }
     }
 }

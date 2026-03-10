@@ -15,8 +15,8 @@ using projet0.Domain.Enums;
 using System.Diagnostics;
 using System.Linq.Expressions;
 using TicketEntity = projet0.Domain.Entities.Ticket;
-using Microsoft.EntityFrameworkCore;  // Pour les méthodes async
-using System.Linq;  // Pour Select, Any, etc.
+using Microsoft.EntityFrameworkCore; 
+using System.Linq; 
 
 namespace projet0.Application.Services.Ticket
 {
@@ -29,10 +29,9 @@ namespace projet0.Application.Services.Ticket
         private readonly IWebHostEnvironment _environment;
         private readonly IPieceJointeService _pieceJointeService;
         private readonly ICommentaireService _commentaireService;
-        private readonly IIncidentRepository _incidentRepository;  // À ajouter
-        private readonly IIncidentTicketRepository _incidentTicketRepository;  // À ajouter
-        private readonly IIncidentService _incidentService;  // À ajouter
-
+        private readonly IIncidentRepository _incidentRepository;
+        private readonly IIncidentTicketRepository _incidentTicketRepository;  
+        private readonly IIncidentService _incidentService;
 
         public TicketService(
             ITicketRepository ticketRepository,
@@ -42,9 +41,9 @@ namespace projet0.Application.Services.Ticket
             IPieceJointeService pieceJointeService,
             ICommentaireService commentaireService,
             IMapper mapper, 
-            IIncidentRepository incidentRepository,  // Nouveau
-            IIncidentTicketRepository incidentTicketRepository,  // Nouveau
-            IIncidentService incidentService)  // Nouveau)
+            IIncidentRepository incidentRepository,  
+            IIncidentTicketRepository incidentTicketRepository,
+            IIncidentService incidentService)
         {
             _ticketRepository = ticketRepository;
             _userRepository = userRepository;
@@ -53,9 +52,9 @@ namespace projet0.Application.Services.Ticket
             _pieceJointeService = pieceJointeService;
             _commentaireService = commentaireService;
             _mapper = mapper;
-            _incidentRepository = incidentRepository;  // Nouveau
-            _incidentTicketRepository = incidentTicketRepository;  // Nouveau
-            _incidentService = incidentService;  // Nouveau
+            _incidentRepository = incidentRepository; 
+            _incidentTicketRepository = incidentTicketRepository;
+            _incidentService = incidentService; 
         }
 
         #region Private Methods
@@ -90,10 +89,9 @@ namespace projet0.Application.Services.Ticket
 
                 // Libellés
                 dto.StatutTicketLibelle = GetStatutLibelle(ticket.StatutTicket);
-                //dto.PrioriteTicketLibelle = GetPrioriteLibelle(ticket.PrioriteTicket);
-
+                
                 // Nom du créateur
-                /*if (ticket.Createur != null)
+                if (ticket.Createur != null)
                 {
                     dto.CreateurNom = $"{ticket.Createur.Nom} {ticket.Createur.Prenom}";
                 }
@@ -115,14 +113,12 @@ namespace projet0.Application.Services.Ticket
                         var user = await _userRepository.GetByIdAsync(ticket.AssigneeId.Value);
                         dto.AssigneeNom = user != null ? $"{user.Nom} {user.Prenom}" : "Utilisateur inconnu";
                     }
-                }*/
+                }
 
-                // VERSION ROBUSTE - Compter les relations avec vérifications null
                 if (ticket.Commentaires != null)
                 {
                     dto.NombreCommentaires = ticket.Commentaires.Count;
-
-                    // Compter les pièces jointes de manière sécurisée
+                  
                     int totalPieces = 0;
                     foreach (var commentaire in ticket.Commentaires)
                     {
@@ -146,13 +142,11 @@ namespace projet0.Application.Services.Ticket
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "❌ Erreur dans MapToDto pour ticket {Id}", ticket?.Id);
+                _logger.LogError(ex, "Erreur dans MapToDto pour ticket {Id}", ticket?.Id);
                 throw;
             }
         }
-        
-
-        
+ 
         #endregion
 
         #region CRUD Operations
@@ -169,8 +163,6 @@ namespace projet0.Application.Services.Ticket
             {
                 predicates.Add(t => t.StatutTicket == request.Statut.Value);
             }
-
-
 
             // OPTION 1: Date exacte (si vous voulez les tickets d'un jour précis)
             if (request.DateDebut.HasValue && !request.DateFin.HasValue)
@@ -205,7 +197,6 @@ namespace projet0.Application.Services.Ticket
                 predicates.Add(t => t.DateCreation < dateFin);
             }
 
-
             // RECHERCHE AVANCÉE - Sur le nom du créateur, la référence et le titre
             if (!string.IsNullOrWhiteSpace(request.SearchTerm))
             {
@@ -216,15 +207,15 @@ namespace projet0.Application.Services.Ticket
                     t.ReferenceTicket.ToLower().Contains(term) ||
 
                     // Recherche dans le titre du ticket
-                    t.TitreTicket.ToLower().Contains(term) 
+                    t.TitreTicket.ToLower().Contains(term) ||
 
                     // Recherche dans le nom du créateur (prénom + nom)
-                /*(t.Createur != null && (
+                (t.Createur != null && (
                     (t.Createur.Nom.ToLower().Contains(term)) ||
                     (t.Createur.Prenom.ToLower().Contains(term)) ||
                     (t.Createur.Nom.ToLower() + " " + t.Createur.Prenom.ToLower()).Contains(term) ||
                     (t.Createur.Prenom.ToLower() + " " + t.Createur.Nom.ToLower()).Contains(term)
-                ))*/
+                ))
                 );
             }
 
@@ -346,7 +337,7 @@ namespace projet0.Application.Services.Ticket
                     StatutTicket = dto.StatutTicket,
                     DateCreation = DateTime.UtcNow,
                     CreateurId = createurId,
-                    AssigneeId = null, // AssigneeId a été retiré du DTO
+                    AssigneeId = null, 
                     CreatedAt = DateTime.UtcNow,
                     Historiques = new List<HistoriqueTicket>(),
                     Commentaires = new List<CommentaireTicket>(),
@@ -384,7 +375,6 @@ namespace projet0.Application.Services.Ticket
             }
         }
 
-        // NOUVELLE MÉTHODE: GetTicketDetailAsync
         public async Task<ApiResponse<TicketDetailDTO>> GetTicketDetailAsync(Guid id)
         {
             _logger.LogInformation("=== TicketService.GetTicketDetailAsync ===");
@@ -463,10 +453,10 @@ namespace projet0.Application.Services.Ticket
                         return ApiResponse<bool>.Failure($"Ticket avec ID {id} non trouvé");
 
                     // Vérifier si le ticket peut être supprimé (optionnel)
-                    /*if (ticket.StatutTicket == StatutTicket.Cloture)
+                    if (ticket.StatutTicket == StatutTicket.Resolu)
                     {
                         return ApiResponse<bool>.Failure("Impossible de supprimer un ticket clôturé");
-                    }*/
+                    }
 
                     await _ticketRepository.DeleteAsync(ticket);
                     await _ticketRepository.SaveChangesAsync();
@@ -483,19 +473,6 @@ namespace projet0.Application.Services.Ticket
                 }
             });
         }
-        /*private TypePieceJointe DeterminerTypePieceJointe(string nomFichier)
-        {
-            var extension = Path.GetExtension(nomFichier).ToLowerInvariant();
-
-            return extension switch
-            {
-                ".jpg" or ".jpeg" or ".png" or ".gif" or ".bmp" => TypePieceJointe.Image,
-                ".pdf" or ".doc" or ".docx" or ".txt" => TypePieceJointe.Document,
-                ".xls" or ".xlsx" or ".csv" => TypePieceJointe.Tableur,
-                ".zip" or ".rar" or ".7z" => TypePieceJointe.Archive,
-                _ => TypePieceJointe.Autre
-            };
-        }*/
 
         private async Task<TicketDetailDTO> MapToDetailDto(TicketEntity ticket)
         {
@@ -565,7 +542,7 @@ namespace projet0.Application.Services.Ticket
                     .SelectMany(c => c.PiecesJointes)
                     .Count();
 
-                return dto;  // ← LE RETURN ÉTAIT MANQUANT !
+                return dto;
             }
             catch (Exception ex)
             {
@@ -573,7 +550,6 @@ namespace projet0.Application.Services.Ticket
                 throw;
             }
         }
-
 
         public async Task<ApiResponse<UpdateTicketResponseDTO>> UpdateTicketAsync(Guid id, UpdateTicketDTO dto, Guid userId)
         {
@@ -678,115 +654,6 @@ namespace projet0.Application.Services.Ticket
             });
         }
 
-        private async Task MettreAJourCommentaire(
-            CommentaireTicket commentaire,
-            UpdateCommentaireDTO dto,
-            Guid userId,
-            Dictionary<Guid, List<Guid>> piecesJointesSupprimees,
-            Dictionary<Guid, List<Guid>> piecesJointesAjoutees)
-        {
-            _logger.LogInformation("=== DÉBUT MISE À JOUR COMMENTAIRE {CommentaireId} ===", commentaire.Id);
-
-            // Gérer le message
-            if (dto.EffacerMessage)
-            {
-                commentaire.Message = string.Empty;
-                _logger.LogInformation("Message effacé pour commentaire {CommentaireId}", commentaire.Id);
-            }
-            else if (dto.Message != null)
-            {
-                commentaire.Message = dto.Message;
-                _logger.LogInformation("Message mis à jour pour commentaire {CommentaireId}: '{Message}'",
-                    commentaire.Id, dto.Message);
-            }
-
-            // Mettre à jour EstInterne
-            commentaire.EstInterne = dto.EstInterne;
-            _logger.LogInformation("EstInterne mis à jour: {EstInterne}", dto.EstInterne);
-
-            // Supprimer les pièces jointes
-            if (dto.PiecesJointesASupprimer != null && dto.PiecesJointesASupprimer.Any())
-            {
-                _logger.LogInformation("Suppression de {Count} pièce(s) jointe(s)", dto.PiecesJointesASupprimer.Count);
-
-                var piecesSupprimees = new List<Guid>();
-
-                foreach (var pieceId in dto.PiecesJointesASupprimer)
-                {
-                    _logger.LogInformation("Tentative de suppression de la pièce jointe {PieceId}", pieceId);
-
-                    var piece = commentaire.PiecesJointes?.FirstOrDefault(p => p.Id == pieceId);
-                    if (piece != null)
-                    {
-                        var success = await _pieceJointeService.SupprimerFichierAsync(pieceId);
-                        if (success)
-                        {
-                            piecesSupprimees.Add(pieceId);
-                            _logger.LogInformation("Pièce jointe {PieceId} supprimée avec succès", pieceId);
-                        }
-                        else
-                        {
-                            _logger.LogWarning("Échec de suppression de la pièce jointe {PieceId}", pieceId);
-                        }
-                    }
-                    else
-                    {
-                        _logger.LogWarning("Pièce jointe {PieceId} non trouvée dans le commentaire", pieceId);
-                    }
-                }
-
-                if (piecesSupprimees.Any())
-                {
-                    piecesJointesSupprimees[commentaire.Id] = piecesSupprimees;
-                }
-            }
-
-            // Ajouter de nouveaux fichiers
-            if (dto.NouveauxFichiers != null && dto.NouveauxFichiers.Any())
-            {
-                _logger.LogInformation("Ajout de {Count} nouveau(x) fichier(s)", dto.NouveauxFichiers.Count);
-
-                var piecesAjoutees = new List<Guid>();
-
-                foreach (var fichier in dto.NouveauxFichiers)
-                {
-                    _logger.LogInformation("Traitement du fichier: {FileName}", fichier.FileName);
-
-                    var base64Data = await ConvertirFichierEnBase64(fichier);
-
-                    var pieceDto = new CreatePieceJointeDTO
-                    {
-                        NomFichier = fichier.FileName,
-                        
-                        //TypePieceJointe = DeterminerTypePieceJointe(fichier.FileName),
-                        ContenuBase64 = base64Data
-                    };
-
-                    var pieceJointe = await _pieceJointeService.SauvegarderFichierAsync(
-                        pieceDto, commentaire.Id, userId);
-
-                    piecesAjoutees.Add(pieceJointe.Id);
-                    _logger.LogInformation("Fichier sauvegardé avec ID: {PieceId}", pieceJointe.Id);
-                }
-
-                if (piecesAjoutees.Any())
-                {
-                    piecesJointesAjoutees[commentaire.Id] = piecesAjoutees;
-                }
-            }
-
-            _logger.LogInformation("=== FIN MISE À JOUR COMMENTAIRE {CommentaireId} ===", commentaire.Id);
-        }
-
-        // Helper pour convertir IFormFile en Base64
-        private async Task<string> ConvertirFichierEnBase64(IFormFile fichier)
-        {
-            using var memoryStream = new MemoryStream();
-            await fichier.CopyToAsync(memoryStream);
-            var bytes = memoryStream.ToArray();
-            return Convert.ToBase64String(bytes);
-        }
-
         public async Task<ApiResponse<bool>> LierTicketAIncident(Guid ticketId, Guid incidentId, Guid userId)
         {
             return await MeasureAsync(nameof(LierTicketAIncident), new { ticketId, incidentId }, async () =>
@@ -822,8 +689,7 @@ namespace projet0.Application.Services.Ticket
                     await _incidentTicketRepository.AddAsync(lien);
                     await _incidentTicketRepository.SaveChangesAsync();
 
-                    // Mettre à jour le statut de l'incident (via le service d'incident)
-                    // Note: Vous devrez injecter IIncidentService
+                    // Mettre à jour le statut de l'incident (via le service d'incident)                    
                     await _incidentService.MettreAJourStatutIncident(incidentId);
 
                     _logger.LogInformation("Ticket {TicketId} lié à l'incident {IncidentId}", ticketId, incidentId);
@@ -920,8 +786,6 @@ namespace projet0.Application.Services.Ticket
                     var ancienStatut = ticket.StatutTicket;
                     ticket.StatutTicket = nouveauStatut;
                     ticket.UpdatedAt = DateTime.UtcNow;
-
-                    // Ajouter à l'historique
                     ticket.Historiques ??= new List<HistoriqueTicket>();
                     ticket.Historiques.Add(new HistoriqueTicket
                     {
@@ -959,7 +823,6 @@ namespace projet0.Application.Services.Ticket
                 }
             });
         }
-
         private string GetStatutLibelle(StatutTicket statut)
         {
             return statut switch
