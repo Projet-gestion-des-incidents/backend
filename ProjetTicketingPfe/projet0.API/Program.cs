@@ -254,18 +254,19 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IIncidentRepository, IncidentRepository>();
 builder.Services.AddScoped<IIncidentService, IncidentService>();
 builder.Services.AddScoped<IEntiteImpacteeRepository, EntiteImpacteeRepository>();
-//builder.Services.AddScoped<ITicketRepository, TicketRepository>();
-//builder.Services.AddScoped<ITicketService, TicketService>();
+builder.Services.AddScoped<ITicketRepository, TicketRepository>();
+builder.Services.AddScoped<ITicketService, TicketService>();
 builder.Services.AddAutoMapper(typeof(IncidentMappingProfile).Assembly);
 builder.Services.AddScoped<IEntiteImpacteeService, EntiteImpacteeService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICommentaireRepository, CommentaireRepository>();
 builder.Services.AddScoped<IPieceJointeRepository, PieceJointeRepository>();
 builder.Services.AddScoped<IPieceJointeService, PieceJointeService>();
-//builder.Services.AddScoped<ICommentaireService, CommentaireService>();
+builder.Services.AddScoped<ICommentaireService, CommentaireService>();
 // Dans Program.cs, ajoutez :
 builder.Services.AddScoped<ITPERepository, TPERepository>();
 builder.Services.AddScoped<ITPEService, TPEService>();
+builder.Services.AddScoped<IIncidentTicketRepository, IncidentTicketRepository>();
 
 builder.Services.Configure<FormOptions>(options =>
 {

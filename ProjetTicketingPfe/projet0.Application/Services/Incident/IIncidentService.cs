@@ -5,6 +5,7 @@ using projet0.Domain.Enums;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using IncidentEntity = projet0.Domain.Entities.Incident;  // ← AJOUTER EN HAUT
 
 namespace projet0.Application.Services.Incident
 {
@@ -23,6 +24,11 @@ namespace projet0.Application.Services.Incident
         Task<ApiResponse<List<IncidentDTO>>> GetIncidentsByStatutAsync(StatutIncident statut);
         Task<ApiResponse<List<IncidentDTO>>> GetIncidentsBySeveriteAsync(SeveriteIncident severite);
         Task<ApiResponse<List<IncidentDTO>>> GetIncidentsByCreatedByAsync(Guid createdById);
-     
+        // ✅ AJOUTER CES MÉTHODES
+        Task<ApiResponse<bool>> MettreAJourStatutIncident(Guid incidentId);
+        Task<ApiResponse<bool>> FermerIncident(Guid incidentId);
+
+        // Pour le mapping (utilisé dans les contrôleurs)
+        Task<IncidentDTO> MapToDto(IncidentEntity incident);
     }
 }

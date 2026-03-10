@@ -29,6 +29,7 @@ namespace projet0.Application.Services.Incident
         private readonly IMapper _mapper;
         private readonly ITPERepository _tpeRepository;              // ← AJOUTER
         private readonly IPieceJointeService _pieceJointeService;
+        private readonly IIncidentTicketRepository _incidentTicketRepository;
 
         public IncidentService(
             IIncidentRepository incidentRepository,
@@ -37,7 +38,7 @@ namespace projet0.Application.Services.Incident
             ILogger<IncidentService> logger,
             ITPERepository tpeRepository,
             IPieceJointeService pieceJointeService,
-            IMapper mapper)
+            IMapper mapper, IIncidentTicketRepository incidentTicketRepository)
         {
             _incidentRepository = incidentRepository;
             _userRepository = userRepository;
@@ -46,6 +47,8 @@ namespace projet0.Application.Services.Incident
             _tpeRepository = tpeRepository;
             _pieceJointeService = pieceJointeService;
             _mapper = mapper;
+            _incidentTicketRepository = incidentTicketRepository;  // ← AJOUTER
+
         }
 
         #region Private Methods
@@ -73,7 +76,7 @@ namespace projet0.Application.Services.Incident
         }
 
         //transformer un IncidentEntity en IncidentDTO.
-        private async Task<IncidentDTO> MapToDto(IncidentEntity incident)
+        public async Task<IncidentDTO> MapToDto(IncidentEntity incident)
         {
             var dto = _mapper.Map<IncidentDTO>(incident);
 
@@ -522,9 +525,9 @@ namespace projet0.Application.Services.Incident
 
 
         public async Task<ApiResponse<IncidentDTO>> UpdateIncidentAsync(
-    Guid incidentId,
-    UpdateIncidentDTO dto,
-    Guid userId)
+            Guid incidentId,
+            UpdateIncidentDTO dto,
+            Guid userId)
         {
             try
             {
@@ -532,17 +535,35 @@ namespace projet0.Application.Services.Incident
                 if (incident == null)
                     return ApiResponse<IncidentDTO>.Failure("Incident introuvable");
 
-                // Mise à jour UNIQUEMENT des champs de l'incident
-                if (!string.IsNullOrWhiteSpace(dto.DescriptionIncident))
-                    incident.DescriptionIncident = dto.DescriptionIncident;
+                // Vérifier le rôle de l'utilisateur
+                var userRoles = await _userRepository.GetUserRolesAsync(userId);
+                var isAdmin = userRoles.Contains("Admin");
+                var isCommercant = userRoles.Contains("Commercant");
 
-                incident.SeveriteIncident = dto.SeveriteIncident;
-                incident.StatutIncident = dto.StatutIncident;
+                // ✅ Le commerçant peut modifier ces champs
+                if (isCommercant || isAdmin)
+                {
+                    if (!string.IsNullOrWhiteSpace(dto.DescriptionIncident))
+                        incident.DescriptionIncident = dto.DescriptionIncident;
+
+                    if (!string.IsNullOrWhiteSpace(dto.Emplacement))
+                        incident.Emplacement = dto.Emplacement;
+
+                    if (dto.TypeProbleme.HasValue)
+                        incident.TypeProbleme = dto.TypeProbleme.Value;
+                }
+
+                // ✅ Seul l'admin peut modifier la sévérité
+                if (isAdmin && dto.SeveriteIncident.HasValue)
+                {
+                    incident.SeveriteIncident = dto.SeveriteIncident.Value;
+                }
+
+                // ✅ Le statut est géré automatiquement (pas modifiable directement)
+                // Il sera mis à jour via la liaison avec les tickets
+
                 incident.UpdatedById = userId;
                 incident.UpdatedAt = DateTime.UtcNow;
-
-                // ✅ PLUS AUCUNE GESTION DES ENTITÉS ICI
-                // Les entités impactées sont gérées via les APIs dédiées
 
                 await _incidentRepository.SaveChangesAsync();
 
@@ -553,6 +574,79 @@ namespace projet0.Application.Services.Incident
             {
                 _logger.LogError(ex, "Erreur mise à jour incident {IncidentId}", incidentId);
                 return ApiResponse<IncidentDTO>.Failure("Erreur interne serveur");
+            }
+        }
+
+        /// <summary>
+        /// Met à jour le statut d'un incident en fonction de ses tickets
+        /// </summary>
+        // Dans IncidentService.cs
+
+        /// <summary>
+        /// Met à jour le statut d'un incident en fonction de ses tickets
+        /// </summary>
+        public async Task<ApiResponse<bool>> MettreAJourStatutIncident(Guid incidentId)
+        {
+            try
+            {
+                var incident = await _incidentRepository.GetIncidentWithDetailsAsync(incidentId);
+                if (incident == null)
+                    return ApiResponse<bool>.Failure("Incident non trouvé");
+
+                // Récupérer tous les tickets liés à cet incident
+                var ticketsLies = await _incidentTicketRepository.GetTicketsByIncidentIdAsync(incidentId);
+
+                // Si l'incident a au moins un ticket assigné
+                if (ticketsLies != null && ticketsLies.Any())
+                {
+                    // Vérifier si au moins un ticket est assigné à un technicien
+                    var aUnTicketAssigne = ticketsLies.Any(t => t.AssigneeId.HasValue);
+
+                    if (aUnTicketAssigne)
+                    {
+                        incident.StatutIncident = StatutIncident.EnCours;
+                    }
+                }
+                else
+                {
+                    // Pas de ticket, statut reste EnCours (mais pas Fermé)
+                    incident.StatutIncident = StatutIncident.EnCours;
+                }
+
+                await _incidentRepository.SaveChangesAsync();
+
+                return ApiResponse<bool>.Success(true, "Statut de l'incident mis à jour");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erreur lors de la mise à jour du statut de l'incident {IncidentId}", incidentId);
+                return ApiResponse<bool>.Failure("Erreur interne");
+            }
+        }
+
+        /// <summary>
+        /// Marque un incident comme Fermé (appelé quand tous ses tickets sont résolus)
+        /// </summary>
+        public async Task<ApiResponse<bool>> FermerIncident(Guid incidentId)
+        {
+            try
+            {
+                var incident = await _incidentRepository.GetByIdAsync(incidentId);
+                if (incident == null)
+                    return ApiResponse<bool>.Failure("Incident non trouvé");
+
+                incident.StatutIncident = StatutIncident.Ferme;
+                incident.DateResolution = DateTime.UtcNow;
+
+                await _incidentRepository.SaveChangesAsync();
+
+                _logger.LogInformation("Incident {IncidentId} marqué comme Fermé", incidentId);
+                return ApiResponse<bool>.Success(true, "Incident fermé avec succès");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erreur lors de la fermeture de l'incident {IncidentId}", incidentId);
+                return ApiResponse<bool>.Failure("Erreur interne");
             }
         }
         public async Task<ApiResponse<bool>> DeleteIncidentAsync(Guid id)

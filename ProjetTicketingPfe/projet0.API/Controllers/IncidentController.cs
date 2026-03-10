@@ -2,8 +2,11 @@
 using Microsoft.AspNetCore.Mvc;
 using projet0.Application.Common.Models.Pagination;
 using projet0.Application.Commun.DTOs.Incident;
+using projet0.Application.Commun.DTOs.Ticket;
 using projet0.Application.Commun.Ressources;
+using projet0.Application.Interfaces;
 using projet0.Application.Services.Incident;
+using projet0.Application.Services.Ticket;
 using projet0.Domain.Enums;
 using System.Security.Claims;
 
@@ -16,13 +19,17 @@ namespace projet0.API.Controllers
     {
         private readonly IIncidentService _incidentService;
         private readonly ILogger<IncidentController> _logger;
-
+        private readonly ITicketService _ticketService;
+        private readonly IIncidentTicketRepository _incidentTicketRepository;
         public IncidentController(
             IIncidentService incidentService,
-            ILogger<IncidentController> logger)
+            ILogger<IncidentController> logger, ITicketService ticketService,  // ← AJOUTER
+    IIncidentTicketRepository incidentTicketRepository)  // ← AJOUTER)
         {
             _incidentService = incidentService;
             _logger = logger;
+            _ticketService = ticketService;  // ← AJOUTER
+            _incidentTicketRepository = incidentTicketRepository;  // ← AJOUTER
         }
 
 [HttpGet("all")]
@@ -290,7 +297,47 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
                     "Erreur interne du serveur lors de la récupération de vos incidents"));
             }
         }
-    
+        // Dans IncidentController.cs
+
+        [HttpPost("{incidentId}/lier-tickets")]
+        [Authorize(Policy = "AdminOnly")]
+        public async Task<ActionResult<ApiResponse<bool>>> LierTickets(
+            Guid incidentId,
+            [FromBody] List<Guid> ticketIds)
+        {
+            try
+            {
+                var userId = GetCurrentUserId();
+                var result = await _ticketService.LierIncidentsAuTicket(incidentId, ticketIds, userId);
+                return result.IsSuccess ? Ok(result) : BadRequest(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erreur lors du lien tickets-incident");
+                return StatusCode(500, ApiResponse<bool>.Failure("Erreur interne"));
+            }
+        }
+
+        [HttpGet("{incidentId}/tickets")]
+        [Authorize(Policy = "IncidentRead")]
+        public async Task<ActionResult<ApiResponse<List<TicketDTO>>>> GetTicketsByIncident(Guid incidentId)
+        {
+            try
+            {
+                var tickets = await _incidentTicketRepository.GetTicketsByIncidentIdAsync(incidentId);
+                var dtos = new List<TicketDTO>();
+                foreach (var ticket in tickets)
+                {
+                    dtos.Add(await _ticketService.MapToDto(ticket));
+                }
+                return Ok(ApiResponse<List<TicketDTO>>.Success(dtos));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erreur lors de la récupération des tickets de l'incident");
+                return StatusCode(500, ApiResponse<List<TicketDTO>>.Failure("Erreur interne"));
+            }
+        }
         #endregion
     }
 }

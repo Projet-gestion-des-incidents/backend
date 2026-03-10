@@ -1,9 +1,13 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using projet0.Application.Common.Models.Pagination;
+using projet0.Application.Commun.DTOs.Incident;
 using projet0.Application.Commun.DTOs.Ticket;
+using projet0.Application.Commun.DTOs.TicketDTOs;
 using projet0.Application.Commun.Ressources;
 using projet0.Application.Commun.Ressources.Pagination;
+using projet0.Application.Interfaces;
+using projet0.Application.Services.Incident;
 using projet0.Application.Services.Ticket;
 using projet0.Domain.Enums;
 using System.Security.Claims;
@@ -17,13 +21,18 @@ namespace projet0.API.Controllers
     {
         private readonly ITicketService _ticketService;
         private readonly ILogger<TicketController> _logger;
+        private readonly IIncidentTicketRepository _incidentTicketRepository;
+        private readonly IIncidentService _incidentService;
 
         public TicketController(
             ITicketService ticketService,
-            ILogger<TicketController> logger)
+            ILogger<TicketController> logger, IIncidentTicketRepository incidentTicketRepository,  // ← AJOUTER
+    IIncidentService incidentService)
         {
             _ticketService = ticketService;
             _logger = logger;
+            _incidentTicketRepository = incidentTicketRepository;  // ← AJOUTER
+            _incidentService = incidentService;
         }
 
         private Guid GetCurrentUserId()
@@ -224,6 +233,66 @@ namespace projet0.API.Controllers
                 _logger.LogError(ex, "Erreur lors de la mise à jour du ticket {Id}", id);
                 return StatusCode(500, ApiResponse<UpdateTicketResponseDTO>.Failure(
                     "Erreur interne du serveur lors de la mise à jour du ticket"));
+            }
+        }
+        // Dans TicketController.cs
+
+        [HttpPost("{ticketId}/lier-incidents")]
+        [Authorize(Policy = "AdminOnly")]
+        public async Task<ActionResult<ApiResponse<bool>>> LierIncidents(
+            Guid ticketId,
+            [FromBody] List<Guid> incidentIds)
+        {
+            try
+            {
+                var userId = GetCurrentUserId();
+                var result = await _ticketService.LierIncidentsAuTicket(ticketId, incidentIds, userId);
+                return result.IsSuccess ? Ok(result) : BadRequest(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erreur lors du lien incidents-ticket");
+                return StatusCode(500, ApiResponse<bool>.Failure("Erreur interne"));
+            }
+        }
+
+        [HttpGet("{ticketId}/incidents")]
+        [Authorize(Policy = "TicketRead")]
+        public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetIncidentsByTicket(Guid ticketId)
+        {
+            try
+            {
+                var incidents = await _incidentTicketRepository.GetIncidentsByTicketIdAsync(ticketId);
+                var dtos = new List<IncidentDTO>();
+                foreach (var incident in incidents)
+                {
+                    dtos.Add(await _incidentService.MapToDto(incident));
+                }
+                return Ok(ApiResponse<List<IncidentDTO>>.Success(dtos));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erreur lors de la récupération des incidents du ticket");
+                return StatusCode(500, ApiResponse<List<IncidentDTO>>.Failure("Erreur interne"));
+            }
+        }
+
+        [HttpPut("{ticketId}/statut")]
+        [Authorize(Policy = "TicketUpdate")]
+        public async Task<ActionResult<ApiResponse<TicketDTO>>> UpdateStatut(
+            Guid ticketId,
+            [FromBody] UpdateTicketStatutDTO dto)
+        {
+            try
+            {
+                var userId = GetCurrentUserId();
+                var result = await _ticketService.UpdateTicketStatutAsync(ticketId, dto.StatutTicket, userId);
+                return result.IsSuccess ? Ok(result) : BadRequest(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erreur lors de la mise à jour du statut du ticket");
+                return StatusCode(500, ApiResponse<TicketDTO>.Failure("Erreur interne"));
             }
         }
         #endregion

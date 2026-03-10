@@ -2,9 +2,11 @@
 using projet0.Application.Commun.DTOs.Ticket;
 using projet0.Application.Commun.Ressources;
 using projet0.Application.Commun.Ressources.Pagination;
+using projet0.Domain.Enums;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using TicketEntity = projet0.Domain.Entities.Ticket;  // ← AJOUTER EN HAUT
 
 namespace projet0.Application.Services.Ticket
 {
@@ -25,5 +27,11 @@ namespace projet0.Application.Services.Ticket
         Task<ApiResponse<TicketDetailDTO>> GetTicketDetailAsync(Guid id);
 
         Task<ApiResponse<UpdateTicketResponseDTO>> UpdateTicketAsync(Guid id, UpdateTicketDTO dto, Guid userId);
+        Task<ApiResponse<bool>> LierIncidentsAuTicket(Guid ticketId, List<Guid> incidentIds, Guid userId);
+        Task<ApiResponse<TicketDTO>> UpdateTicketStatutAsync(Guid ticketId, StatutTicket nouveauStatut, Guid userId);
+        Task<ApiResponse<List<TicketDTO>>> GetTicketsByIncidentIdAsync(Guid incidentId);
+
+        // Pour le mapping (utilisé dans les contrôleurs)
+        Task<TicketDTO> MapToDto(TicketEntity ticket);
     }
 }

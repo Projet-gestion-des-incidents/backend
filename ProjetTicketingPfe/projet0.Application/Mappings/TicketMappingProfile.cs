@@ -1,9 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using AutoMapper;
+﻿using AutoMapper;
+using projet0.Application.Commun.DTOs.Incident;
 using projet0.Application.Commun.DTOs.Ticket;
 using projet0.Domain.Entities;
+using System;
+using System.Collections.Generic;
+using System.Text;
 
 namespace projet0.Application.Mappings
 {
@@ -41,6 +42,15 @@ namespace projet0.Application.Mappings
                 .ForMember(dest => dest.Notifications, opt => opt.Ignore())
                 .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
                 .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore());
+
+            // Dans TicketMappingProfile.cs
+            CreateMap<Incident, IncidentDTO>()
+                .ForMember(dest => dest.StatutIncidentLibelle, opt => opt.Ignore())
+                .ForMember(dest => dest.SeveriteIncidentLibelle, opt => opt.Ignore())
+                
+                .ForMember(dest => dest.CreatedByName, opt => opt.Ignore())
+                .ForMember(dest => dest.NombreTickets, opt => opt.Ignore())
+                .ForMember(dest => dest.NombreEntitesImpactees, opt => opt.Ignore());
         }
     }
 }
