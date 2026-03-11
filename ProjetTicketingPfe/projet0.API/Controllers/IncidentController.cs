@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using projet0.Application.Common.Models.Pagination;
 using projet0.Application.Commun.DTOs.Incident;
 using projet0.Application.Commun.DTOs.Ticket;
+using projet0.Application.Commun.DTOs.TicketDTOs;
 using projet0.Application.Commun.Ressources;
 using projet0.Application.Interfaces;
 using projet0.Application.Services.Incident;
@@ -298,20 +299,82 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
 
         [HttpPost("{incidentId}/lier-tickets")]
         [Authorize(Policy = "AdminOnly")]
-        public async Task<ActionResult<ApiResponse<bool>>> LierTickets(
-            Guid incidentId,
-            [FromBody] List<Guid> ticketIds)
+        public async Task<ActionResult<ApiResponse<LiaisonTicketsResultDTO>>> LierTicketsAIncident(
+    Guid incidentId,
+    [FromBody] List<Guid> ticketIds)
         {
             try
             {
                 var userId = GetCurrentUserId();
-                var result = await _ticketService.LierIncidentsAuTicket(incidentId, ticketIds, userId);
-                return result.IsSuccess ? Ok(result) : BadRequest(result);
+                var ticketsLies = 0;
+                var ticketsDejaLies = 0;
+                var ticketsNonTrouves = 0;
+                var details = new List<string>();
+
+                foreach (var ticketId in ticketIds)
+                {
+                    // Vérifier si le ticket existe
+                    var ticket = await _ticketService.GetTicketByIdAsync(ticketId);
+                    if (ticket?.Data == null)
+                    {
+                        ticketsNonTrouves++;
+                        details.Add($"Ticket {ticketId} non trouvé");
+                        continue;
+                    }
+
+                    // Vérifier si la liaison existe déjà
+                    var existe = await _incidentTicketRepository.ExistsAsync(ticketId, incidentId);
+
+                    if (existe)
+                    {
+                        ticketsDejaLies++;
+                        details.Add($"Ticket {ticketId} déjà lié à l'incident");
+                    }
+                    else
+                    {
+                        // Créer la liaison
+                        var result = await _ticketService.LierIncidentsAuTicket(
+                            ticketId,
+                            new List<Guid> { incidentId },
+                            userId
+                        );
+
+                        if (result.IsSuccess)
+                        {
+                            ticketsLies++;
+                            details.Add($"Ticket {ticketId} lié avec succès");
+                        }
+                    }
+                }
+
+                var resultDto = new LiaisonTicketsResultDTO
+                {
+                    TicketsLies = ticketsLies,
+                    TicketsDejaLies = ticketsDejaLies,
+                    TicketsNonTrouves = ticketsNonTrouves,
+                    TotalTicketsTraites = ticketIds.Count,
+                    Details = details
+                };
+
+                string message;
+                if (ticketsLies > 0 && ticketsDejaLies > 0)
+                    message = $"{ticketsLies} ticket(s) lié(s), {ticketsDejaLies} déjà existant(s)";
+                else if (ticketsLies > 0)
+                    message = $"{ticketsLies} ticket(s) lié(s) avec succès";
+                else if (ticketsDejaLies > 0)
+                    message = $"Tous les tickets ({ticketsDejaLies}) étaient déjà liés à cet incident";
+                else
+                    message = "Aucun ticket n'a pu être lié";
+
+                return Ok(ApiResponse<LiaisonTicketsResultDTO>.Success(
+                    resultDto,
+                    message
+                ));
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Erreur lors du lien tickets-incident");
-                return StatusCode(500, ApiResponse<bool>.Failure("Erreur interne"));
+                return StatusCode(500, ApiResponse<LiaisonTicketsResultDTO>.Failure("Erreur interne"));
             }
         }
 

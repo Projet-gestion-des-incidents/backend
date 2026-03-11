@@ -16,7 +16,8 @@ using System.Diagnostics;
 using System.Linq.Expressions;
 using TicketEntity = projet0.Domain.Entities.Ticket;
 using Microsoft.EntityFrameworkCore; 
-using System.Linq; 
+using System.Linq;
+using projet0.Application.Commun.DTOs.TicketDTOs;
 
 namespace projet0.Application.Services.Ticket
 {
@@ -726,7 +727,10 @@ namespace projet0.Application.Services.Ticket
                 }
             });
         }
-        public async Task<ApiResponse<bool>> LierIncidentsAuTicket(Guid ticketId, List<Guid> incidentIds, Guid userId)
+        public async Task<ApiResponse<LiaisonResultDTO>> LierIncidentsAuTicket(
+    Guid ticketId,
+    List<Guid> incidentIds,
+    Guid userId)
         {
             return await MeasureAsync(nameof(LierIncidentsAuTicket), new { ticketId, incidentIds }, async () =>
             {
@@ -734,12 +738,24 @@ namespace projet0.Application.Services.Ticket
                 {
                     var ticket = await _ticketRepository.GetByIdAsync(ticketId);
                     if (ticket == null)
-                        return ApiResponse<bool>.Failure($"Ticket {ticketId} non trouvé");
+                        return ApiResponse<LiaisonResultDTO>.Failure($"Ticket {ticketId} non trouvé");
 
                     var liensAjoutes = 0;
+                    var liensDejaExistants = 0;
+                    var incidentsNonTrouves = 0;
+                    var details = new List<string>();
 
                     foreach (var incidentId in incidentIds)
                     {
+                        // Vérifier si l'incident existe
+                        var incident = await _incidentRepository.GetByIdAsync(incidentId);
+                        if (incident == null)
+                        {
+                            incidentsNonTrouves++;
+                            details.Add($"Incident {incidentId} non trouvé");
+                            continue;
+                        }
+
                         // Vérifier si le lien existe déjà
                         var existe = await _incidentTicketRepository.ExistsAsync(ticketId, incidentId);
                         if (!existe)
@@ -754,21 +770,45 @@ namespace projet0.Application.Services.Ticket
 
                             await _incidentTicketRepository.AddAsync(lien);
                             liensAjoutes++;
+                            details.Add($"Incident {incidentId} lié avec succès");
 
                             // Mettre à jour le statut de l'incident
                             await _incidentService.MettreAJourStatutIncident(incidentId);
+                        }
+                        else
+                        {
+                            liensDejaExistants++;
+                            details.Add($"Incident {incidentId} déjà lié à ce ticket");
                         }
                     }
 
                     await _incidentTicketRepository.SaveChangesAsync();
 
-                    _logger.LogInformation("{Count} incidents liés au ticket {TicketId}", liensAjoutes, ticketId);
-                    return ApiResponse<bool>.Success(true, $"{liensAjoutes} incident(s) lié(s) au ticket");
+                    var result = new LiaisonResultDTO
+                    {
+                        LiensAjoutes = liensAjoutes,
+                        LiensDejaExistants = liensDejaExistants,
+                        IncidentsNonTrouves = incidentsNonTrouves,
+                        TotalDemande = incidentIds.Count,
+                        Details = details
+                    };
+
+                    string message;
+                    if (liensAjoutes > 0 && liensDejaExistants > 0)
+                        message = $"{liensAjoutes} incident(s) lié(s), {liensDejaExistants} déjà existant(s)";
+                    else if (liensAjoutes > 0)
+                        message = $"{liensAjoutes} incident(s) lié(s) avec succès";
+                    else if (liensDejaExistants > 0)
+                        message = $"Tous les incidents ({liensDejaExistants}) étaient déjà liés à ce ticket";
+                    else
+                        message = "Aucun incident n'a pu être lié";
+
+                    return ApiResponse<LiaisonResultDTO>.Success(result, message);
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Erreur lors du lien incidents-ticket");
-                    return ApiResponse<bool>.Failure("Erreur interne");
+                    return ApiResponse<LiaisonResultDTO>.Failure("Erreur interne");
                 }
             });
         }
