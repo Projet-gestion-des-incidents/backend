@@ -11,10 +11,12 @@ namespace projet0.Application.Commun.DTOs.Ticket
         public string ReferenceTicket { get; set; }
         public string TitreTicket { get; set; }
         public string DescriptionTicket { get; set; }
-        public StatutTicket StatutTicket { get; set; }
+        public StatutTicket? StatutTicket { get; set; }
         public string StatutTicketLibelle { get; set; }
         public string PrioriteTicketLibelle { get; set; }
         public DateTime DateCreation { get; set; }
+        public DateTime? DateLimite { get; set; }      // ✅ AJOUTER
+
         public DateTime? DateCloture { get; set; }
         public Guid CreateurId { get; set; }
         public string CreateurNom { get; set; }

@@ -258,6 +258,13 @@ namespace projet0.Infrastructure.Repositories
                 .Select(it => it.Ticket)
                 .ToListAsync();
         }
+        public void Detach(Ticket entity) => _context.Entry(entity).State = EntityState.Detached;
+        public void Attach(Ticket entity) => _context.Tickets.Attach(entity);
+        public void SetModified(Ticket entity) => _context.Entry(entity).State = EntityState.Modified;
+        public async Task ReloadAsync(Ticket ticket)
+        {
+            await _context.Entry(ticket).ReloadAsync();
+        }
     }
 
 }

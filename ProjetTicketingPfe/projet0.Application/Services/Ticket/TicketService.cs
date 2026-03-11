@@ -316,8 +316,7 @@ namespace projet0.Application.Services.Ticket
         public async Task<ApiResponse<TicketDTO>> CreateTicketAsync(CreateTicketDTO dto, Guid createurId)
         {
             var sw = Stopwatch.StartNew();
-            _logger.LogInformation("CreateTicket START | Titre: {Titre}, Priorité: {Priorite}, Statut: {Statut}",
-                dto.TitreTicket, dto.StatutTicket);
+            _logger.LogInformation("CreateTicket START | Titre: {Titre}", dto.TitreTicket);
 
             try
             {
@@ -328,6 +327,11 @@ namespace projet0.Application.Services.Ticket
                 // Générer la référence unique
                 var reference = await _ticketRepository.GenerateReferenceTicketAsync();
 
+                // Déterminer le statut initial
+                var statutInitial = dto.AssigneeId.HasValue
+                    ? StatutTicket.Assigne
+                    : (StatutTicket?)null;
+
                 // Créer le ticket
                 var ticket = new TicketEntity
                 {
@@ -335,10 +339,11 @@ namespace projet0.Application.Services.Ticket
                     ReferenceTicket = reference,
                     TitreTicket = dto.TitreTicket,
                     DescriptionTicket = dto.DescriptionTicket ?? string.Empty,
-                    StatutTicket = dto.StatutTicket,
+                    DateLimite = dto.DateLimite,
+                    StatutTicket = statutInitial,
                     DateCreation = DateTime.UtcNow,
                     CreateurId = createurId,
-                    AssigneeId = null, 
+                    AssigneeId = dto.AssigneeId,
                     CreatedAt = DateTime.UtcNow,
                     Historiques = new List<HistoriqueTicket>(),
                     Commentaires = new List<CommentaireTicket>(),
@@ -350,23 +355,22 @@ namespace projet0.Application.Services.Ticket
                 {
                     Id = Guid.NewGuid(),
                     TicketId = ticket.Id,
-                    AncienStatut = dto.StatutTicket,
+                    AncienStatut = statutInitial,  // Pour la création, ancien = nouveau
                     DateChangement = DateTime.UtcNow,
                     ModifieParId = createurId
                 });
 
-                // Sauvegarder le ticket d'abord
+                // Sauvegarder
                 await _ticketRepository.AddAsync(ticket);
                 await _ticketRepository.SaveChangesAsync();
 
-                // Mapper le résultat
                 var result = await MapToDto(ticket);
 
                 sw.Stop();
-                _logger.LogInformation("CreateTicket SUCCESS | Ref: {Reference} | Duration: {Ms} ms",
-                    reference, sw.ElapsedMilliseconds);
+                _logger.LogInformation("CreateTicket SUCCESS | Ref: {Reference} | Statut: {Statut} | Duration: {Ms} ms",
+                    reference, statutInitial, sw.ElapsedMilliseconds);
 
-                return ApiResponse<TicketDTO>.Success(result, $"Ticket {reference} créé avec succès. Utilisez POST /api/commentaires?ticketId={ticket.Id} pour ajouter des commentaires.");
+                return ApiResponse<TicketDTO>.Success(result, $"Ticket {reference} créé avec succès.");
             }
             catch (Exception ex)
             {
@@ -442,21 +446,44 @@ namespace projet0.Application.Services.Ticket
                 }
             });
         }
+        // Dans TicketService.cs
         public async Task<ApiResponse<bool>> DeleteTicketAsync(Guid id)
         {
             return await MeasureAsync(nameof(DeleteTicketAsync), new { id }, async () =>
             {
                 try
                 {
-                    var ticket = await _ticketRepository.GetByIdAsync(id);
+                    var ticket = await _ticketRepository.GetTicketWithDetailsAsync(id);
 
                     if (ticket == null)
                         return ApiResponse<bool>.Failure($"Ticket avec ID {id} non trouvé");
 
-                    // Vérifier si le ticket peut être supprimé (optionnel)
-                    if (ticket.StatutTicket == StatutTicket.Resolu)
+                    // 🔴 RÈGLE 2 : Vérifier que le ticket n'est pas en cours ou résolu
+                    if (ticket.StatutTicket == StatutTicket.EnCours ||
+                        ticket.StatutTicket == StatutTicket.Resolu)
                     {
-                        return ApiResponse<bool>.Failure("Impossible de supprimer un ticket clôturé");
+                        return ApiResponse<bool>.Failure(
+                            "Impossible de supprimer un ticket en cours ou résolu",
+                            resultCode: 50
+                        );
+                    }
+
+                    // 🔴 RÈGLE 3 : Vérifier que tous les incidents liés sont supprimables
+                    if (ticket.IncidentTickets != null && ticket.IncidentTickets.Any())
+                    {
+                        var incidentsNonSupprimables = ticket.IncidentTickets
+                            .Select(it => it.Incident)
+                            .Where(i => i.StatutIncident.HasValue)
+                            .ToList();
+
+                        if (incidentsNonSupprimables.Any())
+                        {
+                            var ids = string.Join(", ", incidentsNonSupprimables.Select(i => i.CodeIncident));
+                            return ApiResponse<bool>.Failure(
+                                $"Impossible de supprimer le ticket car des incidents liés ont déjà un statut: {ids}",
+                                resultCode: 51
+                            );
+                        }
                     }
 
                     await _ticketRepository.DeleteAsync(ticket);
@@ -562,21 +589,110 @@ namespace projet0.Application.Services.Ticket
                     if (ticket == null)
                         return ApiResponse<UpdateTicketResponseDTO>.Failure($"Ticket avec ID {id} non trouvé");
 
+                    // Vérifier les permissions (qui peut modifier quoi)
+                    var userRoles = await _userRepository.GetUserRolesAsync(userId);
+                    var isAdmin = userRoles.Contains("Admin");
+                    var isTechnicien = userRoles.Contains("Technicien");
+
                     var ancienStatut = ticket.StatutTicket;
+                    var ancienAssigneeId = ticket.AssigneeId;
+                    var modifications = new List<string>();
 
-                    // Mise à jour des champs
-                    if (!string.IsNullOrWhiteSpace(dto.TitreTicket))
-                        ticket.TitreTicket = dto.TitreTicket;
+                    // 1. CHAMPS MODIFIABLES PAR ADMIN (ou par le créateur)
+                    if (isAdmin)
+                    {
+                        if (!string.IsNullOrWhiteSpace(dto.TitreTicket) && dto.TitreTicket != ticket.TitreTicket)
+                        {
+                            ticket.TitreTicket = dto.TitreTicket;
+                            modifications.Add("Titre");
+                        }
 
-                    if (dto.DescriptionTicket != null)
-                        ticket.DescriptionTicket = dto.DescriptionTicket;
+                        if (dto.DescriptionTicket != null && dto.DescriptionTicket != ticket.DescriptionTicket)
+                        {
+                            ticket.DescriptionTicket = dto.DescriptionTicket;
+                            modifications.Add("Description");
+                        }
 
-                    // Gestion du statut
+                        if (dto.DateLimite.HasValue && dto.DateLimite != ticket.DateLimite)
+                        {
+                            ticket.DateLimite = dto.DateLimite;
+                            modifications.Add("Date limite");
+                        }
+                    }
+
+                    // 2. GESTION DE L'ASSIGNATION (Admin uniquement)
+                    // Dans UpdateTicketAsync
+                    if (isAdmin && dto.AssigneeId != ticket.AssigneeId)
+                    {
+                        if (dto.AssigneeId.HasValue)
+                        {
+                            var assignee = await _userRepository.GetByIdAsync(dto.AssigneeId.Value);
+                            if (assignee == null)
+                                return ApiResponse<UpdateTicketResponseDTO>.Failure("L'utilisateur assigné n'existe pas");
+
+                            var roles = await _userRepository.GetUserRolesAsync(dto.AssigneeId.Value);
+                            if (!roles.Contains("Technicien") && !roles.Contains("Admin"))
+                            {
+                                return ApiResponse<UpdateTicketResponseDTO>.Failure("L'utilisateur doit avoir le rôle Technicien");
+                            }
+                        }
+
+                        ticket.AssigneeId = dto.AssigneeId;
+                        modifications.Add("Assignation");
+
+                        // ✅ Mettre à jour le statut automatiquement
+                        if (dto.AssigneeId.HasValue && !ticket.StatutTicket.HasValue)
+                        {
+                            // Si on assigne et que le statut était null → Assigné
+                            ticket.StatutTicket = StatutTicket.Assigne;
+                            modifications.Add("Statut (automatique: Assigné)");
+                        }
+                        else if (!dto.AssigneeId.HasValue)
+                        {
+                            // Si on enlève l'assignation → null
+                            ticket.StatutTicket = null;
+                            modifications.Add("Statut (automatique: aucun)");
+                        }
+                    }
+
+                    // 3. GESTION DU STATUT (Technicien ou Admin)
                     if (dto.StatutTicket.HasValue && dto.StatutTicket.Value != ticket.StatutTicket)
                     {
-                        ticket.StatutTicket = dto.StatutTicket.Value;
+                        var nouveauStatut = dto.StatutTicket.Value;
 
-                        // Ajouter à l'historique
+                        // Règles de transition de statut
+                        bool transitionValide = false;
+
+                        if (isAdmin)
+                        {
+                            // Admin peut tout changer (pour dépannage)
+                            transitionValide = true;
+                        }
+                        else if (isTechnicien)
+                        {
+                            // Technicien ne peut que : EnCours → Résolu
+                            transitionValide = (ticket.StatutTicket == StatutTicket.EnCours && nouveauStatut == StatutTicket.Resolu);
+                        }
+
+                        if (!transitionValide)
+                        {
+                            return ApiResponse<UpdateTicketResponseDTO>.Failure(
+                                $"Transition de statut non autorisée de {ticket.StatutTicket} vers {nouveauStatut}");
+                        }
+
+                        ticket.StatutTicket = nouveauStatut;
+                        modifications.Add($"Statut -> {nouveauStatut}");
+
+                        // Si le ticket devient Résolu, enregistrer la date de clôture
+                        if (nouveauStatut == StatutTicket.Resolu)
+                        {
+                            ticket.DateCloture = DateTime.UtcNow;
+                        }
+                    }
+
+                    // 4. AJOUTER À L'HISTORIQUE SI DES CHANGEMENTS ONT EU LIEU
+                    if (modifications.Any() || ancienStatut != ticket.StatutTicket || ancienAssigneeId != ticket.AssigneeId)
+                    {
                         ticket.Historiques ??= new List<HistoriqueTicket>();
                         ticket.Historiques.Add(new HistoriqueTicket
                         {
@@ -587,44 +703,101 @@ namespace projet0.Application.Services.Ticket
                             ModifieParId = userId
                         });
 
-                        // Si le ticket devient Résolu, vérifier les incidents
-                        if (ticket.StatutTicket == StatutTicket.Resolu && ticket.IncidentTickets != null)
-                        {
-                            var incidentIds = ticket.IncidentTickets.Select(it => it.IncidentId).ToList();
-                            foreach (var incidentId in incidentIds)
-                            {
-                                var ticketsLies = await _incidentTicketRepository.GetTicketsByIncidentIdAsync(incidentId);
-                                var tousResolus = ticketsLies.All(t => t.StatutTicket == StatutTicket.Resolu);
-
-                                if (tousResolus)
-                                {
-                                    await _incidentService.FermerIncident(incidentId);
-                                }
-                            }
-                        }
-                    }
-
-                    // Gestion de l'assignation
-                    if (dto.AssigneeId.HasValue)
-                    {
-                        var assignee = await _userRepository.GetByIdAsync(dto.AssigneeId.Value);
-                        if (assignee == null)
-                            return ApiResponse<UpdateTicketResponseDTO>.Failure("L'utilisateur assigné n'existe pas");
-
-                        ticket.AssigneeId = dto.AssigneeId;
-
-                        // Si c'est la première assignation, mettre à jour le statut des incidents
-                        if (ancienStatut == StatutTicket.Assigne && ticket.IncidentTickets != null)
-                        {
-                            foreach (var lien in ticket.IncidentTickets)
-                            {
-                                await _incidentService.MettreAJourStatutIncident(lien.IncidentId);
-                            }
-                        }
+                        _logger.LogInformation("Ticket {Id} modifié : {Modifications}", id, string.Join(", ", modifications));
                     }
 
                     ticket.UpdatedAt = DateTime.UtcNow;
-                    await _ticketRepository.SaveChangesAsync();
+                   
+                    // 5. SAUVEGARDER AVEC GESTION DE CONCURRENCE ROBUSTE
+                    try
+                    {
+                        await _ticketRepository.SaveChangesAsync();
+                    }
+                    catch (DbUpdateConcurrencyException)
+                    {
+                        _logger.LogWarning("Conflit de concurrence pour le ticket {Id}. Tentative de rechargement et de réapplication...", id);
+
+                        // 1. Recharger l'entité depuis la base de données (obtient les valeurs actuelles)
+                        // Cela annule les modifications en cours et remet l'entité à l'état 'Unchanged'
+                        await _ticketRepository.ReloadAsync(ticket);
+
+                        // 2. RÉAPPLIQUER TOUTES LES MODIFICATIONS du DTO sur l'entité rechargée
+                        // (car nos modifications précédentes ont été perdues lors du rechargement)
+
+                        // Champ Titre
+                        if (!string.IsNullOrWhiteSpace(dto.TitreTicket) && dto.TitreTicket != ticket.TitreTicket)
+                        {
+                            ticket.TitreTicket = dto.TitreTicket;
+                        }
+
+                        // Champ Description
+                        if (dto.DescriptionTicket != null && dto.DescriptionTicket != ticket.DescriptionTicket)
+                        {
+                            ticket.DescriptionTicket = dto.DescriptionTicket;
+                        }
+
+                        // Champ DateLimite
+                        if (dto.DateLimite.HasValue && dto.DateLimite != ticket.DateLimite)
+                        {
+                            ticket.DateLimite = dto.DateLimite;
+                        }
+
+                        // Champ AssigneeId (et logique de statut associée)
+                        if (dto.AssigneeId != ticket.AssigneeId)
+                        {
+                            // Remettre l'assignation et la logique de statut (similaire à ce qui est fait plus haut)
+                            if (dto.AssigneeId.HasValue)
+                            {
+                                var assignee = await _userRepository.GetByIdAsync(dto.AssigneeId.Value);
+                                if (assignee != null) // Vérification rapide, normalement déjà faite
+                                {
+                                    ticket.AssigneeId = dto.AssigneeId;
+                                    if (!ticket.StatutTicket.HasValue)
+                                    {
+                                        ticket.StatutTicket = StatutTicket.Assigne;
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                ticket.AssigneeId = null;
+                                ticket.StatutTicket = null;
+                            }
+                        }
+
+                        // Champ Statut (modifié par le technicien)
+                        if (dto.StatutTicket.HasValue && dto.StatutTicket.Value != ticket.StatutTicket)
+                        {
+                            ticket.StatutTicket = dto.StatutTicket.Value;
+                            if (dto.StatutTicket.Value == StatutTicket.Resolu)
+                            {
+                                ticket.DateCloture = DateTime.UtcNow;
+                            }
+                        }
+
+                        ticket.UpdatedAt = DateTime.UtcNow;
+
+                        // 3. Réessayer la sauvegarde
+                        try
+                        {
+                            await _ticketRepository.SaveChangesAsync();
+                            _logger.LogInformation("Ticket {Id} mis à jour avec succès après conflit de concurrence.", id);
+                        }
+                        catch (DbUpdateConcurrencyException ex)
+                        {
+                            _logger.LogError(ex, "Nouvel échec de mise à jour pour le ticket {Id} après tentative de résolution de concurrence.", id);
+                            return ApiResponse<UpdateTicketResponseDTO>.Failure("Le ticket a été modifié par un autre utilisateur. Veuillez réessayer.");
+                        }
+                    }
+
+                    // 6. METTRE À JOUR LES INCIDENTS LIÉS SI NÉCESSAIRE
+                    if (ticket.StatutTicket == StatutTicket.Resolu && ticket.IncidentTickets != null)
+                    {
+                        foreach (var lien in ticket.IncidentTickets)
+                        {
+                            await _incidentService.MettreAJourStatutIncident(lien.IncidentId);
+                        }
+                    }
 
                     var responseDto = await MapToDetailDto(ticket);
                     var updateResponse = new UpdateTicketResponseDTO
@@ -636,6 +809,8 @@ namespace projet0.Application.Services.Ticket
                         StatutTicket = responseDto.StatutTicket,
                         StatutTicketLibelle = responseDto.StatutTicketLibelle,
                         DateCreation = responseDto.DateCreation,
+                        DateLimite = responseDto.DateLimite,
+                        DateCloture = responseDto.DateCloture,
                         CreateurId = responseDto.CreateurId,
                         CreateurNom = responseDto.CreateurNom,
                         AssigneeId = responseDto.AssigneeId,
@@ -813,6 +988,7 @@ namespace projet0.Application.Services.Ticket
             });
         }
 
+        // Dans TicketService.UpdateTicketStatutAsync
         public async Task<ApiResponse<TicketDTO>> UpdateTicketStatutAsync(Guid ticketId, StatutTicket nouveauStatut, Guid userId)
         {
             return await MeasureAsync(nameof(UpdateTicketStatutAsync), new { ticketId, nouveauStatut }, async () =>
@@ -826,6 +1002,13 @@ namespace projet0.Application.Services.Ticket
                     var ancienStatut = ticket.StatutTicket;
                     ticket.StatutTicket = nouveauStatut;
                     ticket.UpdatedAt = DateTime.UtcNow;
+
+                    if (nouveauStatut == StatutTicket.Resolu)
+                    {
+                        ticket.DateCloture = DateTime.UtcNow;
+                    }
+
+                    // Historique
                     ticket.Historiques ??= new List<HistoriqueTicket>();
                     ticket.Historiques.Add(new HistoriqueTicket
                     {
@@ -838,18 +1021,12 @@ namespace projet0.Application.Services.Ticket
 
                     await _ticketRepository.SaveChangesAsync();
 
-                    // Si le ticket devient Résolu, vérifier si tous les incidents liés peuvent être fermés
-                    if (nouveauStatut == StatutTicket.Resolu && ticket.IncidentTickets != null)
+                    // 🔥 Mettre à jour tous les incidents liés
+                    if (ticket.IncidentTickets != null)
                     {
                         foreach (var lien in ticket.IncidentTickets)
                         {
-                            var ticketsLies = await _incidentTicketRepository.GetTicketsByIncidentIdAsync(lien.IncidentId);
-                            var tousResolus = ticketsLies.All(t => t.StatutTicket == StatutTicket.Resolu);
-
-                            if (tousResolus)
-                            {
-                                await _incidentService.FermerIncident(lien.IncidentId);
-                            }
+                            await _incidentService.MettreAJourStatutIncident(lien.IncidentId);
                         }
                     }
 
@@ -863,8 +1040,10 @@ namespace projet0.Application.Services.Ticket
                 }
             });
         }
-        private string GetStatutLibelle(StatutTicket statut)
+        private string GetStatutLibelle(StatutTicket? statut)
         {
+            if (!statut.HasValue)
+                return "Non assigné";
             return statut switch
             {
                 StatutTicket.Assigne => "Assigné",

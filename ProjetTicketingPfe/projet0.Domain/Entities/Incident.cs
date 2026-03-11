@@ -14,7 +14,7 @@ namespace projet0.Domain.Entities
 
         // Enums (stockés comme int)
         public SeveriteIncident SeveriteIncident { get; set; }
-        public StatutIncident StatutIncident { get; set; }
+        public StatutIncident? StatutIncident { get; set; }
         public DateTime DateDetection { get; set; }
         public DateTime? DateResolution { get; set; }
         public Guid? CreatedById { get; set; }

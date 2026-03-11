@@ -10,7 +10,7 @@ namespace projet0.Domain.Entities
         public Guid Id { get; set; }
 
         // Statuts
-        public StatutTicket AncienStatut { get; set; }
+        public StatutTicket? AncienStatut { get; set; }
         public DateTime DateChangement { get; set; }
 
         // Foreign Keys

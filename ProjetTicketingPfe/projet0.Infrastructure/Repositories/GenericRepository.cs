@@ -113,5 +113,10 @@ namespace projet0.Infrastructure.Repositories
             _dbSet.RemoveRange(entities);
             await Task.CompletedTask;
         }
+
+        public async Task ReloadAsync(T entity)
+        {
+            await _context.Entry(entity).ReloadAsync();
+        }
     }
 }

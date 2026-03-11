@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using projet0.Infrastructure.Data;
 
@@ -11,9 +12,11 @@ using projet0.Infrastructure.Data;
 namespace projet0.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260311085841_changerStatutIncidentNull")]
+    partial class changerStatutIncidentNull
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -297,7 +300,7 @@ namespace projet0.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<int?>("AncienStatut")
+                    b.Property<int>("AncienStatut")
                         .HasColumnType("int");
 
                     b.Property<DateTime>("DateChangement")
@@ -615,7 +618,7 @@ namespace projet0.Infrastructure.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
-                    b.Property<int?>("StatutTicket")
+                    b.Property<int>("StatutTicket")
                         .HasColumnType("int");
 
                     b.Property<string>("TitreTicket")

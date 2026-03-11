@@ -13,7 +13,7 @@ namespace projet0.Domain.Entities
         public string DescriptionTicket { get; set; }
 
         // Enums
-        public StatutTicket StatutTicket { get; set; }
+        public StatutTicket? StatutTicket { get; set; }
 
         public DateTime DateCreation { get; set; }
         public DateTime? DateCloture { get; set; }

@@ -17,5 +17,7 @@ namespace projet0.Application.Commun.DTOs.Ticket
         public StatutTicket? StatutTicket { get; set; }
 
         public Guid? AssigneeId { get; set; }
+        public DateTime? DateLimite { get; set; }
+
     }
 }

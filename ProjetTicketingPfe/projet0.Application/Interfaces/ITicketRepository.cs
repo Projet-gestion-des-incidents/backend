@@ -26,5 +26,9 @@ namespace projet0.Application.Interfaces
         // Obtenir une requête filtrée
         IQueryable<Ticket> GetFilteredQuery(Expression<Func<Ticket, bool>>? filter = null);
         Task<List<Ticket>> GetTicketsByIncidentIdAsync(Guid incidentId);
+        void Detach(Ticket entity);
+        void Attach(Ticket entity);
+        void SetModified(Ticket entity);
+        Task ReloadAsync(Ticket ticket);
     }
 }

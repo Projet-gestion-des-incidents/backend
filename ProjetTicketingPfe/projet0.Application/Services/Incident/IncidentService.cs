@@ -76,7 +76,6 @@ namespace projet0.Application.Services.Incident
         {
             var dto = _mapper.Map<IncidentDTO>(incident);
 
-            dto.SeveriteIncidentLibelle = GetSeveriteLibelle(incident.SeveriteIncident);
             dto.StatutIncidentLibelle = GetStatutLibelle(incident.StatutIncident);
             dto.Emplacement = incident.Emplacement; // Pas besoin si AutoMapper le fait
 
@@ -99,7 +98,6 @@ namespace projet0.Application.Services.Incident
         {
             var dto = _mapper.Map<IncidentDetailDTO>(incident);
 
-            dto.SeveriteIncidentLibelle = GetSeveriteLibelle(incident.SeveriteIncident);
             dto.StatutIncidentLibelle = GetStatutLibelle(incident.StatutIncident);
 
             if (incident.CreatedById.HasValue)
@@ -146,8 +144,10 @@ namespace projet0.Application.Services.Incident
             };
         }
 
-        private string GetStatutLibelle(StatutIncident statut)
+        private string GetStatutLibelle(StatutIncident? statut)
         {
+            if (!statut.HasValue)
+                return "Non traité";  
             return statut switch
             {
 
@@ -420,7 +420,7 @@ namespace projet0.Application.Services.Incident
                     DescriptionIncident = dto.DescriptionIncident ?? "",
                     Emplacement = dto.Emplacement,
                     TypeProbleme = dto.TypeProbleme,  // Un seul type
-                    
+                    StatutIncident = null,  // ← AUCUN STATUT À LA CRÉATION
                     DateDetection = DateTime.UtcNow,
                     CreatedById = createdById,
                     EntitesImpactees = new List<EntiteImpactee>(),
@@ -561,6 +561,7 @@ namespace projet0.Application.Services.Incident
         /// <summary>
         /// Met à jour le statut d'un incident en fonction de ses tickets
         /// </summary>
+        // Dans IncidentService.cs - Méthode à appeler quand un ticket change de statut
         public async Task<ApiResponse<bool>> MettreAJourStatutIncident(Guid incidentId)
         {
             try
@@ -569,13 +570,21 @@ namespace projet0.Application.Services.Incident
                 if (incident == null)
                     return ApiResponse<bool>.Failure("Incident non trouvé");
 
-                // Récupérer tous les tickets liés à cet incident
+                // Récupérer tous les tickets liés
                 var ticketsLies = await _incidentTicketRepository.GetTicketsByIncidentIdAsync(incidentId);
 
-                // Si l'incident a au moins un ticket assigné
+                // Si l'incident a des tickets
                 if (ticketsLies != null && ticketsLies.Any())
                 {
-                    var aUnTicketAssigne = ticketsLies.Any(t => t.AssigneeId.HasValue);
+                    // Vérifier si au moins un ticket est en cours
+                    var aUnTicketEnCours = ticketsLies.Any(t => t.StatutTicket == StatutTicket.EnCours);
+
+                    if (aUnTicketEnCours)
+                    {
+                        incident.StatutIncident = StatutIncident.EnCours;
+                    }
+
+                    // Vérifier si tous les tickets sont résolus
                     var tousLesTicketsResolus = ticketsLies.All(t => t.StatutTicket == StatutTicket.Resolu);
 
                     if (tousLesTicketsResolus)
@@ -583,15 +592,12 @@ namespace projet0.Application.Services.Incident
                         incident.StatutIncident = StatutIncident.Ferme;
                         incident.DateResolution = DateTime.UtcNow;
                     }
-                    else if (aUnTicketAssigne)
-                    {
-                        incident.StatutIncident = StatutIncident.EnCours;
-                    }
                 }
                 else
                 {
-                    // Pas de ticket, statut reste EnCours (mais pas Fermé)
-                    incident.StatutIncident = StatutIncident.EnCours;
+                    // Pas de ticket, pas de statut
+                    incident.StatutIncident = null;
+                    incident.DateResolution = null;
                 }
 
                 await _incidentRepository.SaveChangesAsync();
@@ -630,6 +636,7 @@ namespace projet0.Application.Services.Incident
                 return ApiResponse<bool>.Failure("Erreur interne");
             }
         }
+        // Dans IncidentService.cs
         public async Task<ApiResponse<bool>> DeleteIncidentAsync(Guid id)
         {
             var sw = Stopwatch.StartNew();
@@ -637,7 +644,7 @@ namespace projet0.Application.Services.Incident
 
             try
             {
-                var incident = await _incidentRepository.GetByIdAsync(id);
+                var incident = await _incidentRepository.GetIncidentWithDetailsAsync(id);
 
                 if (incident == null)
                 {
@@ -645,21 +652,45 @@ namespace projet0.Application.Services.Incident
                     return ApiResponse<bool>.Failure("Incident introuvable");
                 }
 
+                // 🔴 RÈGLE 1 : Un incident ne peut être supprimé que s'il n'a PAS de statut
+                if (incident.StatutIncident.HasValue)
+                {
+                    _logger.LogWarning("DeleteIncident | Incident déjà traité | Id: {Id}, Statut: {Statut}",
+                        id, incident.StatutIncident);
+                    return ApiResponse<bool>.Failure(
+                        "Impossible de supprimer un incident déjà traité (en cours, résolu ou fermé)",
+                        resultCode: 48
+                    );
+                }
+
+                // Vérifier si l'incident est lié à des tickets
+                if (incident.IncidentTickets != null && incident.IncidentTickets.Any())
+                {
+                    // Option 1: Interdire la suppression
+                    return ApiResponse<bool>.Failure(
+                        "Impossible de supprimer un incident lié à des tickets. Supprimez d'abord les liens.",
+                        resultCode: 49
+                    );
+
+                    // Option 2: Supprimer automatiquement les liens (si vous préférez)
+                    // foreach (var lien in incident.IncidentTickets.ToList())
+                    // {
+                    //     _incidentTicketRepository.Delete(lien);
+                    // }
+                }
+
                 await _incidentRepository.DeleteAsync(incident);
                 await _incidentRepository.SaveChangesAsync();
 
                 sw.Stop();
-                _logger.LogInformation("DeleteIncident SUCCESS | Duration: {Ms} ms",
-                    sw.ElapsedMilliseconds);
+                _logger.LogInformation("DeleteIncident SUCCESS | Duration: {Ms} ms", sw.ElapsedMilliseconds);
 
-                return ApiResponse<bool>.Success(true, "Incident supprimé avec ses entités liées");
+                return ApiResponse<bool>.Success(true, "Incident supprimé avec succès");
             }
             catch (Exception ex)
             {
                 sw.Stop();
-                _logger.LogError(ex, "DeleteIncident ERROR | Duration: {Ms} ms",
-                    sw.ElapsedMilliseconds);
-
+                _logger.LogError(ex, "DeleteIncident ERROR | Duration: {Ms} ms", sw.ElapsedMilliseconds);
                 return ApiResponse<bool>.Failure("Erreur interne du serveur");
             }
         }
