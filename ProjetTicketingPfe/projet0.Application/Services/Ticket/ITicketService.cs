@@ -22,10 +22,10 @@ namespace projet0.Application.Services.Ticket
         // Créer un nouveau ticket
         Task<ApiResponse<TicketDTO>> CreateTicketAsync(CreateTicketDTO dto, Guid createurId);
 
-        Task<ApiResponse<bool>> DeleteTicketAsync(Guid id);
+        Task<ApiResponse<bool>> DeleteTicketAsync(Guid id, Guid userId);
 
         // Récupérer un ticket avec ses commentaires
-        Task<ApiResponse<TicketDetailDTO>> GetTicketDetailAsync(Guid id);
+        Task<ApiResponse<TicketDetailDTO>> GetTicketDetailAsync(Guid id, Guid userId);
 
         Task<ApiResponse<UpdateTicketResponseDTO>> UpdateTicketAsync(Guid id, UpdateTicketDTO dto, Guid userId);
         // Dans ITicketService.cs

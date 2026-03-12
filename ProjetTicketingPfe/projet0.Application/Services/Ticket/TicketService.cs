@@ -15,6 +15,7 @@ using projet0.Domain.Enums;
 using System.Diagnostics;
 using System.Linq.Expressions;
 using TicketEntity = projet0.Domain.Entities.Ticket;
+using IncidentEntity = projet0.Domain.Entities.Incident;
 using Microsoft.EntityFrameworkCore; 
 using System.Linq;
 using projet0.Application.Commun.DTOs.TicketDTOs;
@@ -380,10 +381,10 @@ namespace projet0.Application.Services.Ticket
             }
         }
 
-        public async Task<ApiResponse<TicketDetailDTO>> GetTicketDetailAsync(Guid id)
+        public async Task<ApiResponse<TicketDetailDTO>> GetTicketDetailAsync(Guid id, Guid userId)
         {
             _logger.LogInformation("=== TicketService.GetTicketDetailAsync ===");
-            _logger.LogInformation("ID reçu: {Id}", id);
+            _logger.LogInformation("ID reçu: {Id}, UserId: {UserId}", id, userId);
 
             return await MeasureAsync(nameof(GetTicketDetailAsync), new { id }, async () =>
             {
@@ -447,7 +448,7 @@ namespace projet0.Application.Services.Ticket
             });
         }
         // Dans TicketService.cs
-        public async Task<ApiResponse<bool>> DeleteTicketAsync(Guid id)
+        public async Task<ApiResponse<bool>> DeleteTicketAsync(Guid id, Guid userId)
         {
             return await MeasureAsync(nameof(DeleteTicketAsync), new { id }, async () =>
             {
@@ -458,34 +459,81 @@ namespace projet0.Application.Services.Ticket
                     if (ticket == null)
                         return ApiResponse<bool>.Failure($"Ticket avec ID {id} non trouvé");
 
-                    // 🔴 RÈGLE 2 : Vérifier que le ticket n'est pas en cours ou résolu
-                    if (ticket.StatutTicket == StatutTicket.EnCours ||
-                        ticket.StatutTicket == StatutTicket.Resolu)
-                    {
-                        return ApiResponse<bool>.Failure(
-                            "Impossible de supprimer un ticket en cours ou résolu",
-                            resultCode: 50
-                        );
-                    }
+                    // Vérifier le rôle de l'utilisateur
+                    var userRoles = await _userRepository.GetUserRolesAsync(userId);
+                    var isAdmin = userRoles.Contains("Admin");
 
-                    // 🔴 RÈGLE 3 : Vérifier que tous les incidents liés sont supprimables
-                    if (ticket.IncidentTickets != null && ticket.IncidentTickets.Any())
+                    // 🔴 Si ce n'est pas un admin, appliquer les restrictions
+                    if (!isAdmin)
                     {
-                        var incidentsNonSupprimables = ticket.IncidentTickets
-                            .Select(it => it.Incident)
-                            .Where(i => i.StatutIncident.HasValue)
-                            .ToList();
-
-                        if (incidentsNonSupprimables.Any())
+                        // RÈGLE : Ne peut pas supprimer un ticket en cours ou résolu
+                        if (ticket.StatutTicket == StatutTicket.EnCours ||
+                            ticket.StatutTicket == StatutTicket.Resolu)
                         {
-                            var ids = string.Join(", ", incidentsNonSupprimables.Select(i => i.CodeIncident));
                             return ApiResponse<bool>.Failure(
-                                $"Impossible de supprimer le ticket car des incidents liés ont déjà un statut: {ids}",
-                                resultCode: 51
+                                "Impossible de supprimer un ticket en cours ou résolu",
+                                resultCode: 50
                             );
+                        }
+
+                        // RÈGLE : Vérifier que tous les incidents liés sont supprimables
+                        if (ticket.IncidentTickets != null && ticket.IncidentTickets.Any())
+                        {
+                            var incidentsNonSupprimables = ticket.IncidentTickets
+                                .Select(it => it.Incident)
+                                .Where(i => i.StatutIncident.HasValue)
+                                .ToList();
+
+                            if (incidentsNonSupprimables.Any())
+                            {
+                                var ids = string.Join(", ", incidentsNonSupprimables.Select(i => i.CodeIncident));
+                                return ApiResponse<bool>.Failure(
+                                    $"Impossible de supprimer le ticket car des incidents liés ont déjà un statut: {ids}",
+                                    resultCode: 51
+                                );
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // ✅ ADMIN : Peut tout supprimer, sans aucune restriction !
+                        _logger.LogInformation("Admin supprime le ticket {Id} - Nettoyage des incidents liés", id);
+
+                        // 1️⃣ Récupérer tous les incidents liés AVANT de supprimer le ticket
+                        var incidentsLies = new List<IncidentEntity>();
+                        if (ticket.IncidentTickets != null)
+                        {
+                            incidentsLies = ticket.IncidentTickets
+                                .Select(it => it.Incident)
+                                .Where(i => i != null)
+                                .ToList();
+                        }
+
+                        // 2️⃣ Supprimer d'abord toutes les liaisons (IncidentTicket)
+                        if (ticket.IncidentTickets != null)
+                        {
+                            foreach (var lien in ticket.IncidentTickets.ToList())
+                            {
+                                await _incidentTicketRepository.DeleteAsync(lien);
+                            }
+                        }
+
+                        // 3️⃣ Pour chaque incident lié, remettre son statut à null
+                        foreach (var incident in incidentsLies)
+                        {
+                            incident.StatutIncident = null;
+                            incident.DateResolution = null;
+                            _logger.LogInformation("Incident {IncidentId} remis à null (statut et date résolution)", incident.Id);
+                        }
+
+                        // Sauvegarder les modifications des incidents
+                        if (incidentsLies.Any())
+                        {
+                            await _incidentRepository.SaveChangesAsync();
                         }
                     }
 
+                    // Supprimer le ticket (les liaisons ont déjà été supprimées)
                     await _ticketRepository.DeleteAsync(ticket);
                     await _ticketRepository.SaveChangesAsync();
 

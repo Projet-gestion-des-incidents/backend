@@ -697,10 +697,10 @@ namespace projet0.Application.Services.Incident
             }
         }
         // Dans IncidentService.cs
-        public async Task<ApiResponse<bool>> DeleteIncidentAsync(Guid id)
+        public async Task<ApiResponse<bool>> DeleteIncidentAsync(Guid id, Guid userId)
         {
             var sw = Stopwatch.StartNew();
-            _logger.LogInformation("DeleteIncident START | Id: {Id}", id);
+            _logger.LogInformation("DeleteIncident START | Id: {Id} | UserId: {UserId}", id, userId);
 
             try
             {
@@ -712,45 +712,103 @@ namespace projet0.Application.Services.Incident
                     return ApiResponse<bool>.Failure("Incident introuvable");
                 }
 
-                // 🔴 RÈGLE 1 : Un incident ne peut être supprimé que s'il n'a PAS de statut
-                if (incident.StatutIncident.HasValue)
+                // Vérifier le rôle de l'utilisateur
+                var userRoles = await _userRepository.GetUserRolesAsync(userId);
+                var isAdmin = userRoles.Contains("Admin");
+                var isCommercant = userRoles.Contains("Commercant");
+
+                // 🔴 Si c'est un commerçant, vérifier que c'est son incident
+                if (isCommercant && !isAdmin && incident.CreatedById != userId)
                 {
-                    _logger.LogWarning("DeleteIncident | Incident déjà traité | Id: {Id}, Statut: {Statut}",
-                        id, incident.StatutIncident);
+                    _logger.LogWarning("DeleteIncident | Commerçant tente de supprimer un incident qui ne lui appartient pas | UserId: {UserId}, Incident créé par: {CreatedById}",
+                        userId, incident.CreatedById);
                     return ApiResponse<bool>.Failure(
-                        "Impossible de supprimer un incident déjà traité (en cours, résolu ou fermé)",
-                        resultCode: 48
+                        "Vous ne pouvez supprimer que vos propres incidents.",
+                        resultCode: 72
                     );
                 }
 
-                // Vérifier si l'incident est lié à des tickets
-                if (incident.IncidentTickets != null && incident.IncidentTickets.Any())
+                // Règles pour le commerçant
+                if (isCommercant && !isAdmin)
                 {
-                    // Option 1: Interdire la suppression
-                    return ApiResponse<bool>.Failure(
-                        "Impossible de supprimer un incident lié à des tickets. Supprimez d'abord les liens.",
-                        resultCode: 49
-                    );
+                    // RÈGLE 1 : L'incident ne doit pas avoir de statut
+                    if (incident.StatutIncident.HasValue)
+                    {
+                        _logger.LogWarning("DeleteIncident | Commerçant tente de supprimer un incident avec statut | Id: {Id}, Statut: {Statut}",
+                            id, incident.StatutIncident);
+                        return ApiResponse<bool>.Failure(
+                            "Vous ne pouvez pas supprimer un incident qui est déjà en cours ou fermé.",
+                            resultCode: 48
+                        );
+                    }
 
-                    // Option 2: Supprimer automatiquement les liens (si vous préférez)
-                    // foreach (var lien in incident.IncidentTickets.ToList())
-                    // {
-                    //     _incidentTicketRepository.Delete(lien);
-                    // }
+                    // RÈGLE 2 : L'incident ne doit pas être lié à des tickets
+                    if (incident.IncidentTickets != null && incident.IncidentTickets.Any())
+                    {
+                        // Vérifier si les tickets liés ont un statut
+                        var ticketsAvecStatut = incident.IncidentTickets
+                            .Select(it => it.Ticket)
+                            .Where(t => t != null && t.StatutTicket.HasValue)
+                            .ToList();
+
+                        if (ticketsAvecStatut.Any())
+                        {
+                            var statuts = string.Join(", ", ticketsAvecStatut.Select(t => $"{t.ReferenceTicket}({t.StatutTicket})"));
+                            _logger.LogWarning("DeleteIncident | Commerçant tente de supprimer un incident lié à des tickets avec statut | Id: {Id}, Tickets: {Tickets}",
+                                id, statuts);
+                            return ApiResponse<bool>.Failure(
+                                "Vous ne pouvez pas supprimer un incident lié à des tickets qui ont déjà un statut.",
+                                resultCode: 73
+                            );
+                        }
+
+                        // Si les tickets sont sans statut, on peut supprimer mais il faut d'abord supprimer les liens
+                        return ApiResponse<bool>.Failure(
+                            "Impossible de supprimer un incident lié à des tickets. Veuillez d'abord supprimer les liens.",
+                            resultCode: 49
+                        );
+                    }
                 }
 
+                // Règles pour l'admin (plus permissives)
+                if (isAdmin)
+                {
+                    // L'admin peut supprimer même avec statut ? À vous de voir
+                    // Si vous voulez que l'admin puisse tout supprimer, enlevez cette condition
+                    if (incident.StatutIncident.HasValue)
+                    {
+                        _logger.LogWarning("DeleteIncident | Admin supprime un incident avec statut | Id: {Id}, Statut: {Statut}",
+                            id, incident.StatutIncident);
+                        // return ApiResponse<bool>.Failure("L'admin peut tout supprimer, même avec statut", 74);
+                    }
+
+                    // L'admin peut supprimer même avec des liens ? À vous de voir
+                    if (incident.IncidentTickets != null && incident.IncidentTickets.Any())
+                    {
+                        _logger.LogWarning("DeleteIncident | Admin supprime un incident lié à des tickets | Id: {Id}, NbTickets: {Count}",
+                            id, incident.IncidentTickets.Count);
+                        // Option: Supprimer automatiquement les liens
+                        foreach (var lien in incident.IncidentTickets.ToList())
+                        {
+                            await _incidentTicketRepository.DeleteAsync(lien);
+                        }
+                    }
+                }
+
+                // Suppression effective
                 await _incidentRepository.DeleteAsync(incident);
                 await _incidentRepository.SaveChangesAsync();
 
                 sw.Stop();
-                _logger.LogInformation("DeleteIncident SUCCESS | Duration: {Ms} ms", sw.ElapsedMilliseconds);
+                _logger.LogInformation("DeleteIncident SUCCESS | Id: {Id} | Rôle: {Role} | Duration: {Ms} ms",
+                    id, isAdmin ? "Admin" : "Commercant", sw.ElapsedMilliseconds);
 
                 return ApiResponse<bool>.Success(true, "Incident supprimé avec succès");
             }
             catch (Exception ex)
             {
                 sw.Stop();
-                _logger.LogError(ex, "DeleteIncident ERROR | Duration: {Ms} ms", sw.ElapsedMilliseconds);
+                _logger.LogError(ex, "DeleteIncident ERROR | Id: {Id} | Duration: {Ms} ms", id, sw.ElapsedMilliseconds);
                 return ApiResponse<bool>.Failure("Erreur interne du serveur");
             }
         }

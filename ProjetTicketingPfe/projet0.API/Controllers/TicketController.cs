@@ -133,7 +133,7 @@ namespace projet0.API.Controllers
         {
             try
             {
-                var result = await _ticketService.GetTicketDetailAsync(id);
+                var result = await _ticketService.GetTicketDetailAsync(id, id);
 
                 if (!result.IsSuccess || result.Data == null)
                     return NotFound(result);
@@ -166,7 +166,8 @@ namespace projet0.API.Controllers
         {
             try
             {
-                var result = await _ticketService.DeleteTicketAsync(id);
+                var userId = GetCurrentUserId();  // ← Récupérer l'utilisateur connecté
+                var result = await _ticketService.DeleteTicketAsync(id, userId);  // ← Passer userId
 
                 if (!result.IsSuccess)
                 {

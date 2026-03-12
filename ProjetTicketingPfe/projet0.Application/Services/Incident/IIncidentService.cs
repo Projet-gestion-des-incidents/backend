@@ -18,7 +18,7 @@ namespace projet0.Application.Services.Incident
         Task<ApiResponse<PagedResult<IncidentDTO>>> SearchIncidentsAsync(IncidentSearchRequest request);
         Task<ApiResponse<IncidentDTO>> CreateIncidentAsync(CreateIncidentDTO dto, Guid createdById);
         Task<ApiResponse<IncidentDTO>> UpdateIncidentAsync(Guid id, UpdateIncidentDTO dto, Guid updatedById);
-        Task<ApiResponse<bool>> DeleteIncidentAsync(Guid id);
+        Task<ApiResponse<bool>> DeleteIncidentAsync(Guid id, Guid userId);
 
         // Méthodes spécifiques
         Task<ApiResponse<List<IncidentDTO>>> GetIncidentsByStatutAsync(StatutIncident statut);

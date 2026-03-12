@@ -214,7 +214,8 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
         {
             try
             {
-                var result = await _incidentService.DeleteIncidentAsync(id);
+                var userId = GetCurrentUserId();  // ← Récupérer l'ID de l'utilisateur connecté
+                var result = await _incidentService.DeleteIncidentAsync(id, userId);  // ← Passer les deux paramètres
 
                 if (!result.IsSuccess)
                     return NotFound(result);
@@ -228,7 +229,6 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
                     "Erreur interne du serveur lors de la suppression de l'incident"));
             }
         }
-
         #endregion
 
         #region Specific Operations
