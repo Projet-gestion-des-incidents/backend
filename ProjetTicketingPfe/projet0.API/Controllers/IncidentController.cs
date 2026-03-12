@@ -106,8 +106,9 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
             }
         }
 
+        // Dans IncidentController.cs - GetDetails
         [HttpGet("{id}/details")]
-        [Authorize(Policy = "IncidentRead")]  
+        [Authorize(Policy = "IncidentRead")]
         public async Task<ActionResult<ApiResponse<IncidentDetailDTO>>> GetDetails(Guid id)
         {
             try
@@ -117,13 +118,22 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
                 if (!result.IsSuccess)
                     return NotFound(result);
 
+                // ✅ Ajouter les URLs des pièces jointes
+                if (result.Data.PiecesJointes != null)
+                {
+                    foreach (var piece in result.Data.PiecesJointes)
+                    {
+                        piece.Url = $"{Request.Scheme}://{Request.Host}/api/pieces-jointes/{piece.Id}";
+                    }
+                }
+
                 return Ok(result);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Erreur lors de la récupération des détails de l'incident {IncidentId}", id);
                 return StatusCode(500, ApiResponse<IncidentDetailDTO>.Failure(
-                    "Erreur interne du serveur lors de la récupération des détails de l'incident"));
+                    "Erreur interne du serveur"));
             }
         }
 

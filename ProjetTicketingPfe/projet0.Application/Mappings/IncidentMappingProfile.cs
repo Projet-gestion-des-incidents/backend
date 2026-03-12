@@ -22,7 +22,9 @@ namespace projet0.Application.Mappings
             CreateMap<Incident, IncidentDetailDTO>()
                 .IncludeBase<Incident, IncidentDTO>()
                 .ForMember(dest => dest.Tickets, opt => opt.Ignore())
-                .ForMember(dest => dest.EntitesImpactees, opt => opt.Ignore());
+                .ForMember(dest => dest.EntitesImpactees, opt => opt.Ignore())
+                .ForMember(dest => dest.TPEs, opt => opt.Ignore())        
+                .ForMember(dest => dest.PiecesJointes, opt => opt.Ignore());
 
             CreateMap<CreateIncidentDTO, Incident>()
                 .ForMember(dest => dest.Id, opt => opt.Ignore())

@@ -100,39 +100,79 @@ namespace projet0.Application.Services.Incident
         //transformer un IncidentEntity en IncidentDetailDTO
         private async Task<IncidentDetailDTO> MapToDetailDto(IncidentEntity incident)
         {
+            // 1. Laisser AutoMapper mapper les propriétés de base (sauf celles ignorées)
             var dto = _mapper.Map<IncidentDetailDTO>(incident);
 
+            // 2. Enrichir avec les libellés
             dto.StatutIncidentLibelle = GetStatutLibelle(incident.StatutIncident);
 
+            // 3. Nom du créateur
             if (incident.CreatedById.HasValue)
             {
                 var user = await _userRepository.GetByIdAsync(incident.CreatedById.Value);
                 dto.CreatedByName = user != null ? $"{user.Nom} {user.Prenom}" : "Utilisateur inconnu";
             }
 
-            // Mapper les tickets
-            if (incident.IncidentTickets != null)
+            // 4. Initialiser les listes pour éviter les nulls
+            dto.Tickets = new List<IncidentTicketDTO>();
+            dto.EntitesImpactees = new List<EntiteImpacteeDTO>();
+            dto.TPEs = new List<IncidentTPEDTO>();
+            dto.PiecesJointes = new List<PieceJointeDTO>();
+
+            // 5. Mapper les tickets (si existants)
+            if (incident.IncidentTickets != null && incident.IncidentTickets.Any())
             {
                 dto.Tickets = incident.IncidentTickets
+                    .Where(it => it.Ticket != null)
                     .Select(it => new IncidentTicketDTO
                     {
                         TicketId = it.TicketId,
-                        ReferenceTicket = it.Ticket?.ReferenceTicket,
-                        TitreTicket = it.Ticket?.TitreTicket,
-                        StatutTicket = it.Ticket?.StatutTicket,
-
+                        ReferenceTicket = it.Ticket.ReferenceTicket,
+                        TitreTicket = it.Ticket.TitreTicket,
+                        StatutTicket = it.Ticket.StatutTicket,
                     })
-                    .ToList() ?? new List<IncidentTicketDTO>();
+                    .ToList();
             }
 
-            // Mapper les entités impactées
-            if (incident.EntitesImpactees != null)
+            // 6. Mapper les entités impactées (via AutoMapper)
+            if (incident.EntitesImpactees != null && incident.EntitesImpactees.Any())
             {
                 dto.EntitesImpactees = _mapper.Map<List<EntiteImpacteeDTO>>(incident.EntitesImpactees);
             }
 
-            dto.NombreTickets = dto.Tickets?.Count ?? 0;
-            dto.NombreEntitesImpactees = dto.EntitesImpactees?.Count ?? 0;
+            // 7. Mapper les TPEs
+            if (incident.IncidentTPEs != null && incident.IncidentTPEs.Any())
+            {
+                dto.TPEs = incident.IncidentTPEs
+                    .Where(it => it.TPE != null)
+                    .Select(it => new IncidentTPEDTO
+                    {
+                        TPEId = it.TPEId,
+                        NumSerie = it.TPE.NumSerie,
+                        NumSerieComplet = it.TPE.NumSerieComplet,
+                        Modele = it.TPE.Modele,
+                        DateAssociation = it.DateAssociation
+                    })
+                    .ToList();
+            }
+
+            // 8. Mapper les pièces jointes
+            if (incident.PiecesJointes != null && incident.PiecesJointes.Any())
+            {
+                dto.PiecesJointes = incident.PiecesJointes
+                    .Select(p => new PieceJointeDTO
+                    {
+                        Id = p.Id,
+                        NomFichier = p.NomFichier,
+                        DateAjout = p.DateAjout,
+                        // Url sera ajoutée dans le contrôleur
+                    })
+                    .ToList();
+            }
+
+            // 9. Compter les relations
+            dto.NombreTickets = dto.Tickets.Count;
+            dto.NombreEntitesImpactees = dto.EntitesImpactees.Count;
 
             return dto;
         }
