@@ -293,6 +293,7 @@ namespace projet0.Application.Services.Ticket
         }
 
         // Méthode de tri améliorée
+
         private IQueryable<TicketEntity> ApplySorting(IQueryable<TicketEntity> query, string sortBy, bool descending)
         {
             if (string.IsNullOrWhiteSpace(sortBy))
@@ -310,7 +311,13 @@ namespace projet0.Application.Services.Ticket
                 ("date", true) => query.OrderByDescending(t => t.DateCreation),
                 ("statut", false) => query.OrderBy(t => t.StatutTicket),
                 ("statut", true) => query.OrderByDescending(t => t.StatutTicket),
-
+                // ✅ AJOUTER "id"
+                ("id", false) => query.OrderBy(t => t.Id),
+                ("id", true) => query.OrderByDescending(t => t.Id),
+                // Valeur par défaut si aucun cas ne correspond
+                _ => descending
+                    ? query.OrderByDescending(t => t.DateCreation)
+                    : query.OrderByDescending(t => t.DateCreation) // Garde le tri par défaut
             };
         }
 

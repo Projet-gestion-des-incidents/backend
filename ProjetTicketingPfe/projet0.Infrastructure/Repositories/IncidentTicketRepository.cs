@@ -38,9 +38,10 @@ namespace projet0.Infrastructure.Repositories
 
         public async Task<List<Incident>> GetIncidentsByTicketIdAsync(Guid ticketId)
         {
-            return await _context.IncidentTickets
-                .Where(it => it.TicketId == ticketId)
-                .Select(it => it.Incident)
+            return await _context.Incidents
+                .Include(i => i.EntitesImpactees)
+                .Include(i => i.IncidentTickets)
+                .Where(i => i.IncidentTickets.Any(it => it.TicketId == ticketId))
                 .ToListAsync();
         }
 

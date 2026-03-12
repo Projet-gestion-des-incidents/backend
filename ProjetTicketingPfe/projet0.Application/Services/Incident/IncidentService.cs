@@ -81,9 +81,7 @@ namespace projet0.Application.Services.Incident
             var dto = _mapper.Map<IncidentDTO>(incident);
 
             dto.StatutIncidentLibelle = GetStatutLibelle(incident.StatutIncident);
-            dto.Emplacement = incident.Emplacement; // Pas besoin si AutoMapper le fait
-
-            // Ajouter le libellé du type de problème
+            dto.Emplacement = incident.Emplacement;
 
             if (incident.CreatedById.HasValue && dto.CreatedByName == null)
             {
@@ -91,8 +89,12 @@ namespace projet0.Application.Services.Incident
                 dto.CreatedByName = user != null ? $"{user.Nom} {user.Prenom}" : "Utilisateur inconnu";
             }
 
+            // ✅ Remplir correctement les compteurs
             dto.NombreEntitesImpactees = incident.EntitesImpactees?.Count ?? 0;
             dto.NombreTickets = incident.IncidentTickets?.Count ?? 0;
+
+            // ✅ Ajouter aussi le type de problème si nécessaire
+            dto.TypeProbleme = incident.TypeProbleme;
 
             return dto;
         }

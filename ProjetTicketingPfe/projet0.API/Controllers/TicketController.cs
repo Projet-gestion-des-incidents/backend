@@ -258,7 +258,6 @@ namespace projet0.API.Controllers
         }
 
         [HttpGet("{ticketId}/incidents")]
-        [Authorize(Policy = "TicketRead")]
         public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetIncidentsByTicket(Guid ticketId)
         {
             try
@@ -267,7 +266,7 @@ namespace projet0.API.Controllers
                 var dtos = new List<IncidentDTO>();
                 foreach (var incident in incidents)
                 {
-                    dtos.Add(await _incidentService.MapToDto(incident));
+                    dtos.Add(await _incidentService.MapToDto(incident));  // ← ICI
                 }
                 return Ok(ApiResponse<List<IncidentDTO>>.Success(dtos));
             }
