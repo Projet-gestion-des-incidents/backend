@@ -510,9 +510,9 @@ namespace projet0.Application.Services.Incident
         }
 
         public async Task<ApiResponse<IncidentDTO>> UpdateIncidentAsync(
-            Guid incidentId,
-            UpdateIncidentDTO dto,
-            Guid userId)
+    Guid incidentId,
+    UpdateIncidentDTO dto,
+    Guid userId)
         {
             try
             {
@@ -525,7 +525,33 @@ namespace projet0.Application.Services.Incident
                 var isAdmin = userRoles.Contains("Admin");
                 var isCommercant = userRoles.Contains("Commercant");
 
-                // Le commerçant peut modifier ces champs
+                // 🔴 RÈGLE : Si c'est un commerçant, vérifier si l'incident est modifiable
+                if (isCommercant && !isAdmin)
+                {
+                    // Vérifier 1 : L'incident a-t-il déjà un statut ? (EnCours ou Fermé)
+                    if (incident.StatutIncident.HasValue)
+                    {
+                        return ApiResponse<IncidentDTO>.Failure(
+                            "Vous ne pouvez pas modifier un incident qui est déjà en cours ou fermé.",
+                            resultCode: 70
+                        );
+                    }
+
+                    // Vérifier 2 : L'incident est-il lié à des tickets ?
+                    var ticketsLies = await _incidentTicketRepository.GetTicketsByIncidentIdAsync(incidentId);
+                    if (ticketsLies != null && ticketsLies.Any())
+                    {
+                        _logger.LogWarning("Commerçant {UserId} a tenté de modifier l'incident {IncidentId} qui est lié à {Count} ticket(s)",
+                            userId, incidentId, ticketsLies.Count());
+
+                        return ApiResponse<IncidentDTO>.Failure(
+                            "Vous ne pouvez pas modifier un incident qui est déjà lié à un ticket.",
+                            resultCode: 71
+                        );
+                    }
+                }
+
+                // ✅ Le commerçant peut modifier ces champs (si les vérifications sont passées)
                 if (isCommercant || isAdmin)
                 {
                     if (!string.IsNullOrWhiteSpace(dto.DescriptionIncident))
@@ -544,9 +570,6 @@ namespace projet0.Application.Services.Incident
                     incident.SeveriteIncident = dto.SeveriteIncident.Value;
                 }
 
-                // Le statut est géré automatiquement (pas modifiable directement)
-                // Il sera mis à jour via la liaison avec les tickets
-
                 incident.UpdatedById = userId;
                 incident.UpdatedAt = DateTime.UtcNow;
 
@@ -561,7 +584,6 @@ namespace projet0.Application.Services.Incident
                 return ApiResponse<IncidentDTO>.Failure("Erreur interne serveur");
             }
         }
-
         /// <summary>
         /// Met à jour le statut d'un incident en fonction de ses tickets
         /// </summary>
