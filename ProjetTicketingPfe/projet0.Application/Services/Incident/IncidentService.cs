@@ -26,6 +26,7 @@ namespace projet0.Application.Services.Incident
         private readonly ITPERepository _tpeRepository;          
         private readonly IPieceJointeService _pieceJointeService;
         private readonly IIncidentTicketRepository _incidentTicketRepository;
+        private readonly ITicketRepository _ticketRepository;
 
         public IncidentService(
             IIncidentRepository incidentRepository,
@@ -34,7 +35,9 @@ namespace projet0.Application.Services.Incident
             ILogger<IncidentService> logger,
             ITPERepository tpeRepository,
             IPieceJointeService pieceJointeService,
-            IMapper mapper, IIncidentTicketRepository incidentTicketRepository)
+            IMapper mapper, 
+            IIncidentTicketRepository incidentTicketRepository,
+            ITicketRepository ticketRepository)
         {
             _incidentRepository = incidentRepository;
             _userRepository = userRepository;
@@ -43,7 +46,8 @@ namespace projet0.Application.Services.Incident
             _tpeRepository = tpeRepository;
             _pieceJointeService = pieceJointeService;
             _mapper = mapper;
-            _incidentTicketRepository = incidentTicketRepository;  
+            _incidentTicketRepository = incidentTicketRepository;
+            _ticketRepository = ticketRepository;
 
         }
 
@@ -562,6 +566,8 @@ namespace projet0.Application.Services.Incident
         /// Met à jour le statut d'un incident en fonction de ses tickets
         /// </summary>
         // Dans IncidentService.cs - Méthode à appeler quand un ticket change de statut
+        // Dans IncidentService.cs - Remplacer MettreAJourStatutIncident
+
         public async Task<ApiResponse<bool>> MettreAJourStatutIncident(Guid incidentId)
         {
             try
@@ -573,25 +579,17 @@ namespace projet0.Application.Services.Incident
                 // Récupérer tous les tickets liés
                 var ticketsLies = await _incidentTicketRepository.GetTicketsByIncidentIdAsync(incidentId);
 
-                // Si l'incident a des tickets
                 if (ticketsLies != null && ticketsLies.Any())
                 {
-                    // Vérifier si au moins un ticket est en cours
+                    // Si l'incident a au moins un ticket en cours, il est en cours
                     var aUnTicketEnCours = ticketsLies.Any(t => t.StatutTicket == StatutTicket.EnCours);
 
-                    if (aUnTicketEnCours)
+                    if (aUnTicketEnCours && incident.StatutIncident != StatutIncident.Ferme)
                     {
                         incident.StatutIncident = StatutIncident.EnCours;
                     }
-
-                    // Vérifier si tous les tickets sont résolus
-                    var tousLesTicketsResolus = ticketsLies.All(t => t.StatutTicket == StatutTicket.Resolu);
-
-                    if (tousLesTicketsResolus)
-                    {
-                        incident.StatutIncident = StatutIncident.Ferme;
-                        incident.DateResolution = DateTime.UtcNow;
-                    }
+                    // Si tous les tickets sont résolus, l'incident peut être fermé
+                    // (mais c'est le technicien qui décide de fermer chaque incident individuellement)
                 }
                 else
                 {
@@ -767,6 +765,83 @@ namespace projet0.Application.Services.Incident
                     return ApiResponse<List<IncidentDTO>>.Failure("Erreur interne du serveur");
                 }
             });
+        }
+
+        // Dans IncidentService.cs
+
+        /// <summary>
+        /// Marque un incident comme résolu (appelé par le technicien)
+        /// </summary>
+        public async Task<ApiResponse<bool>> ResoudreIncident(Guid incidentId, Guid userId)
+        {
+            try
+            {
+                var incident = await _incidentRepository.GetIncidentWithDetailsAsync(incidentId);
+                if (incident == null)
+                    return ApiResponse<bool>.Failure("Incident non trouvé");
+
+                // Vérifier que l'incident est lié à un ticket assigné au technicien
+                var ticketsLies = await _incidentTicketRepository.GetTicketsByIncidentIdAsync(incidentId);
+                var ticketDuTechnicien = ticketsLies.FirstOrDefault(t => t.AssigneeId == userId);
+
+                if (ticketDuTechnicien == null)
+                {
+                    return ApiResponse<bool>.Failure(
+                        "Vous ne pouvez résoudre que les incidents liés à vos tickets assignés.",
+                        resultCode: 60
+                    );
+                }
+
+                // Vérifier que l'incident peut être résolu (statut EnCours)
+                if (incident.StatutIncident != StatutIncident.EnCours)
+                {
+                    return ApiResponse<bool>.Failure(
+                        $"L'incident doit être en cours pour être résolu (statut actuel: {incident.StatutIncident})",
+                        resultCode: 61
+                    );
+                }
+
+                // Marquer comme résolu
+                incident.StatutIncident = StatutIncident.Ferme;
+                incident.DateResolution = DateTime.UtcNow;
+
+                await _incidentRepository.SaveChangesAsync();
+
+                // Vérifier si tous les incidents du ticket sont résolus
+                await VerifierEtCloturerTicket(ticketDuTechnicien.Id);
+
+                _logger.LogInformation("Incident {IncidentId} marqué comme résolu par le technicien {UserId}",
+                    incidentId, userId);
+
+                return ApiResponse<bool>.Success(true, "Incident résolu avec succès");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erreur lors de la résolution de l'incident {IncidentId}", incidentId);
+                return ApiResponse<bool>.Failure("Erreur interne");
+            }
+        }
+
+        /// <summary>
+        /// Vérifie si tous les incidents d'un ticket sont résolus et clôture le ticket si nécessaire
+        /// </summary>
+        private async Task VerifierEtCloturerTicket(Guid ticketId)
+        {
+            var incidents = await _incidentTicketRepository.GetIncidentsByTicketIdAsync(ticketId);
+
+            if (incidents.All(i => i.StatutIncident == StatutIncident.Ferme))
+            {
+                var ticket = await _ticketRepository.GetByIdAsync(ticketId);
+                if (ticket != null)
+                {
+                    ticket.StatutTicket = StatutTicket.Resolu;
+                    ticket.DateCloture = DateTime.UtcNow;
+                    await _ticketRepository.SaveChangesAsync();
+
+                    _logger.LogInformation("Ticket {TicketId} automatiquement clôturé car tous ses incidents sont résolus",
+                        ticketId);
+                }
+            }
         }
 
         #endregion

@@ -261,9 +261,15 @@ namespace projet0.Infrastructure.Repositories
         public void Detach(Ticket entity) => _context.Entry(entity).State = EntityState.Detached;
         public void Attach(Ticket entity) => _context.Tickets.Attach(entity);
         public void SetModified(Ticket entity) => _context.Entry(entity).State = EntityState.Modified;
-        public async Task ReloadAsync(Ticket ticket)
+        public async Task<int> UpdateTicketStatutAsync(Guid ticketId, StatutTicket? nouveauStatut, Guid userId)
         {
-            await _context.Entry(ticket).ReloadAsync();
+            var ticket = await _context.Tickets.FindAsync(ticketId);
+            if (ticket == null) return 0;
+
+            ticket.StatutTicket = nouveauStatut;
+            ticket.UpdatedAt = DateTime.UtcNow;
+
+            return await _context.SaveChangesAsync();
         }
     }
 

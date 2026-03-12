@@ -30,7 +30,6 @@ namespace projet0.Application.Services.Ticket
         Task<ApiResponse<UpdateTicketResponseDTO>> UpdateTicketAsync(Guid id, UpdateTicketDTO dto, Guid userId);
         // Dans ITicketService.cs
         Task<ApiResponse<LiaisonResultDTO>> LierIncidentsAuTicket(Guid ticketId, List<Guid> incidentIds, Guid userId);
-        Task<ApiResponse<TicketDTO>> UpdateTicketStatutAsync(Guid ticketId, StatutTicket nouveauStatut, Guid userId);
         Task<ApiResponse<List<TicketDTO>>> GetTicketsByIncidentIdAsync(Guid incidentId);
 
         // Pour le mapping (utilisé dans les contrôleurs)

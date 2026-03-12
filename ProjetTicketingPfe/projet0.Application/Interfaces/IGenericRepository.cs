@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.EntityFrameworkCore.Storage;
+using System;
 using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Text;
@@ -28,6 +29,7 @@ namespace projet0.Application.Interfaces
         Task DeleteRangeAsync(IEnumerable<T> entities);
         Task<int> SaveChangesAsync();
         Task ReloadAsync(T entity);
+        Task<IDbContextTransaction> BeginTransactionAsync();
 
     }
 }

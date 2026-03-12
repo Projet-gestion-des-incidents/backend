@@ -399,6 +399,25 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
             }
         }
 
+        // Dans IncidentController.cs
+
+        [HttpPut("{incidentId}/resoudre")]
+        [Authorize(Policy = "IncidentUpdate")]
+        public async Task<ActionResult<ApiResponse<bool>>> ResoudreIncident(Guid incidentId)
+        {
+            try
+            {
+                var userId = GetCurrentUserId();
+                var result = await _incidentService.ResoudreIncident(incidentId, userId);
+                return result.IsSuccess ? Ok(result) : BadRequest(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erreur lors de la résolution de l'incident {IncidentId}", incidentId);
+                return StatusCode(500, ApiResponse<bool>.Failure("Erreur interne"));
+            }
+        }
+
         #endregion
 
     }

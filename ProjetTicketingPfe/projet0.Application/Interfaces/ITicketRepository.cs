@@ -30,5 +30,6 @@ namespace projet0.Application.Interfaces
         void Attach(Ticket entity);
         void SetModified(Ticket entity);
         Task ReloadAsync(Ticket ticket);
+        Task<int> UpdateTicketStatutAsync(Guid ticketId, StatutTicket? nouveauStatut, Guid userId);
     }
 }

@@ -278,21 +278,101 @@ namespace projet0.API.Controllers
         }
 
         [HttpPut("{ticketId}/statut")]
-        [Authorize(Policy = "TicketUpdate")]
         public async Task<ActionResult<ApiResponse<TicketDTO>>> UpdateStatut(
-            Guid ticketId,
-            [FromBody] UpdateTicketStatutDTO dto)
+    Guid ticketId,
+    [FromBody] UpdateTicketStatutDTO dto)
         {
             try
             {
                 var userId = GetCurrentUserId();
-                var result = await _ticketService.UpdateTicketStatutAsync(ticketId, dto.StatutTicket, userId);
-                return result.IsSuccess ? Ok(result) : BadRequest(result);
+
+                // Créer un DTO de mise à jour avec seulement le statut
+                var updateDto = new UpdateTicketDTO
+                {
+                    StatutTicket = dto.StatutTicket
+                };
+
+                // Utiliser UpdateTicketAsync qui existe déjà
+                var result = await _ticketService.UpdateTicketAsync(ticketId, updateDto, userId);
+
+                if (!result.IsSuccess)
+                    return BadRequest(result);
+
+                // Retourner un TicketDTO (pas UpdateTicketResponseDTO)
+                var ticketDto = new TicketDTO
+                {
+                    Id = result.Data.Id,
+                    ReferenceTicket = result.Data.ReferenceTicket,
+                    TitreTicket = result.Data.TitreTicket,
+                    DescriptionTicket = result.Data.DescriptionTicket,
+                    StatutTicket = result.Data.StatutTicket,
+                    StatutTicketLibelle = result.Data.StatutTicketLibelle,
+                    DateCreation = result.Data.DateCreation,
+                    DateLimite = result.Data.DateLimite,
+                    DateCloture = result.Data.DateCloture,
+                    CreateurId = result.Data.CreateurId,
+                    CreateurNom = result.Data.CreateurNom,
+                    AssigneeId = result.Data.AssigneeId,
+                    AssigneeNom = result.Data.AssigneeNom,
+                    NombreCommentaires = result.Data.NombreCommentaires,
+                    NombrePiecesJointes = result.Data.NombrePiecesJointes
+                };
+
+                return Ok(ApiResponse<TicketDTO>.Success(ticketDto, result.Message));
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Erreur lors de la mise à jour du statut du ticket");
                 return StatusCode(500, ApiResponse<TicketDTO>.Failure("Erreur interne"));
+            }
+        }
+
+        // Dans TicketController.cs - AJOUTER CETTE MÉTHODE
+
+        [HttpGet("mes-tickets")]
+        [Authorize(Policy = "TicketRead")]
+        public async Task<ActionResult<ApiResponse<List<TicketDTO>>>> GetMesTicketsAssignes()
+        {
+            try
+            {
+                var userId = GetCurrentUserId();
+
+                // Créer une requête filtrée par l'ID du technicien connecté
+                var request = new TicketPagedRequest
+                {
+                    Page = 1,
+                    PageSize = 100,
+                    SortBy = "DateCreation",
+                    SortDescending = true
+                };
+
+                var result = await _ticketService.GetTicketsPagedAsync(request);
+
+                // Filtrer manuellement pour ne garder que les tickets assignés à l'utilisateur
+                if (result.IsSuccess && result.Data != null)
+                {
+                    var ticketsAssignes = result.Data.Items
+                        .Where(t => t.AssigneeId == userId)
+                        .ToList();
+
+                    var pagedResult = new PagedResult<TicketDTO>
+                    {
+                        Items = ticketsAssignes,
+                        TotalCount = ticketsAssignes.Count,
+                        Page = 1,
+                        PageSize = ticketsAssignes.Count
+                    };
+
+                    return Ok(ApiResponse<PagedResult<TicketDTO>>.Success(pagedResult));
+                }
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erreur lors de la récupération des tickets assignés");
+                return StatusCode(500, ApiResponse<PagedResult<TicketDTO>>.Failure(
+                    "Erreur interne du serveur"));
             }
         }
 

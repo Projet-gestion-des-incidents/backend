@@ -29,5 +29,7 @@ namespace projet0.Application.Services.Incident
 
         // Pour le mapping (utilisé dans les contrôleurs)
         Task<IncidentDTO> MapToDto(IncidentEntity incident);
+        // Dans IIncidentService.cs
+        Task<ApiResponse<bool>> ResoudreIncident(Guid incidentId, Guid userId);
     }
 }

@@ -1,10 +1,11 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
+using projet0.Application.Interfaces;
 using projet0.Infrastructure.Data;
 using System;
 using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Text;
-using projet0.Application.Interfaces;
 
 namespace projet0.Infrastructure.Repositories
 {
@@ -117,6 +118,10 @@ namespace projet0.Infrastructure.Repositories
         public async Task ReloadAsync(T entity)
         {
             await _context.Entry(entity).ReloadAsync();
+        }
+        public async Task<IDbContextTransaction> BeginTransactionAsync()
+        {
+            return await _context.Database.BeginTransactionAsync();
         }
     }
 }
