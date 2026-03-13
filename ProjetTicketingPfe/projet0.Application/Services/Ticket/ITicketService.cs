@@ -34,5 +34,7 @@ namespace projet0.Application.Services.Ticket
 
         // Pour le mapping (utilisé dans les contrôleurs)
         Task<TicketDTO> MapToDto(TicketEntity ticket);
+        //Task<ApiResponse<UpdateTicketResponseDTO>> AdminUpdateTicketAsync(Guid id, AdminUpdateTicketDTO dto, Guid adminId);
+        Task<ApiResponse<UpdateTicketResponseDTO>> TechnicianUpdateTicketAsync(Guid id, TechnicianUpdateTicketDTO dto, Guid technicienId);
     }
 }

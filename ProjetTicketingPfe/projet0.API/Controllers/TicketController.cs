@@ -376,6 +376,32 @@ namespace projet0.API.Controllers
             }
         }
 
+        // Dans les méthodes AdminUpdateTicket et TechnicianUpdateTicket
+        //[HttpPut("{id}/admin-update")]
+        //[Authorize(Roles = "Admin")]
+        //public async Task<IActionResult> AdminUpdateTicket(Guid id, [FromBody] AdminUpdateTicketDTO dto)
+        //{
+        //    var userId = GetCurrentUserId();
+        //    var result = await _ticketService.AdminUpdateTicketAsync(id, dto, userId);
+
+        //    if (!result.IsSuccess)  // ← CHANGER Success en IsSuccess
+        //        return BadRequest(result);
+
+        //    return Ok(result);
+        //}
+
+        [HttpPut("{id}/technician-update")]
+        [Authorize(Roles = "Technicien")]
+        public async Task<IActionResult> TechnicianUpdateTicket(Guid id, [FromBody] TechnicianUpdateTicketDTO dto)
+        {
+            var userId = GetCurrentUserId();
+            var result = await _ticketService.TechnicianUpdateTicketAsync(id, dto, userId);
+
+            if (!result.IsSuccess)  // ← CHANGER Success en IsSuccess
+                return BadRequest(result);
+
+            return Ok(result);
+        }
         #endregion
     }
 }

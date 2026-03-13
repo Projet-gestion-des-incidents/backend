@@ -260,7 +260,22 @@ namespace projet0.Infrastructure.Repositories
         }
         public void Detach(Ticket entity) => _context.Entry(entity).State = EntityState.Detached;
         public void Attach(Ticket entity) => _context.Tickets.Attach(entity);
-        public void SetModified(Ticket entity) => _context.Entry(entity).State = EntityState.Modified;
+        // Dans TicketRepository.cs
+        public void SetModified(Ticket entity)
+        {
+            // Vérifier si l'entité est déjà trackée
+            var local = _context.Tickets.Local.FirstOrDefault(e => e.Id == entity.Id);
+
+            if (local != null)
+            {
+                // Si elle est déjà trackée, la détacher
+                _context.Entry(local).State = EntityState.Detached;
+            }
+
+            // Attacher et marquer comme modifiée
+            _context.Tickets.Attach(entity);
+            _context.Entry(entity).State = EntityState.Modified;
+        }
         public async Task<int> UpdateTicketStatutAsync(Guid ticketId, StatutTicket? nouveauStatut, Guid userId)
         {
             var ticket = await _context.Tickets.FindAsync(ticketId);
@@ -270,6 +285,15 @@ namespace projet0.Infrastructure.Repositories
             ticket.UpdatedAt = DateTime.UtcNow;
 
             return await _context.SaveChangesAsync();
+        }
+        public DbContext GetDbContext()
+        {
+            return _context; // où _context est votre DbContext
+        }
+
+        public async Task<bool> ExistsAsync(Guid id)
+        {
+            return await _context.Set<Ticket>().AnyAsync(t => t.Id == id);
         }
     }
 
