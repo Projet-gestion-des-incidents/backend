@@ -13,5 +13,7 @@ namespace projet0.Application.Interfaces
         Task<List<Incident>> GetIncidentsByTicketIdAsync(Guid ticketId);
         Task<List<Ticket>> GetTicketsByIncidentIdAsync(Guid incidentId);
         Task<bool> ExistsAsync(Guid ticketId, Guid incidentId);
+        // Dans IIncidentTicketRepository.cs
+        Task<bool> DeleteLiaisonAsync(Guid ticketId, Guid incidentId);
     }
 }

@@ -58,5 +58,19 @@ namespace projet0.Infrastructure.Repositories
             return await _context.IncidentTickets
                 .AnyAsync(it => it.TicketId == ticketId && it.IncidentId == incidentId);
         }
+        // Dans IncidentTicketRepository.cs
+        public async Task<bool> DeleteLiaisonAsync(Guid ticketId, Guid incidentId)
+        {
+            var liaison = await _context.IncidentTickets
+                .FirstOrDefaultAsync(it => it.TicketId == ticketId && it.IncidentId == incidentId);
+
+            if (liaison == null)
+                return false;
+
+            _context.IncidentTickets.Remove(liaison);
+            await _context.SaveChangesAsync();
+
+            return true;
+        }
     }
 }

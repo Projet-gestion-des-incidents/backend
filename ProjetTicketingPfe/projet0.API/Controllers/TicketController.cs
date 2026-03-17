@@ -402,6 +402,27 @@ namespace projet0.API.Controllers
 
             return Ok(result);
         }
+        // Dans TicketController.cs
+
+        [HttpDelete("{ticketId}/incidents/{incidentId}")]
+        [Authorize(Policy = "AdminOnly")] // Ou la politique que vous voulez
+        public async Task<ActionResult<ApiResponse<bool>>> DelierIncident(
+            Guid ticketId,
+            Guid incidentId)
+        {
+            try
+            {
+                var userId = GetCurrentUserId();
+                var result = await _ticketService.DelierIncidentDuTicket(ticketId, incidentId, userId);
+
+                return result.IsSuccess ? Ok(result) : BadRequest(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erreur lors de la suppression de la liaison");
+                return StatusCode(500, ApiResponse<bool>.Failure("Erreur interne"));
+            }
+        }
         #endregion
     }
 }

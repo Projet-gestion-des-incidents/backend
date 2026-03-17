@@ -36,5 +36,10 @@ namespace projet0.Application.Services.Ticket
         Task<TicketDTO> MapToDto(TicketEntity ticket);
         //Task<ApiResponse<UpdateTicketResponseDTO>> AdminUpdateTicketAsync(Guid id, AdminUpdateTicketDTO dto, Guid adminId);
         Task<ApiResponse<UpdateTicketResponseDTO>> TechnicianUpdateTicketAsync(Guid id, TechnicianUpdateTicketDTO dto, Guid technicienId);
+        // Dans ITicketService.cs
+        Task<ApiResponse<bool>> DelierIncidentDuTicket(Guid ticketId, Guid incidentId, Guid userId);
+
+        // Dans TicketService.cs
+        
     }
 }

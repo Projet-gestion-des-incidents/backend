@@ -1624,6 +1624,57 @@ namespace projet0.Application.Services.Ticket
             var entry = _ticketRepository.GetDbContext().Entry(ticket);
             await entry.ReloadAsync();
         }
+        public async Task<ApiResponse<bool>> DelierIncidentDuTicket(Guid ticketId, Guid incidentId, Guid userId)
+        {
+            return await MeasureAsync(nameof(DelierIncidentDuTicket), new { ticketId, incidentId }, async () =>
+            {
+                try
+                {
+                    // Vérifier que le ticket existe
+                    var ticket = await _ticketRepository.GetTicketWithDetailsAsync(ticketId);
+                    if (ticket == null)
+                        return ApiResponse<bool>.Failure($"Ticket {ticketId} non trouvé");
+
+                    // 🔴 RÈGLE : Ne peut supprimer la liaison que si le ticket n'a PAS de statut (null)
+                    if (ticket.StatutTicket.HasValue)
+                    {
+                        _logger.LogWarning("Tentative de suppression liaison pour ticket avec statut {Statut} | TicketId: {TicketId}",
+                            ticket.StatutTicket, ticketId);
+
+                        return ApiResponse<bool>.Failure(
+                            "Impossible de supprimer la liaison : le ticket a déjà un statut (assigné, en cours ou résolu).",
+                            resultCode: 90
+                        );
+                    }
+
+                    // Vérifier que l'incident existe
+                    var incident = await _incidentRepository.GetByIdAsync(incidentId);
+                    if (incident == null)
+                        return ApiResponse<bool>.Failure($"Incident {incidentId} non trouvé");
+
+                    // Vérifier que la liaison existe
+                    var existe = await _incidentTicketRepository.ExistsAsync(ticketId, incidentId);
+                    if (!existe)
+                        return ApiResponse<bool>.Failure("Cette liaison n'existe pas");
+
+                    // Supprimer la liaison
+                    var supprime = await _incidentTicketRepository.DeleteLiaisonAsync(ticketId, incidentId);
+
+                    if (!supprime)
+                        return ApiResponse<bool>.Failure("Erreur lors de la suppression");
+
+                    _logger.LogInformation("Liaison supprimée entre ticket {TicketId} et incident {IncidentId} par {UserId}",
+                        ticketId, incidentId, userId);
+
+                    return ApiResponse<bool>.Success(true, "Liaison supprimée avec succès");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Erreur lors de la suppression de la liaison");
+                    return ApiResponse<bool>.Failure("Erreur interne du serveur");
+                }
+            });
+        }
         #endregion
     }
 }
