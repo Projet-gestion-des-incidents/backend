@@ -1018,6 +1018,10 @@ namespace projet0.Application.Services.Incident
                 }
             });
         }
+        public async Task<IList<string>> GetUserRolesAsync(Guid userId)
+        {
+            return await _userRepository.GetUserRolesAsync(userId);
+        }
 
         #endregion
     }

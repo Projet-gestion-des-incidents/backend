@@ -207,26 +207,63 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
                     "Erreur interne du serveur lors de la mise à jour de l'incident"));
             }
         }
-
         [HttpDelete("{id}")]
         [Authorize(Policy = "IncidentDelete")]
         public async Task<ActionResult<ApiResponse<bool>>> Delete(Guid id)
         {
             try
             {
-                var userId = GetCurrentUserId();  // ← Récupérer l'ID de l'utilisateur connecté
-                var result = await _incidentService.DeleteIncidentAsync(id, userId);  // ← Passer les deux paramètres
+                var userId = GetCurrentUserId();
+                var userRoles = await _incidentService.GetUserRolesAsync(userId);
+                var isAdmin = userRoles.Contains("Admin");
+                var isCommercant = userRoles.Contains("Commercant");
+
+                var incident = await _incidentService.GetIncidentByIdAsync(id);
+                if (!incident.IsSuccess || incident.Data == null)
+                    return NotFound(ApiResponse<bool>.Failure("Incident non trouvé"));
+
+                // 🔴 RÈGLES DE SUPPRESSION
+                if (isAdmin)
+                {
+                    // Admin peut supprimer n'importe quel incident
+                }
+                else if (isCommercant)
+                {
+                    // Vérifier que c'est son incident
+                    if (incident.Data.CreatedById != userId)
+                    {
+                        return BadRequest(ApiResponse<bool>.Failure(
+                            "Vous ne pouvez supprimer que vos propres incidents.",
+                            resultCode: 95
+                        ));
+                    }
+
+                    // ✅ SOLUTION RAPIDE : Vérifier si le statut est différent de 0 (Non traité)
+                    // Dans votre enum, "Non traité" correspond à 0
+                    if ((int)incident.Data.StatutIncident != 0)
+                    {
+                        return BadRequest(ApiResponse<bool>.Failure(
+                            "Vous ne pouvez supprimer qu'un incident sans statut.",
+                            resultCode: 96
+                        ));
+                    }
+                }
+                else
+                {
+                    return Forbid();
+                }
+
+                var result = await _incidentService.DeleteIncidentAsync(id, userId);
 
                 if (!result.IsSuccess)
-                    return NotFound(result);
+                    return BadRequest(result);
 
                 return Ok(result);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Erreur lors de la suppression de l'incident {IncidentId}", id);
-                return StatusCode(500, ApiResponse<bool>.Failure(
-                    "Erreur interne du serveur lors de la suppression de l'incident"));
+                return StatusCode(500, ApiResponse<bool>.Failure("Erreur interne"));
             }
         }
         #endregion

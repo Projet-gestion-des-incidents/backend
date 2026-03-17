@@ -9,6 +9,7 @@ using projet0.Application.Commun.Ressources.Pagination;
 using projet0.Application.Interfaces;
 using projet0.Application.Services.Incident;
 using projet0.Application.Services.Ticket;
+using projet0.Application.Services.User;
 using projet0.Domain.Enums;
 using System.Security.Claims;
 
@@ -23,17 +24,22 @@ namespace projet0.API.Controllers
         private readonly ILogger<TicketController> _logger;
         private readonly IIncidentTicketRepository _incidentTicketRepository;
         private readonly IIncidentService _incidentService;
+        private readonly IUserService _userService; 
+
 
         public TicketController(
             ITicketService ticketService,
             ILogger<TicketController> logger, 
             IIncidentTicketRepository incidentTicketRepository, 
-            IIncidentService incidentService)
+            IIncidentService incidentService,
+            IUserService userService)
         {
             _ticketService = ticketService;
             _logger = logger;
             _incidentTicketRepository = incidentTicketRepository; 
             _incidentService = incidentService;
+            _userService = userService;
+
         }
 
         private Guid GetCurrentUserId()
@@ -166,24 +172,66 @@ namespace projet0.API.Controllers
         {
             try
             {
-                var userId = GetCurrentUserId();  // ← Récupérer l'utilisateur connecté
-                var result = await _ticketService.DeleteTicketAsync(id, userId);  // ← Passer userId
+                var userId = GetCurrentUserId();
+                var userRoles = await _userService.GetUserRolesAsync(userId);  // ✅ Maintenant ça marche
+                var isAdmin = userRoles.Contains("Admin");
+                var isTechnicien = userRoles.Contains("Technicien");
 
-                if (!result.IsSuccess)
+                var result = await _ticketService.GetTicketByIdAsync(id);
+                if (!result.IsSuccess || result.Data == null)
+                    return NotFound(ApiResponse<bool>.Failure("Ticket non trouvé"));
+
+                var ticket = result.Data;
+
+                // 🔴 RÈGLES DE SUPPRESSION
+                if (isAdmin)
                 {
-                    if (result.Message?.Contains("non trouvé") == true)
-                        return NotFound(result);
+                    // Admin : peut supprimer si statut = null, Assigné, ou Résolu
+                    if (ticket.StatutTicket == StatutTicket.EnCours)
+                    {
+                        return BadRequest(ApiResponse<bool>.Failure(
+                            "Impossible de supprimer un ticket en cours.",
+                            resultCode: 92
+                        ));
+                    }
+                }
+                else if (isTechnicien)
+                {
+                    // Technicien : ne peut supprimer que ses propres tickets avec statut null
+                    if (ticket.AssigneeId != userId)
+                    {
+                        return BadRequest(ApiResponse<bool>.Failure(
+                            "Vous ne pouvez supprimer que vos propres tickets.",
+                            resultCode: 93
+                        ));
+                    }
 
-                    return BadRequest(result);
+                    // ✅ CORRECTION : utiliser != null au lieu de HasValue
+                    if (ticket.StatutTicket != null)
+                    {
+                        return BadRequest(ApiResponse<bool>.Failure(
+                            "Un technicien ne peut supprimer qu'un ticket sans statut.",
+                            resultCode: 94
+                        ));
+                    }
+                }
+                else
+                {
+                    return Forbid();
                 }
 
-                return Ok(result);
+                // Procéder à la suppression
+                var deleteResult = await _ticketService.DeleteTicketAsync(id, userId);
+
+                if (!deleteResult.IsSuccess)
+                    return BadRequest(deleteResult);
+
+                return Ok(deleteResult);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Erreur lors de la suppression du ticket {Id}", id);
-                return StatusCode(500, ApiResponse<bool>.Failure(
-                    "Erreur interne du serveur lors de la suppression du ticket"));
+                return StatusCode(500, ApiResponse<bool>.Failure("Erreur interne"));
             }
         }
 
