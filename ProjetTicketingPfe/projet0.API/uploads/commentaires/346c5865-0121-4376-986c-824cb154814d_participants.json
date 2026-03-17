@@ -1,0 +1,40 @@
+
+
+
+
+
+
+
+db.participants.insertMany([
+  {
+    _id: 1,
+    nom: "Syrine Chebbi",
+    age: 21,
+    contact: {
+      email: "syrine.c@gmail.com",
+      telephone: "+216 55667788"
+    },
+    inscription: {
+      type: "Formation",
+      preferences: {
+        emplacement: "Classe I5",
+        groupe: { numero: 6, nom: "ISET RADES" }
+      }
+    }
+  },
+  {
+    _id: 2,
+    nom: "Aziz Benslema",
+    age: 22,
+    profession: "Artiste",
+    inscription: { type: "Formateur" }
+  },
+  {
+    _id: 3,
+    nom: "Latifa Gatri",
+    age: 45,
+    profession: "Professeur"
+  }
+])
+
+

@@ -163,8 +163,8 @@ namespace projet0.API.Controllers
                                 Fichier = fichier
                             };
 
-                            var pieceJointe = await _pieceJointeService.SauvegarderFichierAsync(
-                                pieceDto, commentaire.Id, userId);
+                            var pieceJointe = await _pieceJointeService.SauvegarderFichierPourCommentaireAsync(
+    pieceDto, commentaire.Id, userId);
 
                             _logger.LogInformation("Fichier sauvegardé avec ID: {PieceJointeId}", pieceJointe.Id);
                         }

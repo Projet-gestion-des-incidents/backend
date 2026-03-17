@@ -1,0 +1,84 @@
+[
+  {
+    "nom": "Organisation IEEE ISET RADES",
+    "adresse": {
+      "rue": "Rue de France",
+      "ville": "Ben Arous",
+      "pays": "Tunisie"
+    },
+    "contact": {
+      "email": "ieee@gmail.com",
+      "telephone": "+216 11223344"
+    },
+    "equipe": [
+      {
+        "nom": "Yasmine Berrahal",
+        "poste": "Responsable RH",
+        "experience": {
+          "annees": 3,
+          "domaines": ["Logistique", "WEE"]
+        }
+      },
+      {
+        "nom": "Chadha Anane",
+        "poste": "Responsable Marketing"
+      }
+    ]
+  },
+  {
+    "nom": "RoboTek",
+    "adresse": {
+      "ville": "Tunis",
+      "pays": "Tunisie"
+    },
+    "contact": {
+      "email": "robotek@gmail.com"
+    }
+  },
+  {
+    "nom": "Enactus",
+    "secteur": "Environnemental"
+  }
+]
+[
+  {
+    "nom": "Organisation IEEE ISET RADES",
+    "adresse": {
+      "rue": "Rue de France",
+      "ville": "Ben Arous",
+      "pays": "Tunisie"
+    },
+    "contact": {
+      "email": "ieee@gmail.com",
+      "telephone": "+216 11223344"
+    },
+    "equipe": [
+      {
+        "nom": "Yasmine Berrahal",
+        "poste": "Responsable RH",
+        "experience": {
+          "annees": 3,
+          "domaines": ["Logistique", "WEE"]
+        }
+      },
+      {
+        "nom": "Chadha Anane",
+        "poste": "Responsable Marketing"
+      }
+    ]
+  },
+  {
+    "nom": "RoboTek",
+    "adresse": {
+      "ville": "Tunis",
+      "pays": "Tunisie"
+    },
+    "contact": {
+      "email": "robotek@gmail.com"
+    }
+  },
+  {
+    "nom": "Enactus",
+    "secteur": "Environnemental"
+  }
+]

@@ -56,5 +56,13 @@ namespace projet0.Infrastructure.Repositories
                 .AsNoTracking()  // Performance: pas de tracking
                 .FirstOrDefaultAsync(p => p.Id == id);
         }
+
+        public async Task<List<PieceJointe>> GetByIncidentIdAsync(Guid incidentId)
+        {
+            return await _context.PiecesJointes
+                .Where(p => p.IncidentId == incidentId)
+                .OrderByDescending(p => p.DateAjout)
+                .ToListAsync();
+        }
     }
 }

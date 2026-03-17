@@ -1,0 +1,77 @@
+Magasin> db.etudiants.aggregate([{$group : {_id : "$notes.matiere", moyenne : {$avg : "$notes.examen"}}}])
+[
+  { _id: [ 'Math', 'Informatique', 'Physique' ], moyenne: null },
+  { _id: null, moyenne: null }
+]
+
+Magasin> db.etudiants.aggregate([{$unwind : "$notes"},{$group : {_id : "$notes.matiere", moyenne : {$avg : "$notes.examen"}}}])
+[
+  { _id: 'Informatique', moyenne: 16.666666666666668 },
+  { _id: 'Math', moyenne: 12.666666666666666 },
+  { _id: 'Physique', moyenne: 11.333333333333334 }
+]
+
+Magasin> db.etudiants.aggregate([{$unwind : "$notes"},{$group : {_id : "$notes.matiere", moyenne : {$avg : "$notes.examen"}}}, {$project : {Matiere : "$_id.notes.matiere", "moyenne.examen" : "$moyenne"} }])
+[
+  { _id: 'Informatique', moyenne: { examen: 16.666666666666668 } },
+  { _id: 'Math', moyenne: { examen: 12.666666666666666 } },
+  { _id: 'Physique', moyenne: { examen: 11.333333333333334 } }
+]
+
+Magasin> db.etudiants.aggregate([{$unwind : "$notes"},{$group : {_id : "$notes.matiere", moyenne : {$avg : "$notes.examen"}}}, {$project : {_id : 0, Matiere : "$_id.notes.matiere", "moyenne.examen" : "$moyenne"}}])
+[
+  { moyenne: { examen: 16.666666666666668 } },
+  { moyenne: { examen: 12.666666666666666 } },
+  { moyenne: { examen: 11.333333333333334 } }
+]
+
+Magasin> db.etudiants.aggregate([{$unwind : "$notes"},{$group : {_id : "$notes.matiere", moyenne : {$avg : "$notes.examen"}}}, {$project : {_id : 0, Matiere : "$_id", "moyenne.examen" : "$moyenne"}}])
+[
+  { moyenne: { examen: 16.666666666666668 }, Matiere: 'Informatique' },
+  { moyenne: { examen: 12.666666666666666 }, Matiere: 'Math' },
+  { moyenne: { examen: 11.333333333333334 }, Matiere: 'Physique' }
+]
+
+Magasin> db.etudiants.aggregate([{$unwind : "$notes"},{$group : {_id : "$notes.matiere", moyenne : {$avg : "$notes.examen"}}}, {$project : {Matiere : "$_id", "moyenne.examen" : "$moyenne"}}])
+[
+  {
+    _id: 'Informatique',
+    moyenne: { examen: 16.666666666666668 },
+    Matiere: 'Informatique'
+  },
+  {
+    _id: 'Math',
+    moyenne: { examen: 12.666666666666666 },
+    Matiere: 'Math'
+  },
+  {
+    _id: 'Physique',
+    moyenne: { examen: 11.333333333333334 },
+    Matiere: 'Physique'
+  }
+]
+
+Magasin> db.etudiants.aggregate([v,{$group: {_id: { nom: "$nom", prenom: "$prenom" },moyenne: {$avg: {$avg: ["$notes.dc", "$notes.examen"]}}}}])
+[
+  {
+    _id: { nom: 'Ali', prenom: 'Trabelsi' },
+    moyenne: 13.833333333333334
+  },
+  {
+    _id: { nom: 'Mouna', prenom: 'Ben Salah' },
+    moyenne: 14.666666666666666
+  },
+  { _id: { nom: 'Sara', prenom: 'Mejri' }, moyenne: 11.5 }
+]
+
+Magasin> db.etudiants.aggregate([{ $unwind: "$notes" },{$group: {_id: { nom: "$nom", prenom: "$prenom" },moyenne:{ $avg:"$notes.examen" }}},{$project:{__id:0,identite:{ $concat:["$_id.nom", " ", "$_id.prenom"] },moyenne: 1}}])
+[
+  { moyenne: 14.333333333333334, identite: 'Ali Trabelsi' },
+  { moyenne: 14.333333333333334, identite: 'Mouna Ben Salah' },
+  { moyenne: 12, identite: 'Sara Mejri' }
+]
+
+Magasin> db.etudiants.aggregate([{ $unwind: "$notes" },{$match : {"adresse.ville" : "Tunis"}},{$group: {_id: { nom: "$nom", prenom: "$prenom" },moyenne:{ $avg:"$notes.examen" }}},{$project:{_id:0,identite:{ $concat:["$_id.nom", " ", "$_id.prenom"] },moyenne: 1}}])
+[ { moyenne: 14.333333333333334, identite: 'Mouna Ben Salah' } ]
+
+db.etudiants.aggregate([{ $unwind: "$notes" },{$match : {"adresse.ville" : {$exists : true }}},{$group: {_id: { nom: "$nom", prenom: "$prenom" },moyenne:{ $avg:"$notes.examen" }}},{$project:{_id:0,identite:{ $concat:["$_id.nom", " ", "$_id.prenom"] },moyenne: 1}}])

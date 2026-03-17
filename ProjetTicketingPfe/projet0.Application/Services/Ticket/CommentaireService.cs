@@ -97,11 +97,12 @@ namespace projet0.Application.Services.Ticket
                     {
                         var pieceDto = new CreatePieceJointeDTO
                         {
-                            NomFichier = fichier.FileName,                                  
+                            NomFichier = fichier.FileName,
                             Fichier = fichier
                         };
 
-                        var pieceJointe = await _pieceJointeService.SauvegarderFichierAsync(
+                        // ✅ Utiliser la méthode pour commentaires
+                        var pieceJointe = await _pieceJointeService.SauvegarderFichierPourCommentaireAsync(
                             pieceDto, commentaire.Id, userId);
 
                         piecesAjoutees.Add(pieceJointe.Id);

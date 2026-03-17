@@ -26,5 +26,6 @@ namespace projet0.Application.Interfaces
         /// Récupère les métadonnées d'une pièce jointe (sans le fichier)
         /// </summary>
         Task<PieceJointe> GetMetadataAsync(Guid id);
+        Task<List<PieceJointe>> GetByIncidentIdAsync(Guid incidentId);
     }
 }

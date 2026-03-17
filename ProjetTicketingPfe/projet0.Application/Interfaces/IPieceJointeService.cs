@@ -10,6 +10,12 @@ namespace projet0.Application.Interfaces
         /// </summary>
         Task<PieceJointe> SauvegarderFichierAsync(
             CreatePieceJointeDTO dto,
+            Guid incidentId,
+            Guid uploadedById);
+
+        // Pour les commentaires (NOUVEAU)
+        Task<PieceJointe> SauvegarderFichierPourCommentaireAsync(
+            CreatePieceJointeDTO dto,
             Guid commentaireId,
             Guid uploadedById);
 
@@ -28,5 +34,15 @@ namespace projet0.Application.Interfaces
         /// </summary>
         Task<List<PieceJointeDTO>> GetPiecesJointesByCommentaireAsync(Guid commentaireId);
         Task<bool> SupprimerPiecesJointesAsync(List<Guid> pieceJointeIds);
+        Task<PieceJointe> SauvegarderFichierPourIncidentAsync(
+      CreatePieceJointeDTO dto,
+      Guid incidentId,
+      Guid uploadedById);
+
+        Task<List<PieceJointeDTO>> GetPiecesJointesByIncidentIdAsync(Guid incidentId);
+
+        Task<bool> SupprimerPiecesJointesIncidentAsync(List<Guid> pieceJointeIds);
+        // Dans IPieceJointeService.cs
+        Task<PieceJointe> GetMetadataAsync(Guid pieceJointeId);
     }
 }

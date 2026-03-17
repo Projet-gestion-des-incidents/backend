@@ -133,12 +133,7 @@ namespace projet0.Application.Services
         /// Génère l'URL pour une pièce jointe
         /// </summary>
  
-        private string GetUrlForPiece(PieceJointe piece)
-        {
-            var request = _httpContextAccessor.HttpContext.Request;
-            var baseUrl = $"{request.Scheme}://{request.Host}";
-            return $"{baseUrl}/uploads/pieces-jointes/{piece.NomFichier}";
-        }
+        
 
         public async Task<bool> SupprimerPiecesJointesAsync(List<Guid> pieceJointeIds)
         {
@@ -176,6 +171,139 @@ namespace projet0.Application.Services
             var request = _httpContextAccessor.HttpContext.Request;
             var baseUrl = $"{request.Scheme}://{request.Host}";
             return $"{baseUrl}/uploads/pieces-jointes/{pieceJointe.NomFichier}";
+        }
+
+        public async Task<PieceJointe> SauvegarderFichierPourCommentaireAsync(
+    CreatePieceJointeDTO dto,
+    Guid commentaireId,
+    Guid uploadedById)
+        {
+            if (dto.Fichier == null || dto.Fichier.Length == 0)
+                throw new ArgumentException("Aucun fichier fourni");
+
+            var uploadsFolder = Path.Combine(_environment.ContentRootPath, "uploads", "commentaires");
+            if (!Directory.Exists(uploadsFolder))
+                Directory.CreateDirectory(uploadsFolder);
+
+            var uniqueFileName = $"{Guid.NewGuid()}_{dto.Fichier.FileName}";
+            var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+            using (var fileStream = new FileStream(filePath, FileMode.Create))
+            {
+                await dto.Fichier.CopyToAsync(fileStream);
+            }
+
+            var pieceJointe = new PieceJointe
+            {
+                Id = Guid.NewGuid(),
+                NomFichier = dto.Fichier.FileName,
+                DateAjout = DateTime.UtcNow,
+                CommentaireId = commentaireId,  // ← ICI c'est CommentaireId
+                UploadedById = uploadedById
+            };
+
+            await _pieceJointeRepository.AddAsync(pieceJointe);
+            await _pieceJointeRepository.SaveChangesAsync();
+
+            return pieceJointe;
+        }
+        // Dans PieceJointeService.cs
+
+        /// <summary>
+        /// Sauvegarde un fichier pour un incident
+        /// </summary>
+        public async Task<PieceJointe> SauvegarderFichierPourIncidentAsync(
+            CreatePieceJointeDTO dto,
+            Guid incidentId,
+            Guid uploadedById)
+        {
+            if (dto.Fichier == null || dto.Fichier.Length == 0)
+                throw new ArgumentException("Aucun fichier fourni");
+
+            var uploadsFolder = Path.Combine(_environment.ContentRootPath, "uploads", "incidents");
+            if (!Directory.Exists(uploadsFolder))
+                Directory.CreateDirectory(uploadsFolder);
+
+            var uniqueFileName = $"{Guid.NewGuid()}_{dto.Fichier.FileName}";
+            var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+            using (var fileStream = new FileStream(filePath, FileMode.Create))
+            {
+                await dto.Fichier.CopyToAsync(fileStream);
+            }
+
+            var pieceJointe = new PieceJointe
+            {
+                Id = Guid.NewGuid(),
+                NomFichier = dto.Fichier.FileName,
+                DateAjout = DateTime.UtcNow,
+                IncidentId = incidentId,
+                UploadedById = uploadedById
+            };
+
+            await _pieceJointeRepository.AddAsync(pieceJointe);
+            await _pieceJointeRepository.SaveChangesAsync();
+
+            return pieceJointe;
+        }
+
+        /// <summary>
+        /// Récupère toutes les pièces jointes d'un incident
+        /// </summary>
+        public async Task<List<PieceJointeDTO>> GetPiecesJointesByIncidentIdAsync(Guid incidentId)
+        {
+            var pieces = await _pieceJointeRepository.GetByIncidentIdAsync(incidentId);
+
+            return pieces.Select(p => new PieceJointeDTO
+            {
+                Id = p.Id,
+                NomFichier = p.NomFichier,
+                DateAjout = p.DateAjout,
+                Url = GetUrlForPiece(p)
+            }).ToList();
+        }
+
+        /// <summary>
+        /// Supprime plusieurs pièces jointes d'un incident
+        /// </summary>
+        public async Task<bool> SupprimerPiecesJointesIncidentAsync(List<Guid> pieceJointeIds)
+        {
+            _logger.LogInformation("Suppression de {Count} pièce(s) jointe(s) d'incident", pieceJointeIds.Count);
+
+            bool success = true;
+
+            foreach (var id in pieceJointeIds)
+            {
+                try
+                {
+                    var result = await SupprimerFichierAsync(id);
+                    if (!result)
+                    {
+                        _logger.LogWarning("Échec de suppression pour la pièce jointe {Id}", id);
+                        success = false;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Erreur lors de la suppression de la pièce jointe {Id}", id);
+                    success = false;
+                }
+            }
+
+            return success;
+        }
+
+        // Méthode helper pour l'URL
+        private string GetUrlForPiece(PieceJointe piece)
+        {
+            var request = _httpContextAccessor.HttpContext.Request;
+            var baseUrl = $"{request.Scheme}://{request.Host}";
+            return $"{baseUrl}/api/pieces-jointes/{piece.Id}";
+        }
+        // Dans PieceJointeService.cs
+        public async Task<PieceJointe> GetMetadataAsync(Guid pieceJointeId)
+        {
+            return await _pieceJointeRepository.GetMetadataAsync(pieceJointeId);
         }
         #endregion
     }
