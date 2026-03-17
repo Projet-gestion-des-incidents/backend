@@ -266,6 +266,7 @@ builder.Services.AddScoped<ICommentaireService, CommentaireService>();
 builder.Services.AddScoped<ITPERepository, TPERepository>();
 builder.Services.AddScoped<ITPEService, TPEService>();
 builder.Services.AddScoped<IIncidentTicketRepository, IncidentTicketRepository>();
+builder.Services.AddScoped<IIncidentTPERepository, IncidentTPERepository>();
 
 builder.Services.Configure<FormOptions>(options =>
 {

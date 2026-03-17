@@ -27,7 +27,7 @@ namespace projet0.Application.Services.Incident
         private readonly IPieceJointeService _pieceJointeService;
         private readonly IIncidentTicketRepository _incidentTicketRepository;
         private readonly ITicketRepository _ticketRepository;
-
+        private readonly IIncidentTPERepository _incidentTPERepository;
         public IncidentService(
             IIncidentRepository incidentRepository,
             IUserRepository userRepository,
@@ -37,7 +37,8 @@ namespace projet0.Application.Services.Incident
             IPieceJointeService pieceJointeService,
             IMapper mapper, 
             IIncidentTicketRepository incidentTicketRepository,
-            ITicketRepository ticketRepository)
+            ITicketRepository ticketRepository,
+            IIncidentTPERepository incidentTPERepository)
         {
             _incidentRepository = incidentRepository;
             _userRepository = userRepository;
@@ -48,6 +49,7 @@ namespace projet0.Application.Services.Incident
             _mapper = mapper;
             _incidentTicketRepository = incidentTicketRepository;
             _ticketRepository = ticketRepository;
+            _incidentTPERepository = incidentTPERepository;
 
         }
 
@@ -964,6 +966,57 @@ namespace projet0.Application.Services.Incident
                         ticketId);
                 }
             }
+        }
+        public async Task<ApiResponse<bool>> DelierTPEAsync(Guid incidentId, Guid tpeId, Guid userId)
+        {
+            return await MeasureAsync(nameof(DelierTPEAsync), new { incidentId, tpeId }, async () =>
+            {
+                try
+                {
+                    // Vérifier que l'incident existe
+                    var incident = await _incidentRepository.GetIncidentWithDetailsAsync(incidentId);
+                    if (incident == null)
+                        return ApiResponse<bool>.Failure($"Incident {incidentId} non trouvé");
+
+                    // 🔴 RÈGLE : Ne peut supprimer la liaison que si l'incident n'a PAS de statut (null)
+                    if (incident.StatutIncident.HasValue)
+                    {
+                        _logger.LogWarning("Tentative de suppression liaison TPE pour incident avec statut {Statut} | IncidentId: {IncidentId}",
+                            incident.StatutIncident, incidentId);
+
+                        return ApiResponse<bool>.Failure(
+                            "Impossible de supprimer la liaison TPE : l'incident a déjà un statut (en cours ou fermé).",
+                            resultCode: 91
+                        );
+                    }
+
+                    // Vérifier que le TPE existe
+                    var tpe = await _tpeRepository.GetByIdAsync(tpeId);
+                    if (tpe == null)
+                        return ApiResponse<bool>.Failure($"TPE {tpeId} non trouvé");
+
+                    // Vérifier que la liaison existe
+                    var existe = await _incidentTPERepository.ExistsAsync(incidentId, tpeId);
+                    if (!existe)
+                        return ApiResponse<bool>.Failure("Ce TPE n'est pas lié à cet incident");
+
+                    // Supprimer la liaison
+                    var supprime = await _incidentTPERepository.DeleteLiaisonAsync(incidentId, tpeId);
+
+                    if (!supprime)
+                        return ApiResponse<bool>.Failure("Erreur lors de la suppression de la liaison");
+
+                    _logger.LogInformation("Liaison TPE supprimée entre incident {IncidentId} et TPE {TPEId} par {UserId}",
+                        incidentId, tpeId, userId);
+
+                    return ApiResponse<bool>.Success(true, "TPE retiré de l'incident avec succès");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Erreur lors de la suppression de la liaison TPE");
+                    return ApiResponse<bool>.Failure("Erreur interne du serveur");
+                }
+            });
         }
 
         #endregion

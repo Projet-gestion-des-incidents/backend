@@ -427,6 +427,27 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
                 return StatusCode(500, ApiResponse<bool>.Failure("Erreur interne"));
             }
         }
+        // Dans IncidentController.cs
+
+        [HttpDelete("{incidentId}/tpes/{tpeId}")]
+        [Authorize(Policy = "IncidentUpdate")]  // À adapter selon votre politique
+        public async Task<ActionResult<ApiResponse<bool>>> DelierTPE(
+            Guid incidentId,
+            Guid tpeId)
+        {
+            try
+            {
+                var userId = GetCurrentUserId();
+                var result = await _incidentService.DelierTPEAsync(incidentId, tpeId, userId);
+
+                return result.IsSuccess ? Ok(result) : BadRequest(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erreur lors de la suppression de la liaison TPE");
+                return StatusCode(500, ApiResponse<bool>.Failure("Erreur interne"));
+            }
+        }
 
         #endregion
 

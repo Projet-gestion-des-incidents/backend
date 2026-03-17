@@ -31,5 +31,7 @@ namespace projet0.Application.Services.Incident
         Task<IncidentDTO> MapToDto(IncidentEntity incident);
         // Dans IIncidentService.cs
         Task<ApiResponse<bool>> ResoudreIncident(Guid incidentId, Guid userId);
+        Task<ApiResponse<bool>> DelierTPEAsync(Guid incidentId, Guid tpeId, Guid userId);
+
     }
 }
