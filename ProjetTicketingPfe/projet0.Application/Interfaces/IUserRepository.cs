@@ -28,5 +28,7 @@ namespace projet0.Application.Interfaces
         Task<bool> AddUserToRoleAsync(Guid userId, string roleName);
         Task<bool> RemoveUserFromRoleAsync(Guid userId, string roleName);
         Task<(IEnumerable<UserWithRoleDto> Users, int TotalCount)> SearchUsersAsync(UserSearchRequest request);
+        // projet0.Application/Interfaces/IUserRepository.cs
+        Task<IEnumerable<TechnicienDto>> GetTechniciensAsync();
     }
 }

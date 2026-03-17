@@ -22,6 +22,8 @@ namespace projet0.Application.Services.User
         Task<ApiResponse<string>> DeleteAsync(Guid id);
         Task<ApiResponse<PagedResult<UserWithRoleDto>>> SearchUsersAsync(UserSearchRequest request);
         Task<IList<string>> GetUserRolesAsync(Guid userId);
+        // projet0.Application/Services/User/IUserService.cs
+        Task<ApiResponse<IEnumerable<TechnicienDto>>> GetTechniciensAsync();
     }
 
 }

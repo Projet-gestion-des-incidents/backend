@@ -4,6 +4,7 @@ using Microsoft.IdentityModel.JsonWebTokens;
 using projet0.API.Filters;
 using projet0.Application.Common.Models.Pagination;
 using projet0.Application.Commun.DTOs;
+using projet0.Application.Commun.Ressources;
 using projet0.Application.Services.User;
 using projet0.Domain.Entities;
 using System;
@@ -19,10 +20,13 @@ namespace projet0.API.Controllers
     public class UserController : ControllerBase
     {
         private readonly IUserService _userService;
+        private readonly ILogger<UserController> _logger;
 
-        public UserController(IUserService userService)
+        public UserController(IUserService userService, ILogger<UserController> logger)
         {
             _userService = userService;
+            _logger = logger;
+
         }
 
         [HttpGet]
@@ -206,7 +210,61 @@ namespace projet0.API.Controllers
 
             return Ok(result);
         }
+        // projet0.API/Controllers/UserController.cs
+
+
+        [HttpGet("techniciens")]
+        [Authorize(Policy = "UserRead")]
+        public async Task<ActionResult<ApiResponse<IEnumerable<TechnicienDto>>>> GetTechniciens()
+        {
+            try
+            {
+                // 🔴 Récupérer l'ID directement depuis le User
+                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+                if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
+                {
+                    return Unauthorized(ApiResponse<IEnumerable<TechnicienDto>>.Failure(
+                        "Utilisateur non authentifié"));
+                }
+
+                var userRoles = await _userService.GetUserRolesAsync(userId);
+                var isAdmin = userRoles.Contains("Admin");
+                var isTechnicien = userRoles.Contains("Technicien");
+
+                _logger.LogInformation("Récupération de la liste des techniciens par {UserId} (Admin: {IsAdmin})",
+                    userId, isAdmin);
+
+                var result = await _userService.GetTechniciensAsync();
+
+                if (!result.IsSuccess)
+                    return BadRequest(result);
+
+                var techniciens = result.Data.ToList();
+
+                // FILTRAGE SELON LE RÔLE
+                if (!isAdmin && isTechnicien)
+                {
+                    // Si c'est un technicien, on exclut l'utilisateur connecté
+                    techniciens = techniciens.Where(t => t.Id != userId).ToList();
+                    _logger.LogInformation("Technicien connecté: exclusion de lui-même. {Count} techniciens restants",
+                        techniciens.Count);
+                }
+
+                return Ok(ApiResponse<IEnumerable<TechnicienDto>>.Success(
+                    data: techniciens,
+                    message: $"{techniciens.Count} technicien(s) trouvé(s)",
+                    resultCode: 0
+                ));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erreur lors de la récupération des techniciens");
+                return StatusCode(500, ApiResponse<IEnumerable<TechnicienDto>>.Failure(
+                    "Erreur interne du serveur"));
+            }
+        }
     }
+
 }
 
     

@@ -331,5 +331,19 @@ namespace projet0.Infrastructure.Repositories
                     return query.OrderBy(u => u.Nom);
             }
         }
+        // projet0.Infrastructure/Repositories/UserRepository.cs
+        public async Task<IEnumerable<TechnicienDto>> GetTechniciensAsync()
+        {
+            // Récupérer tous les utilisateurs avec le rôle "Technicien"
+            var techniciens = await _userManager.GetUsersInRoleAsync("Technicien");
+
+            return techniciens.Select(t => new TechnicienDto
+            {
+                Id = t.Id,
+                Nom = t.Nom,
+                Prenom = t.Prenom,
+                Email = t.Email
+            }).OrderBy(t => t.Nom).ThenBy(t => t.Prenom);
+        }
     }
 }

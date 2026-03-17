@@ -20,13 +20,13 @@ namespace projet0.Application.Services.User
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IHostEnvironment _webHostEnvironment;
 
-        public UserService(IUserRepository userRepository, ILogger<UserService> logger, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole<Guid>> roleManager, IHostEnvironment webHostEnvironment) 
+        public UserService(IUserRepository userRepository, ILogger<UserService> logger, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole<Guid>> roleManager, IHostEnvironment webHostEnvironment)
         {
             _userRepository = userRepository;
             _logger = logger;
             _roleManager = roleManager;
             _userManager = userManager;
-            _webHostEnvironment = webHostEnvironment; 
+            _webHostEnvironment = webHostEnvironment;
         }
 
         // ================= HELPER STOPWATCH =================
@@ -940,7 +940,7 @@ namespace projet0.Application.Services.User
                     sortDescending ? query.OrderByDescending(u => u.BirthDate) : query.OrderBy(u => u.BirthDate),
 
                 "statut" or "status" =>
-                    sortDescending ? query.OrderByDescending(u => u.Statut) : query.OrderBy(u => u.Statut),                
+                    sortDescending ? query.OrderByDescending(u => u.Statut) : query.OrderBy(u => u.Statut),
 
                 _ => query.OrderBy(u => u.Nom) // Tri par défaut
             };
@@ -948,6 +948,35 @@ namespace projet0.Application.Services.User
         public async Task<IList<string>> GetUserRolesAsync(Guid userId)
         {
             return await _userRepository.GetUserRolesAsync(userId);
+        }
+
+        // projet0.Application/Services/User/UserService.cs
+        public async Task<ApiResponse<IEnumerable<TechnicienDto>>> GetTechniciensAsync()
+        {
+            return await MeasureAsync(
+                actionName: "GetTechniciens",
+                input: null,
+                async () =>
+                {
+                    try
+                    {
+                        var techniciens = await _userRepository.GetTechniciensAsync();
+
+                        return ApiResponse<IEnumerable<TechnicienDto>>.Success(
+                            data: techniciens,
+                            message: $"{techniciens.Count()} technicien(s) trouvé(s)",
+                            resultCode: 0
+                        );
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Erreur lors de la récupération des techniciens");
+                        return ApiResponse<IEnumerable<TechnicienDto>>.Failure(
+                            message: "Erreur interne du serveur",
+                            resultCode: 33
+                        );
+                    }
+                });
         }
     }
 }
