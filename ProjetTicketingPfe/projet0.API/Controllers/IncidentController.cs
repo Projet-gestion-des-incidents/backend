@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using projet0.Application.Common.Models.Pagination;
 using projet0.Application.Commun.DTOs.Incident;
+using projet0.Application.Commun.DTOs.IncidentDTOs;
 using projet0.Application.Commun.DTOs.Ticket;
 using projet0.Application.Commun.DTOs.TicketDTOs;
 using projet0.Application.Commun.Ressources;
@@ -483,6 +484,30 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
             {
                 _logger.LogError(ex, "Erreur lors de la suppression de la liaison TPE");
                 return StatusCode(500, ApiResponse<bool>.Failure("Erreur interne"));
+            }
+        }
+        /// <summary>
+        /// Lie plusieurs TPEs à un incident existant
+        /// </summary>
+        [HttpPost("{incidentId}/tpes")]
+        [Authorize(Policy = "IncidentUpdate")]
+        public async Task<ActionResult<ApiResponse<List<IncidentTPEDTO>>>> LierPlusieursTPEs(
+            Guid incidentId,
+            [FromBody] List<Guid> tpeIds)
+        {
+            try
+            {
+                _logger.LogInformation("Liaison de {Count} TPE(s) à l'incident {IncidentId}", tpeIds.Count, incidentId);
+
+                var userId = GetCurrentUserId();
+                var result = await _incidentService.LierTPEsAsync(incidentId, tpeIds, userId);
+
+                return result.IsSuccess ? Ok(result) : BadRequest(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erreur lors de la liaison multiple de TPEs");
+                return StatusCode(500, ApiResponse<List<IncidentTPEDTO>>.Failure("Erreur interne"));
             }
         }
 

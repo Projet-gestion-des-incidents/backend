@@ -1,5 +1,6 @@
 ﻿using projet0.Application.Common.Models.Pagination;
 using projet0.Application.Commun.DTOs.Incident;
+using projet0.Application.Commun.DTOs.IncidentDTOs;
 using projet0.Application.Commun.Ressources;
 using projet0.Application.Interfaces;
 using projet0.Domain.Enums;
@@ -35,7 +36,7 @@ namespace projet0.Application.Services.Incident
         Task<ApiResponse<bool>> DelierTPEAsync(Guid incidentId, Guid tpeId, Guid userId);
         // Dans IIncidentService.cs
         Task<IList<string>> GetUserRolesAsync(Guid userId);
-        // Dans IncidentService.cs
-      
+        // Dans IIncidentService.cs
+        Task<ApiResponse<List<IncidentTPEDTO>>> LierTPEsAsync(Guid incidentId, List<Guid> tpeIds, Guid userId);
     }
 }

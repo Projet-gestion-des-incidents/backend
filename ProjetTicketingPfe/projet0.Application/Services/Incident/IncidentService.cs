@@ -1022,6 +1022,111 @@ namespace projet0.Application.Services.Incident
         {
             return await _userRepository.GetUserRolesAsync(userId);
         }
+        /// <summary>
+        /// Lie plusieurs TPEs à un incident et retourne la liste des TPEs liés
+        /// </summary>
+        public async Task<ApiResponse<List<IncidentTPEDTO>>> LierTPEsAsync(
+            Guid incidentId,
+            List<Guid> tpeIds,
+            Guid userId)
+        {
+            return await MeasureAsync(nameof(LierTPEsAsync), new { incidentId, tpeIds }, async () =>
+            {
+                try
+                {
+                    // 1. Vérifier que l'incident existe
+                    var incident = await _incidentRepository.GetIncidentWithDetailsAsync(incidentId);
+                    if (incident == null)
+                        return ApiResponse<List<IncidentTPEDTO>>.Failure($"Incident {incidentId} non trouvé");
+
+                    // 2. Vérifier les permissions (comme avant)
+                    var userRoles = await _userRepository.GetUserRolesAsync(userId);
+                    var isAdmin = userRoles.Contains("Admin");
+                    var isCommercant = userRoles.Contains("Commercant");
+
+                    if (isCommercant && !isAdmin)
+                    {
+                        if (incident.CreatedById != userId)
+                            return ApiResponse<List<IncidentTPEDTO>>.Failure(
+                                "Vous ne pouvez modifier que vos propres incidents.", resultCode: 75);
+
+                        if (incident.StatutIncident.HasValue)
+                            return ApiResponse<List<IncidentTPEDTO>>.Failure(
+                                "Vous ne pouvez pas ajouter de TPE à un incident qui a déjà un statut.", resultCode: 76);
+                    }
+
+                    var tpesLies = new List<IncidentTPEDTO>();
+                    var erreurs = new List<string>();
+
+                    // 3. Pour chaque TPE
+                    foreach (var tpeId in tpeIds)
+                    {
+                        // Vérifier que le TPE existe
+                        var tpe = await _tpeRepository.GetByIdAsync(tpeId);
+                        if (tpe == null)
+                        {
+                            erreurs.Add($"TPE {tpeId} non trouvé");
+                            continue;
+                        }
+
+                        // Vérifier que le TPE appartient au commerçant (si nécessaire)
+                        if (isCommercant && !isAdmin)
+                        {
+                            var tpesDuCommercant = await _tpeRepository.GetByCommercantIdAsync(userId);
+                            if (!tpesDuCommercant.Any(t => t.Id == tpeId))
+                            {
+                                erreurs.Add($"TPE {tpe.NumSerie} ne vous appartient pas");
+                                continue;
+                            }
+                        }
+
+                        // Vérifier que la liaison n'existe pas déjà
+                        var existeDeja = await _incidentTPERepository.ExistsAsync(incidentId, tpeId);
+                        if (existeDeja)
+                        {
+                            erreurs.Add($"TPE {tpe.NumSerie} déjà lié à l'incident");
+                            continue;
+                        }
+
+                        // Créer la liaison
+                        var liaison = new IncidentTPE
+                        {
+                            IncidentId = incidentId,
+                            TPEId = tpeId,
+                            DateAssociation = DateTime.UtcNow
+                        };
+
+                        await _incidentTPERepository.AddAsync(liaison);
+
+                        // Ajouter à la liste des résultats
+                        tpesLies.Add(new IncidentTPEDTO
+                        {
+                            TPEId = tpe.Id,
+                            NumSerie = tpe.NumSerie,
+                            NumSerieComplet = tpe.NumSerieComplet,
+                            Modele = tpe.Modele,
+                            DateAssociation = liaison.DateAssociation
+                        });
+                    }
+
+                    await _incidentTPERepository.SaveChangesAsync();
+
+                    // Construire le message
+                    string message = $"{tpesLies.Count} TPE(s) lié(s) avec succès";
+                    if (erreurs.Any())
+                        message += $". {erreurs.Count} erreur(s): {string.Join("; ", erreurs)}";
+
+                    _logger.LogInformation("{Message} pour l'incident {IncidentId}", message, incidentId);
+
+                    return ApiResponse<List<IncidentTPEDTO>>.Success(tpesLies, message);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Erreur lors de la liaison multiple de TPEs");
+                    return ApiResponse<List<IncidentTPEDTO>>.Failure("Erreur interne du serveur");
+                }
+            });
+        }
 
         #endregion
     }
