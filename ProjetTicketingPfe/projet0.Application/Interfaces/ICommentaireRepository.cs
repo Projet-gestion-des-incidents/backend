@@ -12,5 +12,9 @@ namespace projet0.Application.Interfaces
         Task<CommentaireTicket> GetCommentaireForUpdateAsync(Guid id);
         Task<bool> HasPiecesJointesAsync(Guid commentaireId);
         Task DeleteCommentaireWithPiecesJointesAsync(Guid id);
+        // Nouveaux pour le technicien
+        Task<IEnumerable<CommentaireTicket>> GetCommentairesByTechnicienAsync(Guid technicienId);
+        Task<IEnumerable<CommentaireTicket>> GetCommentairesByTicketAndTechnicienAsync(Guid ticketId, Guid technicienId);
     }
 }
+

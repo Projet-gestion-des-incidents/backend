@@ -385,5 +385,78 @@ namespace projet0.API.Controllers
                 return StatusCode(500, ApiResponse<List<PieceJointeDTO>>.Failure("Erreur interne"));
             }
         }
+        /// <summary>
+        /// Récupère les commentaires du technicien connecté
+        /// </summary>
+        /// <param name="ticketId">ID du ticket (optionnel). Si fourni, filtre les commentaires pour ce ticket spécifique</param>
+        /// <returns>Liste des commentaires du technicien</returns>
+        [HttpGet("mes-commentaires")]
+        [Authorize(Policy = "TicketRead")]
+        public async Task<ActionResult<ApiResponse<List<CommentaireDTO>>>> GetMesCommentaires([FromQuery] Guid? ticketId = null)
+        {
+            try
+            {
+                _logger.LogInformation("Récupération des commentaires du technicien connecté. Filtre par ticket: {TicketFilter}",
+                    ticketId.HasValue ? ticketId.Value.ToString() : "Aucun");
+
+                var technicienId = GetCurrentUserId();
+                IEnumerable<CommentaireTicket> commentaires;
+
+                if (ticketId.HasValue)
+                {
+                    // Cas 1: Filtrer par ticket spécifique
+                    _logger.LogInformation("Recherche des commentaires du technicien {TechnicienId} pour le ticket {TicketId}",
+                        technicienId, ticketId.Value);
+
+                    // Vérification optionnelle que le ticket existe
+                    var ticketResult = await _ticketService.GetTicketByIdAsync(ticketId.Value);
+                    if (!ticketResult.IsSuccess || ticketResult.Data == null)
+                    {
+                        _logger.LogWarning("Ticket {TicketId} non trouvé", ticketId.Value);
+                        return NotFound(ApiResponse<List<CommentaireDTO>>.Failure("Ticket non trouvé"));
+                    }
+
+                    commentaires = await _commentaireRepository.GetCommentairesByTicketAndTechnicienAsync(
+                        ticketId.Value, technicienId);
+                }
+                else
+                {
+                    // Cas 2: Tous les commentaires du technicien
+                    _logger.LogInformation("Recherche de tous les commentaires du technicien {TechnicienId}", technicienId);
+                    commentaires = await _commentaireRepository.GetCommentairesByTechnicienAsync(technicienId);
+                }
+
+                // Mapping vers DTOs
+                var dtos = commentaires.Select(c => new CommentaireDTO
+                {
+                    Id = c.Id,
+                    Message = c.Message,
+                    DateCreation = c.DateCreation,
+                    EstInterne = c.EstInterne,
+                    AuteurId = c.AuteurId,
+                    AuteurNom = c.Auteur != null ? $"{c.Auteur.Nom} {c.Auteur.Prenom}" : "Inconnu",
+                    TicketId = c.TicketId, // Ajoutez cette propriété si elle n'existe pas dans votre DTO
+                    TicketReference = c.Ticket?.ReferenceTicket, // Ajoutez pour contexte
+                    PiecesJointes = c.PiecesJointes?.Select(p => new PieceJointeDTO
+                    {
+                        Id = p.Id,
+                        NomFichier = p.NomFichier,
+                        DateAjout = p.DateAjout,
+                        Url = $"{Request.Scheme}://{Request.Host}/api/pieces-jointes/{p.Id}"
+                    }).ToList() ?? new()
+                }).ToList();
+
+                string message = dtos.Any()
+                    ? $"{dtos.Count} commentaire(s) récupéré(s) avec succès"
+                    : "Aucun commentaire trouvé";
+
+                return Ok(ApiResponse<List<CommentaireDTO>>.Success(dtos, message));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erreur lors de la récupération des commentaires du technicien");
+                return StatusCode(500, ApiResponse<List<CommentaireDTO>>.Failure("Erreur interne"));
+            }
+        }
     }
 }

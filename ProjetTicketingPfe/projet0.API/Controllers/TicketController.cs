@@ -306,22 +306,29 @@ namespace projet0.API.Controllers
         }
 
         [HttpGet("{ticketId}/incidents")]
-        public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetIncidentsByTicket(Guid ticketId)
+        public async Task<ActionResult<ApiResponse<List<IncidentDetailDTO>>>> GetIncidentsByTicket(Guid ticketId)
         {
             try
             {
                 var incidents = await _incidentTicketRepository.GetIncidentsByTicketIdAsync(ticketId);
-                var dtos = new List<IncidentDTO>();
+                var dtos = new List<IncidentDetailDTO>();
+
                 foreach (var incident in incidents)
                 {
-                    dtos.Add(await _incidentService.MapToDto(incident));  // ← ICI
+                    // ✅ Utiliser GetIncidentDetailAsync qui existe déjà
+                    var result = await _incidentService.GetIncidentDetailAsync(incident.Id);
+                    if (result.IsSuccess && result.Data != null)
+                    {
+                        dtos.Add(result.Data);
+                    }
                 }
-                return Ok(ApiResponse<List<IncidentDTO>>.Success(dtos));
+
+                return Ok(ApiResponse<List<IncidentDetailDTO>>.Success(dtos));
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Erreur lors de la récupération des incidents du ticket");
-                return StatusCode(500, ApiResponse<List<IncidentDTO>>.Failure("Erreur interne"));
+                return StatusCode(500, ApiResponse<List<IncidentDetailDTO>>.Failure("Erreur interne"));
             }
         }
 

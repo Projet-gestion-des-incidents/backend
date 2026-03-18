@@ -1,0 +1,410 @@
+mongoimport --db Magasin --collection etudiants --file "C:/Users/berra/Desktop/tt/etudiants.json" --jsonArray
+
+mongoexport --db Magasin --collection étudiants --out "C:/Users/berra/Desktop/tt/etudiants.json" --jsonArray
+
+Magasin> db.etudiants.find()
+[
+  {
+    _id: 4,
+    nom: 'Hichem',
+    prenom: 'Gharbi',
+    age: 24,
+    adresse: { rue: '20 Rue de Carthage', ville: 'Tunis', codePostal: '1003' }
+  },
+  {
+    _id: 5,
+    nom: 'Leila',
+    prenom: 'Jlassi',
+    age: 20,
+    adresse: { rue: '3 Rue de la Liberté', ville: 'Sousse', codePostal: '4000' }
+  },
+  {
+    _id: 1,
+    nom: 'Mouna',
+    prenom: 'Ben Salah',
+    age: 22,
+    adresse: {
+      rue: '12 Rue de la République',
+      ville: 'Tunis',
+      codePostal: '1002'
+    },
+    notes: [
+      { matiere: 'Math', dc: 15, examen: 13 },
+      { matiere: 'Informatique', dc: 16, examen: 18 },
+      { matiere: 'Physique', dc: 14, examen: 12 }
+    ]
+  },
+  {
+    _id: 2,
+    nom: 'Ali',
+    prenom: 'Trabelsi',
+    age: 23,
+    adresse: {
+      rue: '45 Avenue Habib Bourguiba',
+      ville: 'Sfax',
+      codePostal: '3000'
+    },
+    notes: [
+      { matiere: 'Math', dc: 12, examen: 14 },
+      { matiere: 'Informatique', dc: 15, examen: 17 },
+      { matiere: 'Physique', dc: 13, examen: 12 }
+    ]
+  },
+  {
+    _id: 3,
+    nom: 'Sara',
+    prenom: 'Mejri',
+    age: 21,
+    adresse: { rue: '7 Rue Ibn Khaldoun', ville: 'Ariana', codePostal: '2080' },
+    notes: [
+      { matiere: 'Math', dc: 10, examen: 11 },
+      { matiere: 'Informatique', dc: 14, examen: 15 },
+      { matiere: 'Physique', dc: 9, examen: 10 }
+    ]
+  }
+]
+
+Magasin> db.etudiants.aggregate([{$match : {age: {$gte:20}}}])
+[
+  {
+    _id: 4,
+    nom: 'Hichem',
+    prenom: 'Gharbi',
+    age: 24,
+    adresse: { rue: '20 Rue de Carthage', ville: 'Tunis', codePostal: '1003' }
+  },
+  {
+    _id: 5,
+    nom: 'Leila',
+    prenom: 'Jlassi',
+    age: 20,
+    adresse: { rue: '3 Rue de la Liberté', ville: 'Sousse', codePostal: '4000' }
+  },
+  {
+    _id: 1,
+    nom: 'Mouna',
+    prenom: 'Ben Salah',
+    age: 22,
+    adresse: {
+      rue: '12 Rue de la République',
+      ville: 'Tunis',
+      codePostal: '1002'
+    },
+    notes: [
+      { matiere: 'Math', dc: 15, examen: 13 },
+      { matiere: 'Informatique', dc: 16, examen: 18 },
+      { matiere: 'Physique', dc: 14, examen: 12 }
+    ]
+  },
+  {
+    _id: 2,
+    nom: 'Ali',
+    prenom: 'Trabelsi',
+    age: 23,
+    adresse: {
+      rue: '45 Avenue Habib Bourguiba',
+      ville: 'Sfax',
+      codePostal: '3000'
+    },
+    notes: [
+      { matiere: 'Math', dc: 12, examen: 14 },
+      { matiere: 'Informatique', dc: 15, examen: 17 },
+      { matiere: 'Physique', dc: 13, examen: 12 }
+    ]
+  },
+  {
+    _id: 3,
+    nom: 'Sara',
+    prenom: 'Mejri',
+    age: 21,
+    adresse: { rue: '7 Rue Ibn Khaldoun', ville: 'Ariana', codePostal: '2080' },
+    notes: [
+      { matiere: 'Math', dc: 10, examen: 11 },
+      { matiere: 'Informatique', dc: 14, examen: 15 },
+      { matiere: 'Physique', dc: 9, examen: 10 }
+    ]
+  }
+]
+
+Magasin> db.etudiants.aggregate([{ $match: { "adresse.ville": "Tunis" }}])
+[
+  {
+    _id: 4,
+    nom: 'Hichem',
+    prenom: 'Gharbi',
+    age: 24,
+    adresse: { rue: '20 Rue de Carthage', ville: 'Tunis', codePostal: '1003' }
+  },
+  {
+    _id: 1,
+    nom: 'Mouna',
+    prenom: 'Ben Salah',
+    age: 22,
+    adresse: {
+      rue: '12 Rue de la République',
+      ville: 'Tunis',
+      codePostal: '1002'
+    },
+    notes: [
+      { matiere: 'Math', dc: 15, examen: 13 },
+      { matiere: 'Informatique', dc: 16, examen: 18 },
+      { matiere: 'Physique', dc: 14, examen: 12 }
+    ]
+  }
+]
+
+Magasin> db.etudiants.aggregate([{ $match: { "adresse.ville": "Tunis", "age": { $gte: 20 }}}])
+[
+  {
+    _id: 4,
+    nom: 'Hichem',
+    prenom: 'Gharbi',
+    age: 24,
+    adresse: { rue: '20 Rue de Carthage', ville: 'Tunis', codePostal: '1003' }
+  },
+  {
+    _id: 1,
+    nom: 'Mouna',
+    prenom: 'Ben Salah',
+    age: 22,
+    adresse: {
+      rue: '12 Rue de la République',
+      ville: 'Tunis',
+      codePostal: '1002'
+    },
+    notes: [
+      { matiere: 'Math', dc: 15, examen: 13 },
+      { matiere: 'Informatique', dc: 16, examen: 18 },
+      { matiere: 'Physique', dc: 14, examen: 12 }
+    ]
+  }
+]
+
+Magasin> db.etudiants.aggregate([{$match : {age: {$gte:21}}},{$sort :{ age : 1}}])
+[
+  {
+    _id: 3,
+    nom: 'Sara',
+    prenom: 'Mejri',
+    age: 21,
+    adresse: { rue: '7 Rue Ibn Khaldoun', ville: 'Ariana', codePostal: '2080' },
+    notes: [
+      { matiere: 'Math', dc: 10, examen: 11 },
+      { matiere: 'Informatique', dc: 14, examen: 15 },
+      { matiere: 'Physique', dc: 9, examen: 10 }
+    ]
+  },
+  {
+    _id: 1,
+    nom: 'Mouna',
+    prenom: 'Ben Salah',
+    age: 22,
+    adresse: {
+      rue: '12 Rue de la République',
+      ville: 'Tunis',
+      codePostal: '1002'
+    },
+    notes: [
+      { matiere: 'Math', dc: 15, examen: 13 },
+      { matiere: 'Informatique', dc: 16, examen: 18 },
+      { matiere: 'Physique', dc: 14, examen: 12 }
+    ]
+  },
+  {
+    _id: 2,
+    nom: 'Ali',
+    prenom: 'Trabelsi',
+    age: 23,
+    adresse: {
+      rue: '45 Avenue Habib Bourguiba',
+      ville: 'Sfax',
+      codePostal: '3000'
+    },
+    notes: [
+      { matiere: 'Math', dc: 12, examen: 14 },
+      { matiere: 'Informatique', dc: 15, examen: 17 },
+      { matiere: 'Physique', dc: 13, examen: 12 }
+    ]
+  },
+  {
+    _id: 4,
+    nom: 'Hichem',
+    prenom: 'Gharbi',
+    age: 24,
+    adresse: { rue: '20 Rue de Carthage', ville: 'Tunis', codePostal: '1003' }
+  }
+]
+
+Magasin> db.etudiants.aggregate([{$match : {age: {$gte:21}}},{$sort :{ age : -1}}])
+[
+  {
+    _id: 4,
+    nom: 'Hichem',
+    prenom: 'Gharbi',
+    age: 24,
+    adresse: { rue: '20 Rue de Carthage', ville: 'Tunis', codePostal: '1003' }
+  },
+  {
+    _id: 2,
+    nom: 'Ali',
+    prenom: 'Trabelsi',
+    age: 23,
+    adresse: {
+      rue: '45 Avenue Habib Bourguiba',
+      ville: 'Sfax',
+      codePostal: '3000'
+    },
+    notes: [
+      { matiere: 'Math', dc: 12, examen: 14 },
+      { matiere: 'Informatique', dc: 15, examen: 17 },
+      { matiere: 'Physique', dc: 13, examen: 12 }
+    ]
+  },
+  {
+    _id: 1,
+    nom: 'Mouna',
+    prenom: 'Ben Salah',
+    age: 22,
+    adresse: {
+      rue: '12 Rue de la République',
+      ville: 'Tunis',
+      codePostal: '1002'
+    },
+    notes: [
+      { matiere: 'Math', dc: 15, examen: 13 },
+      { matiere: 'Informatique', dc: 16, examen: 18 },
+      { matiere: 'Physique', dc: 14, examen: 12 }
+    ]
+  },
+  {
+    _id: 3,
+    nom: 'Sara',
+    prenom: 'Mejri',
+    age: 21,
+    adresse: { rue: '7 Rue Ibn Khaldoun', ville: 'Ariana', codePostal: '2080' },
+    notes: [
+      { matiere: 'Math', dc: 10, examen: 11 },
+      { matiere: 'Informatique', dc: 14, examen: 15 },
+      { matiere: 'Physique', dc: 9, examen: 10 }
+    ]
+  }
+]
+
+Magasin> db.etudiants.aggregate([{$group :{_id :null, total:{$sum:1}}}])
+[ { _id: null, total: 5 } ]
+
+Magasin> db.etudiants.aggregate([{$group :{_id :"$nom", total:{$sum:1}}}])
+[
+  { _id: 'Ali', total: 1 },
+  { _id: 'Mouna', total: 1 },
+  { _id: 'Hichem', total: 1 },
+  { _id: 'Leila', total: 1 },
+  { _id: 'Sara', total: 1 }
+]
+
+Magasin> db.etudiants.insert({nom:"Hichem",prenom:"Ben Salah",age:68})
+{
+  acknowledged: true,
+  insertedIds: { '0': ObjectId('68dfde38be866459d1cebea9') }
+}
+Magasin> db.etudiants.aggregate([{$group :{_id :"$nom", total:{$sum:1}}}])
+[
+  { _id: 'Ali', total: 1 },
+  { _id: 'Mouna', total: 1 },
+  { _id: 'Hichem', total: 2 },
+  { _id: 'Leila', total: 1 },
+  { _id: 'Sara', total: 1 }
+]
+
+Magasin> db.etudiants.aggregate([{$group : {_id: "$adresse.ville", total:{$sum: 1},agemoy:{$avg: "$age"}}}])
+[
+  { _id: 'Sousse', total: 1, agemoy: 20 },
+  { _id: 'Tunis', total: 2, agemoy: 23 },
+  { _id: 'Sfax', total: 1, agemoy: 23 },
+  { _id: null, total: 1, agemoy: 68 },
+  { _id: 'Ariana', total: 1, agemoy: 21 }
+]
+
+Magasin> db.etudiants.aggregate([{$group : {_id: "$adresse.ville", total:{$sum: 1},agemoy:{$avg: "$age"},agemax:{$max:"$age"}}}])
+[
+  { _id: 'Ariana', total: 1, agemoy: 21, agemax: 21 },
+  { _id: 'Sousse', total: 1, agemoy: 20, agemax: 20 },
+  { _id: 'Tunis', total: 2, agemoy: 23, agemax: 24 },
+  { _id: 'Sfax', total: 1, agemoy: 23, agemax: 23 },
+  { _id: null, total: 1, agemoy: 68, agemax: 68 }
+]
+
+Magasin> db.etudiants.aggregate([{$group : {_id: "$adresse.ville", total:{$sum: 1},agemoy:{$avg: "$age"},agemax:{$max:"$age"},agemin:{$min:"$age"}}}])
+[
+  { _id: 'Ariana', total: 1, agemoy: 21, agemax: 21, agemin: 21 },
+  { _id: 'Sfax', total: 1, agemoy: 23, agemax: 23, agemin: 23 },
+  { _id: 'Tunis', total: 2, agemoy: 23, agemax: 24, agemin: 22 },
+  { _id: 'Sousse', total: 1, agemoy: 20, agemax: 20, agemin: 20 },
+  { _id: null, total: 1, agemoy: 68, agemax: 68, agemin: 68 }
+]
+
+Magasin> db.etudiants.aggregate([{$match:{"adresse.ville":{$exists:true}}}, {$group : {_id: "$adresse.ville", total:{$sum: 1},agemoy:{$avg: "$age"},agemax:{$max:"$age"},agemin:{$min:"$age"}}}])
+[
+  { _id: 'Sfax', total: 1, agemoy: 23, agemax: 23, agemin: 23 },
+  { _id: 'Tunis', total: 2, agemoy: 23, agemax: 24, agemin: 22 },
+  { _id: 'Sousse', total: 1, agemoy: 20, agemax: 20, agemin: 20 },
+  { _id: 'Ariana', total: 1, agemoy: 21, agemax: 21, agemin: 21 }
+]
+
+Magasin> db.etudiants.aggregate([{$match:{"adresse.ville":"Tunis"}}, {$group : {_id: "$adresse.ville", total:{$sum: 1},agemoy:{$avg: "$age"},agemax:{$max:"$age"},agemin:{$min:"$age"}}}])
+[ { _id: 'Tunis', total: 2, agemoy: 23, agemax: 24, agemin: 22 } ]
+
+Magasin> db.etudiants.aggregate([{$unwind:"$notes"}, {$group :{_id :"$nom", moyenne:{$avg:"$notes.examen"}}}])
+[
+  { _id: 'Sara', moyenne: 12 },
+  { _id: 'Mouna', moyenne: 14.333333333333334 },
+  { _id: 'Ali', moyenne: 14.333333333333334 }
+]
+
+Magasin> db.etudiants.aggregate([{$unwind:"$notes"}, {$group :{_id :"$nom", moyenne:{$avg:{$avg:["$notes.examen","$notes.dc"]}}}}])
+[
+  { _id: 'Sara', moyenne: 11.5 },
+  { _id: 'Mouna', moyenne: 14.666666666666666 },
+  { _id: 'Ali', moyenne: 13.833333333333334 }
+]
+
+
+
+EXXX
+
+
+Magasin> db.etudiants.aggregate([{$unwind:"$notes"}, {$group :{_id :"$notes.matiere", moyenne:{$avg:"$notes.examen"}}}])
+[
+  { _id: 'Informatique', moyenne: 16.666666666666668 },
+  { _id: 'Math', moyenne: 12.666666666666666 },
+  { _id: 'Physique', moyenne: 11.333333333333334 }
+]
+
+Magasin> db.etudiants.aggregate([{$unwind:"$notes"},{$group :{_id :["$nom","$prenom"],moyenne:{$avg:{$avg:["$notes.examen","$notes.dc"]}}}}])
+[
+  { _id: [ 'Sara', 'Mejri' ], moyenne: 11.5 },
+  { _id: [ 'Mouna', 'Ben Salah' ], moyenne: 14.666666666666666 },
+  { _id: [ 'Ali', 'Trabelsi' ], moyenne: 13.833333333333334 }
+]
+
+Magasin> db.etudiants.aggregate([{$unwind:"$notes"},{$match:{"adresse.ville":"Tunis"}}, {$group :{_id:["$nom","$prenom"],moyenne:{$avg:{$avg:["$notes.examen","$notes.dc"]}}}}])
+[ { _id: [ 'Mouna', 'Ben Salah' ], moyenne: 14.666666666666666 } ]
+
+Magasin> db.etudiants.aggregate([{$group : {_id: "$adresse.ville", total:{$sum: 1},agemoy:{$avg: "$age"}}}])
+[
+  { _id: 'Ariana', total: 1, agemoy: 21 },
+  { _id: 'Sousse', total: 1, agemoy: 20 },
+  { _id: 'Tunis', total: 2, agemoy: 23 },
+  { _id: 'Sfax', total: 1, agemoy: 23 },
+  { _id: null, total: 2, agemoy: 81.5 }
+]
+
+Magasin> db.etudiants.aggregate([{$unwind:"$notes"},{$group : {_id: "$adresse.ville", total:{$sum: 1},agemoy:{$avg: "$age"},moyenne:{$avg:{$avg:["$notes.examen","$notes.dc"]}}}}])
+[
+  { _id: 'Sfax', total: 3, agemoy: 23, moyenne: 13.833333333333334 },
+  { _id: 'Tunis', total: 3, agemoy: 22, moyenne: 14.666666666666666 },
+  { _id: 'Ariana', total: 3, agemoy: 21, moyenne: 11.5 }
+]
+
+
+
