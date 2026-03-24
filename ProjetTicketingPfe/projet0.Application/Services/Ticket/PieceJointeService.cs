@@ -196,7 +196,7 @@ namespace projet0.Application.Services
             var pieceJointe = new PieceJointe
             {
                 Id = Guid.NewGuid(),
-                NomFichier = dto.Fichier.FileName,
+                NomFichier = dto.NomFichier,
                 DateAjout = DateTime.UtcNow,
                 CommentaireId = commentaireId,  // ← ICI c'est CommentaireId
                 UploadedById = uploadedById

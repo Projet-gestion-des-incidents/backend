@@ -64,10 +64,13 @@ namespace projet0.API.Controllers
                     EstInterne = c.EstInterne,
                     AuteurId = c.AuteurId,
                     AuteurNom = c.Auteur != null ? $"{c.Auteur.Nom} {c.Auteur.Prenom}" : "Inconnu",
+                    TicketId = c.TicketId,  // ✅ Ajouté
+                    TicketReference = c.Ticket?.ReferenceTicket,  // ✅ Ajouté
                     PiecesJointes = c.PiecesJointes?.Select(p => new PieceJointeDTO
                     {
                         Id = p.Id,
-                        
+                        NomFichier = p.NomFichier,  // ✅ AJOUTER CETTE LIGNE
+
                         DateAjout = p.DateAjout,
                         Url = $"{Request.Scheme}://{Request.Host}/api/pieces-jointes/{p.Id}"
                     }).ToList() ?? new()
@@ -154,6 +157,8 @@ namespace projet0.API.Controllers
                         {
                             _logger.LogInformation("Traitement fichier: {FileName}, Taille: {Length}, ContentType: {ContentType}",
                                 fichier.FileName, fichier.Length, fichier.ContentType);
+                            _logger.LogInformation("Nom du fichier avant sauvegarde: {FileName}", fichier.FileName);
+
 
                             var pieceDto = new CreatePieceJointeDTO
                             {
@@ -162,6 +167,7 @@ namespace projet0.API.Controllers
                                 //TypePieceJointe = DeterminerTypePieceJointe(fichier.FileName),
                                 Fichier = fichier
                             };
+                            _logger.LogInformation("PieceDto.NomFichier après création: {NomFichier}", pieceDto.NomFichier);
 
                             var pieceJointe = await _pieceJointeService.SauvegarderFichierPourCommentaireAsync(
     pieceDto, commentaire.Id, userId);

@@ -1,0 +1,222 @@
+essai> use Magasin
+switched to db Magasin
+
+Magasin> db.magasin.insertOne({_id: 1, nom: "Stylo bleu", prix: 1.5, eenStock: true })
+{ acknowledged: true, insertedId: 1 }
+
+Magasin> db.magasin.insertOne({_id: 2, nom: "Clé USB 32Go", prix: 25, categorie: "Informatique", fournisseur: {nom: "InfoStore", telephone : "71654321"}})
+{ acknowledged: true, insertedId: 2 }
+
+Magasin> db.magasin.insertOne({ _id: 3, nom: "Cahier A4", prix: 3.2, ccategorie: "Papeterie" , fournisseur: {
+... nom: "Papeterie Centrale",
+... contact: "contact@papeterie.tn",
+... telephone: "71 123 456" }})
+{ acknowledged: true, insertedId: 3 }
+
+Magasin> db.magasin.insertOne({_id: 4, nom: "Imprimante HP Laser", prix: 750, categorie: "Informatique", fournisseur:
+... {
+...
+... nom: "OfficeStore",
+... adresse: { ville: "Tunis",
+... rue: "Rue de la Liberté" } } })
+{ acknowledged: true, insertedId: 4 }
+
+Magasin> db.magasin.insertOne({ _id: 5, nom: "Ordinateur portable", prix: 2200, categorie: "Informatique", fournisseur: { nom: "TechnoShop", adresse: { ville: "Tunis",rue: "Av. Habib Bourguiba", localisation: { latitude: 36.8065,longitude:10.1815 } } },garantie: { duree: "2 ans", service: { centre: "Centre AgrééDell",numero: "71 789 123" }} } )
+{ acknowledged: true, insertedId: 5 }
+
+Magasin> db.magasin.find({},{"nom":1,"prix":1,"_id":0})
+[
+  { nom: 'Cahier A4', prix: 3.2 },
+  { nom: 'Imprimante HP Laser', prix: 750 },
+  { nom: 'Clé USB 32Go', prix: 30 },
+  { nom: 'Ordinateur portable', prix: 2200 },
+  { nom: 'Stylo bleu', prix: 1.5 }
+]
+
+Magasin> db.magasin.find({"prix":{"$gt":1000}},{"nom":1,"prix":1})
+[ { _id: 5, nom: 'Ordinateur portable', prix: 2200 } ]
+
+Magasin> db.magasin.find({"nom": "Ordinateur portable"},{"fournisseur.nom":1})
+[ { _id: 5, fournisseur: { nom: 'TechnoShop' } } ]
+
+Magasin> db.magasin.find({"fournisseur.adresse.ville": "Tunis"},{})
+[
+  {
+    _id: 4,
+    nom: 'Imprimante HP Laser',
+    prix: 750,
+    categorie: 'Informatique',
+    fournisseur: {
+      nom: 'OfficeStore',
+      adresse: { ville: 'Tunis', rue: 'Rue de la Liberté' }
+    }
+  },
+  {
+    _id: 5,
+    nom: 'Ordinateur portable',
+    prix: 2200,
+    categorie: 'Informatique',
+    fournisseur: {
+      nom: 'TechnoShop',
+      adresse: {
+        ville: 'Tunis',
+        rue: 'Av. Habib Bourguiba',
+        localisation: { latitude: 36.8065, longitude: 10.1815 }
+      }
+    },
+    garantie: {
+      duree: '2 ans',
+      service: { centre: 'Centre AgrééDell', numero: '71 789 123' }
+    }
+  }
+]
+
+Magasin> db.magasin.find({"categorie": "Informatique"},{})
+[
+  {
+    _id: 4,
+    nom: 'Imprimante HP Laser',
+    prix: 750,
+    categorie: 'Informatique',
+    fournisseur: {
+      nom: 'OfficeStore',
+      adresse: { ville: 'Tunis', rue: 'Rue de la Liberté' }
+    }
+  },
+  {
+    _id: 2,
+    nom: 'Clé USB 32Go',
+    prix: 25,
+    categorie: 'Informatique',
+    fournisseur: { nom: 'InfoStore', telephone: '71654321' }
+  },
+  {
+    _id: 5,
+    nom: 'Ordinateur portable',
+    prix: 2200,
+    categorie: 'Informatique',
+    fournisseur: {
+      nom: 'TechnoShop',
+      adresse: {
+        ville: 'Tunis',
+        rue: 'Av. Habib Bourguiba',
+        localisation: { latitude: 36.8065, longitude: 10.1815 }
+      }
+    },
+    garantie: {
+      duree: '2 ans',
+      service: { centre: 'Centre AgrééDell', numero: '71 789 123' }
+    }
+  }
+]
+
+Magasin> db.magasin.updateMany({},{$set : {quantite : 50}})
+{
+  acknowledged: true,
+  insertedId: null,
+  matchedCount: 5,
+  modifiedCount: 5,
+  upsertedCount: 0
+}
+
+Magasin> db.magasin.find({},{"nom" : 1 ,"categorie" : 1 ,"_id" : 0})
+[
+  { nom: 'Cahier A4', categorie: 'Papeterie' },
+  { nom: 'Imprimante HP Laser', categorie: 'Informatique' },
+  { nom: 'Clé USB 32Go', categorie: 'Informatique' },
+  { nom: 'Ordinateur portable', categorie: 'Informatique' },
+  { nom: 'Stylo bleu' }
+]
+
+Magasin> db.magasin.find(
+...   { $and: [ { "prix": { $gt: 20 } }, { "prix": { $lte: 1000 } } ] },
+...   { "nom": 1, "prix": 1 }
+... )
+...
+[
+  { _id: 4, nom: 'Imprimante HP Laser', prix: 750 },
+  { _id: 2, nom: 'Clé USB 32Go', prix: 25 }
+]
+
+Magasin> db.magasin.find({},{"fournisseur.nom" : 1, "fournisseur.adresse.ville" : 1})
+[
+  { _id: 3, fournisseur: { nom: 'Papeterie Centrale' } },
+  {
+    _id: 4,
+    fournisseur: { nom: 'OfficeStore', adresse: { ville: 'Tunis' } }
+  },
+  { _id: 2, fournisseur: { nom: 'InfoStore' } },
+  {
+    _id: 5,
+    fournisseur: { nom: 'TechnoShop', adresse: { ville: 'Tunis' } }
+  },
+  { _id: 1 }
+]
+
+Magasin> db.magasin.find(
+...   { $and: [ { "prix": { $gt: 20 } }, { "categorie": "Informatique" } ] }
+... )
+...
+[
+  {
+    _id: 4,
+    nom: 'Imprimante HP Laser',
+    prix: 750,
+    categorie: 'Informatique',
+    fournisseur: {
+      nom: 'OfficeStore',
+      adresse: { ville: 'Tunis', rue: 'Rue de la Liberté' }
+    },
+    quantite: 50
+  },
+  {
+    _id: 2,
+    nom: 'Clé USB 32Go',
+    prix: 25,
+    categorie: 'Informatique',
+    fournisseur: { nom: 'InfoStore', telephone: '71654321' },
+    quantite: 50
+  },
+  {
+    _id: 5,
+    nom: 'Ordinateur portable',
+    prix: 2200,
+    categorie: 'Informatique',
+    fournisseur: {
+      nom: 'TechnoShop',
+      adresse: {
+        ville: 'Tunis',
+        rue: 'Av. Habib Bourguiba',
+        localisation: { latitude: 36.8065, longitude: 10.1815 }
+      }
+    },
+    garantie: {
+      duree: '2 ans',
+      service: { centre: 'Centre AgrééDell', numero: '71 789 123' }
+    },
+    quantite: 50
+  }
+]
+
+Magasin> db.magasin.updateOne(
+...   { "nom": "Stylo bleu" },
+...   { $set: { "couleur": "bleu" } }
+... )
+...
+{
+  acknowledged: true,
+  insertedId: null,
+  matchedCount: 1,
+  modifiedCount: 1,
+  upsertedCount: 0
+}
+
+Magasin> db.magasin.updateOne({ "nom": "Clé USB 32Go" }, { $set: { "prix": 30 } })
+{
+  acknowledged: true,
+  insertedId: null,
+  matchedCount: 1,
+  modifiedCount: 1,
+  upsertedCount: 0
+}
+

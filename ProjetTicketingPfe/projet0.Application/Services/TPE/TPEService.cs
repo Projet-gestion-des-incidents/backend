@@ -1,4 +1,6 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using projet0.Application.Common.Models.Pagination;
 using projet0.Application.Commun.DTOs;
 using projet0.Application.Commun.Ressources;
 using projet0.Application.Interfaces;
@@ -363,9 +365,119 @@ namespace projet0.Application.Services.TPEService
             });
         }
 
+        // ✅ MÉTHODE PAGINÉE - AJOUTÉE ICI (dans la classe, pas dans le helper)
+        public async Task<ApiResponse<PagedResult<TPEDto>>> GetTPEsPagedAsync(TPEPagedRequest request)
+        {
+            return await MeasureAsync(nameof(GetTPEsPagedAsync), request, async () =>
+            {
+                try
+                {
+                    _logger.LogInformation("Récupération paginée des TPEs - Page: {Page}, PageSize: {PageSize}, SearchTerm: {SearchTerm}, Modele: {Modele}",
+                        request.Page, request.PageSize, request.SearchTerm, request.Modele);
+
+                    // 1. Récupérer la requête avec les relations
+                    var query = await _tpeRepository.QueryWithDetailsAsync();
+
+                    // 2. Appliquer les filtres
+                    if (request.Modele.HasValue)
+                    {
+                        query = query.Where(t => t.Modele == request.Modele.Value);
+                        _logger.LogInformation("Filtre appliqué: Modele = {Modele}", request.Modele.Value);
+                    }
+
+                    if (request.CommercantId.HasValue)
+                    {
+                        query = query.Where(t => t.CommercantId == request.CommercantId.Value);
+                        _logger.LogInformation("Filtre appliqué: CommercantId = {CommercantId}", request.CommercantId.Value);
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(request.SearchTerm))
+                    {
+                        var term = request.SearchTerm.ToLower();
+                        query = query.Where(t =>
+                            t.NumSerie.ToLower().Contains(term) ||
+                            t.NumSerieComplet.ToLower().Contains(term) ||
+                            (t.Commercant != null &&
+                                (t.Commercant.Nom.ToLower().Contains(term) ||
+                                 t.Commercant.Prenom.ToLower().Contains(term) ||
+                                 (t.Commercant.Nom + " " + t.Commercant.Prenom).ToLower().Contains(term)))
+                        );
+                        _logger.LogInformation("Filtre appliqué: SearchTerm = {SearchTerm}", request.SearchTerm);
+                    }
+
+                    // 3. Compter le total AVANT pagination
+                    var totalCount = await query.CountAsync();
+                    _logger.LogInformation("Total TPEs trouvés: {TotalCount}", totalCount);
+
+                    // 4. Appliquer le tri
+                    query = ApplySortingToQuery(query, request.SortBy, request.SortDescending);
+
+                    // 5. Appliquer la pagination
+                    var items = await query
+                        .Skip((request.Page - 1) * request.PageSize)
+                        .Take(request.PageSize)
+                        .ToListAsync();
+
+                    _logger.LogInformation("{Count} TPEs récupérés pour la page {Page}", items.Count, request.Page);
+
+                    // 6. Mapper vers DTO
+                    var dtos = items.Select(t => new TPEDto
+                    {
+                        Id = t.Id,
+                        NumSerie = t.NumSerie,
+                        NumSerieComplet = t.NumSerieComplet,
+                        Modele = t.Modele,
+                        CommercantId = t.CommercantId,
+                        CommercantNom = t.Commercant != null ? $"{t.Commercant.Nom} {t.Commercant.Prenom}" : "Inconnu"
+                    }).ToList();
+
+                    // 7. Créer le résultat paginé
+                    var pagedResult = new PagedResult<TPEDto>
+                    {
+                        Items = dtos,
+                        TotalCount = totalCount,
+                        Page = request.Page,
+                        PageSize = request.PageSize
+                    };
+
+                    return ApiResponse<PagedResult<TPEDto>>.Success(pagedResult,
+                        $"{dtos.Count} TPE(s) trouvé(s) sur {totalCount}");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Erreur lors de la récupération paginée des TPEs");
+                    return ApiResponse<PagedResult<TPEDto>>.Failure("Erreur interne du serveur");
+                }
+            });
+        }
+
+        private IQueryable<TpeEntity> ApplySortingToQuery(IQueryable<TpeEntity> query, string? sortBy, bool descending)
+        {
+            if (string.IsNullOrWhiteSpace(sortBy))
+                sortBy = "NumSerieComplet";
+
+            var sortByLower = sortBy.ToLower();
+
+            return (sortByLower, descending) switch
+            {
+                ("numserie", false) => query.OrderBy(t => t.NumSerie),
+                ("numserie", true) => query.OrderByDescending(t => t.NumSerie),
+
+                ("numseriecomplet", false) => query.OrderBy(t => t.NumSerieComplet),
+                ("numseriecomplet", true) => query.OrderByDescending(t => t.NumSerieComplet),
+
+                ("modele", false) => query.OrderBy(t => t.Modele),
+                ("modele", true) => query.OrderByDescending(t => t.Modele),
+
+                ("commercant", false) => query.OrderBy(t => t.Commercant.Nom).ThenBy(t => t.Commercant.Prenom),
+                ("commercant", true) => query.OrderByDescending(t => t.Commercant.Nom).ThenByDescending(t => t.Commercant.Prenom),
+
+                _ => query.OrderBy(t => t.NumSerieComplet)
+            };
+        }
     }
 
-    // ModeleTPEHelper peut être une classe séparée dans le même fichier
+    // ModeleTPEHelper - CLASSE STATIQUE SÉPARÉE
     public static class ModeleTPEHelper
     {
         private static readonly Dictionary<ModeleTPE, string> _abbreviations = new()

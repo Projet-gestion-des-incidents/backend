@@ -1,0 +1,76 @@
+mkdir CleanArchitecture
+cd CleanArchitecture
+
+dotnet new sln -n CleanArchitecture
+
+dotnet new classlib -n CleanArchitecture.Domain -f net10.0
+
+
+dotnet new classlib -n CleanArchitecture.Application -f net10.0
+
+
+dotnet new classlib -n CleanArchitecture.Infrastructure -f net10.0
+
+
+dotnet new webapi -n CleanArchitecture.API -f net10.0
+
+
+dotnet sln add CleanArchitecture.Domain
+dotnet sln add CleanArchitecture.Application
+dotnet sln add CleanArchitecture.Infrastructure
+dotnet sln add CleanArchitecture.API
+
+
+dotnet add CleanArchitecture.Application reference CleanArchitecture.Domain
+
+
+dotnet add CleanArchitecture.Infrastructure reference CleanArchitecture.Application
+dotnet add CleanArchitecture.Infrastructure reference CleanArchitecture.Domain
+
+
+dotnet add CleanArchitecture.API reference CleanArchitecture.Application
+dotnet add CleanArchitecture.API reference CleanArchitecture.Infrastructure
+
+
+dotnet add CleanArchitecture.Infrastructure package Microsoft.EntityFrameworkCore
+dotnet add CleanArchitecture.Infrastructure package Microsoft.EntityFrameworkCore.SqlServer
+dotnet add CleanArchitecture.Infrastructure package Microsoft.EntityFrameworkCore.Tools
+dotnet add CleanArchitecture.Infrastructure package Microsoft.EntityFrameworkCore.Design --version 10.0.0
+
+
+dotnet list CleanArchitecture.Infrastructure package
+
+
+dotnet list package
+
+
+dotnet tool install --global dotnet-ef
+
+
+dotnet ef migrations add InitialCreate --project projet0.Infrastructure --startup-project projet0.API --output-dir Migrations
+dotnet ef database update --project projet0.Infrastructure --startup-project projet0.API
+
+dotnet ef migrations remove --project projet0.Infrastructure --startup-project projet0.API
+
+git init
+
+git add .
+
+git commit
+
+ENSUITE seulement git push
+
+git status
+git add .
+git commit -m "feat: début frontend gestion incidents"
+git push origin gestion-incidents-frontend
+
+
+
+npm install --save-dev prettier
+
+npx prettier --write .
+
+
+
+

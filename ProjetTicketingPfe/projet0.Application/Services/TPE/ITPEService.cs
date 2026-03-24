@@ -1,4 +1,5 @@
-﻿using projet0.Application.Commun.DTOs;
+﻿using projet0.Application.Common.Models.Pagination;
+using projet0.Application.Commun.DTOs;
 using projet0.Application.Commun.Ressources;
 using System;
 using System.Collections.Generic;
@@ -15,5 +16,9 @@ namespace projet0.Application.Services.TPE
         Task<ApiResponse<IEnumerable<TPEDto>>> GetByCommercantIdAsync(Guid commercantId);
         Task<ApiResponse<IEnumerable<TPEDto>>> GetAllAsync();
         
+        
+
+        // Dans ITPEService
+        Task<ApiResponse<PagedResult<TPEDto>>> GetTPEsPagedAsync(TPEPagedRequest request);
     }
 }
