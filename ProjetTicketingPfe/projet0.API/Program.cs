@@ -190,7 +190,7 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("TicketDelete", policy =>
     {
         policy.RequireAuthenticatedUser();
-        policy.RequireRole("Admin"); 
+        policy.RequireRole("Admin", "Technicien");
     });
 
     options.AddPolicy("TicketAssign", policy =>
