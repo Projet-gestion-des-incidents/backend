@@ -10,6 +10,7 @@ using projet0.Domain.Entities;
 using System.Data;
 using System.Diagnostics;
 
+
 namespace projet0.Application.Services.User
 {
     public class UserService : IUserService
@@ -19,8 +20,8 @@ namespace projet0.Application.Services.User
         private readonly RoleManager<IdentityRole<Guid>> _roleManager;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IHostEnvironment _webHostEnvironment;
-
-        public UserService(IUserRepository userRepository, ILogger<UserService> logger, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole<Guid>> roleManager, IHostEnvironment webHostEnvironment)
+        
+        public UserService(IUserRepository userRepository, ILogger<UserService> logger,UserManager<ApplicationUser> userManager, RoleManager<IdentityRole<Guid>> roleManager, IHostEnvironment webHostEnvironment)
         {
             _userRepository = userRepository;
             _logger = logger;
@@ -812,7 +813,8 @@ namespace projet0.Application.Services.User
             };
         }
 
-        // ================= DELETE (SUPPRESSION DÉFINITIVE) =================
+        // ================= DELETE (SUPPRESSION DÉFINITIVE AVEC CASCADE) =================
+        // ================= DELETE (SUPPRESSION DÉFINITIVE AVEC CASCADE) =================
         public Task<ApiResponse<string>> DeleteAsync(Guid id)
             => MeasureAsync(
                 actionName: "DeleteUser",
@@ -823,46 +825,66 @@ namespace projet0.Application.Services.User
 
                     if (user == null)
                     {
-                        _logger.LogWarning(
-                            "NOT_FOUND DeleteUser | UserId = {UserId}",
-                            id
-                        );
-
+                        _logger.LogWarning("NOT_FOUND DeleteUser | UserId = {UserId}", id);
                         return ApiResponse<string>.Failure(
                             message: UserMessages.UserNotFound,
                             resultCode: 20);
                     }
 
-                    // OPTION 1: Suppression définitive (recommandée pour les admins)
-                    var result = await _userManager.DeleteAsync(user);
-
-                    if (!result.Succeeded)
+                    // Vérifier si c'est un admin (ne pas supprimer le dernier admin)
+                    var userRoles = await _userManager.GetRolesAsync(user);
+                    if (userRoles.Contains("Admin"))
                     {
-                        _logger.LogError(
-                            "DB_ERROR DeleteUser | UserId = {UserId} | {@Errors}",
-                            id,
-                            result.Errors
-                        );
-
-                        return ApiResponse<string>.Failure(
-                            message: UserMessages.DeleteUserError,
-                            resultCode: 22
-                        );
+                        var adminCount = (await _userManager.GetUsersInRoleAsync("Admin")).Count;
+                        if (adminCount <= 1)
+                        {
+                            _logger.LogWarning("Cannot delete last admin | UserId = {UserId}", id);
+                            return ApiResponse<string>.Failure(
+                                message: "Impossible de supprimer le dernier administrateur",
+                                resultCode: 30);
+                        }
                     }
 
-                    _logger.LogInformation(
-                        "SUCCESS DeleteUser | UserId = {UserId} | UserName = {UserName} | Email = {Email}",
-                        user.Id,
-                        user.UserName,
-                        user.Email
-                    );
+                    try
+                    {
+                        // 🔥 UTILISER LA MÉTHODE DU REPOSITORY AU LIEU DE _context DIRECTEMENT
+                        var result = await _userRepository.DeleteUserWithCascadeAsync(user);
 
-                    return ApiResponse<string>.Success(
-                        message: "Utilisateur supprimé définitivement avec succès",
-                        resultCode: 0
-                    );
+                        if (!result.Succeeded)
+                        {
+                            _logger.LogError(
+                                "DB_ERROR DeleteUser | UserId = {UserId} | {@Errors}",
+                                id,
+                                result.Errors
+                            );
+
+                            return ApiResponse<string>.Failure(
+                                message: UserMessages.DeleteUserError,
+                                resultCode: 22
+                            );
+                        }
+
+                        _logger.LogInformation(
+                            "SUCCESS DeleteUser | UserId = {UserId} | UserName = {UserName} | Email = {Email}",
+                            user.Id,
+                            user.UserName,
+                            user.Email
+                        );
+
+                        return ApiResponse<string>.Success(
+                            message: "Utilisateur et toutes ses données associées supprimés avec succès",
+                            resultCode: 0
+                        );
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "UNEXPECTED_ERROR DeleteUser | UserId = {UserId}", id);
+                        return ApiResponse<string>.Failure(
+                            message: "Une erreur inattendue s'est produite lors de la suppression.",
+                            resultCode: 99
+                        );
+                    }
                 });
-
         // ================= SEARCH USERS =================
         public async Task<ApiResponse<PagedResult<UserWithRoleDto>>> SearchUsersAsync(UserSearchRequest request)
         {

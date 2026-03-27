@@ -30,5 +30,6 @@ namespace projet0.Application.Interfaces
         Task<(IEnumerable<UserWithRoleDto> Users, int TotalCount)> SearchUsersAsync(UserSearchRequest request);
         // projet0.Application/Interfaces/IUserRepository.cs
         Task<IEnumerable<TechnicienDto>> GetTechniciensAsync();
+        Task<IdentityResult> DeleteUserWithCascadeAsync(ApplicationUser user);
     }
 }

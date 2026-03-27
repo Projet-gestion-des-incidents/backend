@@ -16,6 +16,8 @@ namespace projet0.Infrastructure.Repositories
     {
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly RoleManager<IdentityRole<Guid>> _roleManager;
+        private readonly ApplicationDbContext _context;
+
 
         public UserRepository(
             ApplicationDbContext context,
@@ -25,6 +27,8 @@ namespace projet0.Infrastructure.Repositories
         {
             _userManager = userManager;
             _roleManager = roleManager;
+            _context = context; // Ajouter cette ligne
+
         }
 
         public Task<ApplicationUser> GetByEmailAsync(string email) => _userManager.FindByEmailAsync(email);
@@ -345,5 +349,125 @@ namespace projet0.Infrastructure.Repositories
                 Email = t.Email
             }).OrderBy(t => t.Nom).ThenBy(t => t.Prenom);
         }
-    }
+        public async Task<IdentityResult> DeleteUserWithCascadeAsync(ApplicationUser user)
+        {
+            // Utiliser une transaction pour assurer l'intégrité des données
+            using var transaction = await _context.Database.BeginTransactionAsync();
+
+            try
+            {
+                // 1. Récupérer tous les TPEs liés à cet utilisateur
+                var tpes = await _context.TPEs
+                    .Where(t => t.CommercantId == user.Id)
+                    .ToListAsync();
+                if (tpes.Any())
+                {
+                    _context.TPEs.RemoveRange(tpes);
+                }
+
+                // 2. Récupérer les tickets créés par cet utilisateur (CreateurId)
+                var ticketsCrees = await _context.Tickets
+                    .Include(t => t.Commentaires)
+                    .Where(t => t.CreateurId == user.Id)
+                    .ToListAsync();
+
+                foreach (var ticket in ticketsCrees)
+                {
+                    // Supprimer les commentaires du ticket
+                    if (ticket.Commentaires?.Any() == true)
+                    {
+                        _context.CommentairesTicket.RemoveRange(ticket.Commentaires);
+                    }
+
+                    // Supprimer les incidents liés au ticket
+                    var incidentsTicket = await _context.IncidentTickets
+                        .Where(i => i.TicketId == ticket.Id)
+                        .ToListAsync();
+                    if (incidentsTicket.Any())
+                    {
+                        _context.IncidentTickets.RemoveRange(incidentsTicket);
+                    }
+                }
+
+                // Supprimer les tickets créés
+                if (ticketsCrees.Any())
+                {
+                    _context.Tickets.RemoveRange(ticketsCrees);
+                }
+
+                // 3. Gérer les tickets assignés (mettre à null l'assignation) - AssigneeId
+                var ticketsAssignes = await _context.Tickets
+                    .Where(t => t.AssigneeId == user.Id)
+                    .ToListAsync();
+
+                if (ticketsAssignes.Any())
+                {
+                    foreach (var ticket in ticketsAssignes)
+                    {
+                        ticket.AssigneeId = null;
+                    }
+                }
+
+                // 4. Supprimer les commentaires directs de l'utilisateur (AuteurId)
+                var commentaires = await _context.CommentairesTicket
+                    .Where(c => c.AuteurId == user.Id)
+                    .ToListAsync();
+                if (commentaires.Any())
+                {
+                    _context.CommentairesTicket.RemoveRange(commentaires);
+                }
+
+                // 5. Supprimer les notifications de l'utilisateur (DestinataireId)
+                var notifications = await _context.Notifications
+                    .Where(n => n.DestinataireId == user.Id)
+                    .ToListAsync();
+                if (notifications.Any())
+                {
+                    _context.Notifications.RemoveRange(notifications);
+                }
+
+                // 6. Supprimer les historiques modifiés par l'utilisateur (ModifieParId)
+                var historiques = await _context.HistoriquesTicket
+                    .Where(h => h.ModifieParId == user.Id)
+                    .ToListAsync();
+                if (historiques.Any())
+                {
+                    _context.HistoriquesTicket.RemoveRange(historiques);
+                }
+
+                // 7. Supprimer les incidents créés par l'utilisateur (LieParId)
+                var incidentsUser = await _context.IncidentTickets
+                    .Where(i => i.LieParId == user.Id)
+                    .ToListAsync();
+                if (incidentsUser.Any())
+                {
+                    _context.IncidentTickets.RemoveRange(incidentsUser);
+                }
+
+                // 8. Sauvegarder toutes les modifications (suppressions des entités liées)
+                await _context.SaveChangesAsync();
+
+                // 9. Supprimer l'utilisateur via UserManager
+                var result = await _userManager.DeleteAsync(user);
+
+                if (!result.Succeeded)
+                {
+                    // Si la suppression de l'utilisateur échoue, annuler la transaction
+                    await transaction.RollbackAsync();
+                    return result;
+                }
+
+                // 10. Valider la transaction
+                await transaction.CommitAsync();
+
+                return IdentityResult.Success;
+            }
+            catch (Exception ex)
+            {
+                // En cas d'erreur, annuler la transaction
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
+    } 
 }
