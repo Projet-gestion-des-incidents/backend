@@ -1,5 +1,7 @@
 ﻿using AutoMapper;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using projet0.Application.Common.Models.Pagination;
 using projet0.Application.Commun.DTOs.Incident;
@@ -13,6 +15,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using IncidentEntity = projet0.Domain.Entities.Incident;
+using TicketEntity = projet0.Domain.Entities.Ticket;
 
 namespace projet0.Application.Services.Incident
 {
@@ -28,6 +31,10 @@ namespace projet0.Application.Services.Incident
         private readonly IIncidentTicketRepository _incidentTicketRepository;
         private readonly ITicketRepository _ticketRepository;
         private readonly IIncidentTPERepository _incidentTPERepository;
+        private readonly IWebHostEnvironment _environment;
+        private readonly ICommentaireRepository _commentaireRepository;
+        private readonly IPieceJointeRepository _pieceJointeRepository;// ✅ AJOUTER
+
         public IncidentService(
             IIncidentRepository incidentRepository,
             IUserRepository userRepository,
@@ -38,7 +45,10 @@ namespace projet0.Application.Services.Incident
             IMapper mapper, 
             IIncidentTicketRepository incidentTicketRepository,
             ITicketRepository ticketRepository,
-            IIncidentTPERepository incidentTPERepository)
+            IIncidentTPERepository incidentTPERepository,
+            IWebHostEnvironment environment,
+            IPieceJointeRepository pieceJointeRepository,      // ✅ AJOUTER
+            ICommentaireRepository commentaireRepository)
         {
             _incidentRepository = incidentRepository;
             _userRepository = userRepository;
@@ -50,7 +60,9 @@ namespace projet0.Application.Services.Incident
             _incidentTicketRepository = incidentTicketRepository;
             _ticketRepository = ticketRepository;
             _incidentTPERepository = incidentTPERepository;
-
+            _environment = environment;
+            _pieceJointeRepository = pieceJointeRepository;
+            _commentaireRepository = commentaireRepository;
         }
 
         #region Private Methods
@@ -787,82 +799,44 @@ namespace projet0.Application.Services.Incident
                     return ApiResponse<bool>.Failure("Incident introuvable");
                 }
 
-                // Vérifier le rôle de l'utilisateur
                 var userRoles = await _userRepository.GetUserRolesAsync(userId);
                 var isAdmin = userRoles.Contains("Admin");
                 var isCommercant = userRoles.Contains("Commercant");
 
-                // Si c'est un commerçant, vérifier que c'est son incident
+                // Récupérer les tickets liés AVANT suppression
+                var ticketsLies = new List<TicketEntity>();
+                if (incident.IncidentTickets != null && incident.IncidentTickets.Any())
+                {
+                    ticketsLies = incident.IncidentTickets
+                        .Select(it => it.Ticket)
+                        .Where(t => t != null)
+                        .ToList();
+                }
+
+                // Vérifications pour commerçant...
                 if (isCommercant && !isAdmin && incident.CreatedById != userId)
                 {
-                    _logger.LogWarning("DeleteIncident | Commerçant tente de supprimer un incident qui ne lui appartient pas | UserId: {UserId}, Incident créé par: {CreatedById}",
-                        userId, incident.CreatedById);
-                    return ApiResponse<bool>.Failure(
-                        "Vous ne pouvez supprimer que vos propres incidents.",
-                        resultCode: 72
-                    );
+                    return ApiResponse<bool>.Failure("Vous ne pouvez supprimer que vos propres incidents.", resultCode: 72);
                 }
 
-                // Règles pour le commerçant
                 if (isCommercant && !isAdmin)
                 {
-                    // RÈGLE 1 : L'incident ne doit pas avoir de statut
                     if (incident.StatutIncident.HasValue)
                     {
-                        _logger.LogWarning("DeleteIncident | Commerçant tente de supprimer un incident avec statut | Id: {Id}, Statut: {Statut}",
-                            id, incident.StatutIncident);
-                        return ApiResponse<bool>.Failure(
-                            "Vous ne pouvez pas supprimer un incident qui est déjà en cours ou fermé.",
-                            resultCode: 48
-                        );
+                        return ApiResponse<bool>.Failure("Vous ne pouvez pas supprimer un incident qui est déjà en cours ou fermé.", resultCode: 48);
                     }
 
-                    // RÈGLE 2 : L'incident ne doit pas être lié à des tickets
                     if (incident.IncidentTickets != null && incident.IncidentTickets.Any())
                     {
-                        // Vérifier si les tickets liés ont un statut
-                        var ticketsAvecStatut = incident.IncidentTickets
-                            .Select(it => it.Ticket)
-                            .Where(t => t != null && t.StatutTicket.HasValue)
-                            .ToList();
-
-                        if (ticketsAvecStatut.Any())
-                        {
-                            var statuts = string.Join(", ", ticketsAvecStatut.Select(t => $"{t.ReferenceTicket}({t.StatutTicket})"));
-                            _logger.LogWarning("DeleteIncident | Commerçant tente de supprimer un incident lié à des tickets avec statut | Id: {Id}, Tickets: {Tickets}",
-                                id, statuts);
-                            return ApiResponse<bool>.Failure(
-                                "Vous ne pouvez pas supprimer un incident lié à des tickets qui ont déjà un statut.",
-                                resultCode: 73
-                            );
-                        }
-
-                        // Si les tickets sont sans statut, on peut supprimer mais il faut d'abord supprimer les liens
-                        return ApiResponse<bool>.Failure(
-                            "Impossible de supprimer un incident lié à des tickets. Veuillez d'abord supprimer les liens.",
-                            resultCode: 49
-                        );
+                        return ApiResponse<bool>.Failure("Impossible de supprimer un incident lié à des tickets. Veuillez d'abord supprimer les liens.", resultCode: 49);
                     }
                 }
 
-                // Règles pour l'admin (plus permissives)
+                // Admin : supprimer les liaisons
                 if (isAdmin)
                 {
-                    // L'admin peut supprimer même avec statut ? À vous de voir
-                    // Si vous voulez que l'admin puisse tout supprimer, enlevez cette condition
-                    if (incident.StatutIncident.HasValue)
-                    {
-                        _logger.LogWarning("DeleteIncident | Admin supprime un incident avec statut | Id: {Id}, Statut: {Statut}",
-                            id, incident.StatutIncident);
-                        // return ApiResponse<bool>.Failure("L'admin peut tout supprimer, même avec statut", 74);
-                    }
-
-                    // L'admin peut supprimer même avec des liens ? À vous de voir
                     if (incident.IncidentTickets != null && incident.IncidentTickets.Any())
                     {
-                        _logger.LogWarning("DeleteIncident | Admin supprime un incident lié à des tickets | Id: {Id}, NbTickets: {Count}",
-                            id, incident.IncidentTickets.Count);
-                        // Option: Supprimer automatiquement les liens
                         foreach (var lien in incident.IncidentTickets.ToList())
                         {
                             await _incidentTicketRepository.DeleteAsync(lien);
@@ -870,9 +844,48 @@ namespace projet0.Application.Services.Incident
                     }
                 }
 
-                // Suppression effective
+                // Supprimer l'incident
                 await _incidentRepository.DeleteAsync(incident);
                 await _incidentRepository.SaveChangesAsync();
+
+                // ✅ Gérer les tickets qui n'ont plus d'incidents
+                foreach (var ticket in ticketsLies)
+                {
+                    var ticketMisAJour = await _ticketRepository.GetTicketWithDetailsAsync(ticket.Id);
+                    if (ticketMisAJour == null) continue;
+
+                    var incidentsRestants = ticketMisAJour.IncidentTickets?.Select(it => it.Incident).Where(i => i != null).ToList() ?? new List<IncidentEntity>();
+
+                    if (!incidentsRestants.Any())
+                    {
+                        _logger.LogInformation("Ticket {TicketId} n'a plus d'incidents liés - suppression", ticket.Id);
+
+                        // ✅ Supprimer les commentaires et leurs pièces jointes
+                        if (ticketMisAJour.Commentaires != null && ticketMisAJour.Commentaires.Any())
+                        {
+                            foreach (var commentaire in ticketMisAJour.Commentaires.ToList())
+                            {
+                                // Supprimer les pièces jointes du commentaire
+                                if (commentaire.PiecesJointes != null && commentaire.PiecesJointes.Any())
+                                {
+                                    foreach (var piece in commentaire.PiecesJointes.ToList())
+                                    {
+                                        // Supprimer via le service
+                                        await _pieceJointeService.SupprimerFichierAsync(piece.Id);
+                                    }
+                                }
+                                // Supprimer le commentaire
+                                await _commentaireRepository.DeleteAsync(commentaire);
+                            }
+                        }
+
+                        // Supprimer le ticket
+                        await _ticketRepository.DeleteAsync(ticketMisAJour);
+                        _logger.LogInformation("Ticket {TicketId} supprimé définitivement", ticket.Id);
+                    }
+                }
+
+                await _ticketRepository.SaveChangesAsync();
 
                 sw.Stop();
                 _logger.LogInformation("DeleteIncident SUCCESS | Id: {Id} | Rôle: {Role} | Duration: {Ms} ms",
@@ -887,6 +900,7 @@ namespace projet0.Application.Services.Incident
                 return ApiResponse<bool>.Failure("Erreur interne du serveur");
             }
         }
+
         #endregion
 
         #region Specific Methods

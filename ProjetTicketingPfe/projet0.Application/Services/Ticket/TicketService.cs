@@ -20,6 +20,8 @@ using Microsoft.EntityFrameworkCore;
 using System.Linq;
 using projet0.Application.Commun.DTOs.TicketDTOs;
 
+
+
 namespace projet0.Application.Services.Ticket
 {
     public class TicketService : ITicketService
@@ -56,7 +58,8 @@ namespace projet0.Application.Services.Ticket
             _mapper = mapper;
             _incidentRepository = incidentRepository; 
             _incidentTicketRepository = incidentTicketRepository;
-            _incidentService = incidentService; 
+            _incidentService = incidentService;
+           
         }
 
         #region Private Methods
@@ -539,7 +542,27 @@ namespace projet0.Application.Services.Ticket
                         }
                     }
 
-                    // Supprimer le ticket (les liaisons ont déjà été supprimées)
+                    // ✅ Supprimer les commentaires et leurs pièces jointes
+                    if (ticket.Commentaires != null && ticket.Commentaires.Any())
+                    {
+                        foreach (var commentaire in ticket.Commentaires)
+                        {
+                            if (commentaire.PiecesJointes != null && commentaire.PiecesJointes.Any())
+                            {
+                                foreach (var piece in commentaire.PiecesJointes)
+                                {
+                                    // Supprimer le fichier physique
+                                    var filePath = Path.Combine(_environment.ContentRootPath, "uploads", "commentaires", piece.NomFichier);
+                                    if (File.Exists(filePath))
+                                    {
+                                        File.Delete(filePath);
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Supprimer le ticket
                     await _ticketRepository.DeleteAsync(ticket);
                     await _ticketRepository.SaveChangesAsync();
 
