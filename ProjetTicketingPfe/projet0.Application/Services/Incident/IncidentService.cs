@@ -83,6 +83,7 @@ namespace projet0.Application.Services.Incident
             var dto = _mapper.Map<IncidentDTO>(incident);
 
             dto.StatutIncidentLibelle = GetStatutLibelle(incident.StatutIncident);
+            dto.SeveriteIncidentLibelle = GetSeveriteLibelle(incident.SeveriteIncident); // ✅ Appel correct
             dto.Emplacement = incident.Emplacement;
 
             if (incident.CreatedById.HasValue && dto.CreatedByName == null)
@@ -91,7 +92,6 @@ namespace projet0.Application.Services.Incident
                 dto.CreatedByName = user != null ? $"{user.Nom} {user.Prenom}" : "Utilisateur inconnu";
             }
 
-            // Ajouter aussi le type de problème si nécessaire
             dto.TypeProbleme = incident.TypeProbleme;
 
             return dto;
@@ -173,20 +173,9 @@ namespace projet0.Application.Services.Incident
             return dto;
         }
 
-        private string GetSeveriteLibelle(SeveriteIncident severite)
-        {
-            return severite switch
-            {
-                SeveriteIncident.Faible => "Faible",
-                SeveriteIncident.Moyenne => "Moyenne",
-                SeveriteIncident.Forte => "Forte",
-                _ => severite.ToString()
-            };
-        }
-
         private string GetStatutLibelle(StatutIncident? statut)
         {
-            if (!statut.HasValue)
+            if (!statut.HasValue || statut == StatutIncident.NonTraite)
                 return "Non traité";  
             return statut switch
             {
@@ -198,7 +187,6 @@ namespace projet0.Application.Services.Incident
             };
         }
 
-        // Appliquer les filtres pour SearchIncidentsAsync
         private IQueryable<IncidentEntity> ApplySearchFilters(
     IQueryable<IncidentEntity> query,
     IncidentSearchRequest request,
@@ -210,38 +198,77 @@ namespace projet0.Application.Services.Incident
                 var term = request.SearchTerm.ToLower();
 
                 query = query.Where(i =>
-                    // Recherche dans le CodeIncident
                     (i.CodeIncident != null && i.CodeIncident.ToLower().Contains(term)) ||
-
-                    // Recherche dans l'Emplacement
-                    (i.Emplacement != null && i.Emplacement.ToLower().Contains(term)) ||                    
-
-                    // Recherche par nom du créateur (via matchedUserIds)
+                    (i.Emplacement != null && i.Emplacement.ToLower().Contains(term)) ||
                     (matchedUserIds.Any() && i.CreatedById.HasValue && matchedUserIds.Contains(i.CreatedById.Value))
                 );
             }
 
-            //  Filtre par TypeProbleme 
+            // ✅ FILTRE PAR STATUT (gère le null)
+            if (request.StatutIncident.HasValue)
+            {
+                query = query.Where(i => i.StatutIncident == request.StatutIncident.Value);
+            }
+            else if (!string.IsNullOrWhiteSpace(request.StatutLibelle))
+            {
+                switch (request.StatutLibelle.ToLower().Trim())
+                {
+                    case "nontraite":
+                    case "non traité":
+                    case "non-traite":
+                        query = query.Where(i => i.StatutIncident == null);
+                        break;
+                    case "encours":
+                    case "en cours":
+                        query = query.Where(i => i.StatutIncident == StatutIncident.EnCours);
+                        break;
+                    case "ferme":
+                    case "fermé":
+                        query = query.Where(i => i.StatutIncident == StatutIncident.Ferme);
+                        break;
+                }
+            }
+
+            // ✅ FILTRE PAR SÉVÉRITÉ (CORRIGÉ)
+            if (request.SeveriteIncident.HasValue)
+            {
+                query = query.Where(i => i.SeveriteIncident == request.SeveriteIncident.Value);
+            }
+            else if (!string.IsNullOrWhiteSpace(request.SeveriteLibelle))
+            {
+                switch (request.SeveriteLibelle.ToLower().Trim())
+                {
+                    case "nondefinie":
+                    case "non définie":
+                    case "non-definie":
+                        // Filtrer les incidents avec SeveriteIncident = 0 (NonDefinie)
+                        query = query.Where(i => i.SeveriteIncident == SeveriteIncident.NonDefinie);
+                        break;
+                    case "faible":
+                        query = query.Where(i => i.SeveriteIncident == SeveriteIncident.Faible);
+                        break;
+                    case "moyenne":
+                        query = query.Where(i => i.SeveriteIncident == SeveriteIncident.Moyenne);
+                        break;
+                    case "forte":
+                        query = query.Where(i => i.SeveriteIncident == SeveriteIncident.Forte);
+                        break;
+                }
+            }
+
+            // Filtre par TypeProbleme
             if (request.TypeProbleme.HasValue)
             {
                 query = query.Where(i => i.TypeProbleme == request.TypeProbleme.Value);
             }
 
-            //  Filtre par sévérité
-            if (request.SeveriteIncident.HasValue)
-                query = query.Where(i => i.SeveriteIncident == request.SeveriteIncident.Value);
-
-            //  Filtre par statut
-            if (request.StatutIncident.HasValue)
-                query = query.Where(i => i.StatutIncident == request.StatutIncident.Value);
-
-            //  Filtre par année de détection
+            // Filtre par année de détection
             if (request.YearDetection.HasValue)
             {
                 query = query.Where(i => i.DateDetection.Year == request.YearDetection.Value);
             }
 
-            //  Filtre par année de résolution
+            // Filtre par année de résolution
             if (request.YearResolution.HasValue)
             {
                 query = query.Where(i => i.DateResolution.HasValue &&
@@ -458,7 +485,7 @@ namespace projet0.Application.Services.Incident
                     DescriptionIncident = dto.DescriptionIncident ?? "",
                     Emplacement = dto.Emplacement,
                     TypeProbleme = dto.TypeProbleme,  // Un seul type
-                    StatutIncident = null,  // ← AUCUN STATUT À LA CRÉATION
+                    StatutIncident = StatutIncident.NonTraite,  // ← AUCUN STATUT À LA CRÉATION
                     DateDetection = DateTime.UtcNow,
                     CreatedById = createdById,
                     EntitesImpactees = new List<EntiteImpactee>(),
@@ -1153,6 +1180,17 @@ namespace projet0.Application.Services.Incident
                     return ApiResponse<List<IncidentTPEDTO>>.Failure("Erreur interne du serveur");
                 }
             });
+        }
+        private string GetSeveriteLibelle(SeveriteIncident severite)
+        {
+            return severite switch
+            {
+                SeveriteIncident.NonDefinie => "Non définie",
+                SeveriteIncident.Faible => "Faible",
+                SeveriteIncident.Moyenne => "Moyenne",
+                SeveriteIncident.Forte => "Forte",
+                _ => severite.ToString()
+            };
         }
 
         #endregion

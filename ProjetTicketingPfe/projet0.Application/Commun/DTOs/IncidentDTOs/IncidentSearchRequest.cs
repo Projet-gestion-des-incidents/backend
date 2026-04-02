@@ -13,6 +13,8 @@ namespace projet0.Application.Commun.DTOs.Incident
         public TypeProbleme? TypeProbleme { get; set; }
         public int? YearDetection { get; set; }
         public int? YearResolution { get; set; }
+        public string? StatutLibelle { get; set; }
+        public string? SeveriteLibelle { get; set; }
         public int Page { get; set; } = 1;
         public int PageSize { get; set; } = 10;
         public string SortBy { get; set; } = "DateDetection";
