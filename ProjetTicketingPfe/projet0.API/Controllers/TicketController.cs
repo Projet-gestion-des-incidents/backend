@@ -384,48 +384,35 @@ namespace projet0.API.Controllers
 
         // Dans TicketController.cs - AJOUTER CETTE MÉTHODE
 
+        // Dans TicketController.cs - Remplacez la méthode existante
+
         [HttpGet("mes-tickets")]
         [Authorize(Policy = "TicketRead")]
-        public async Task<ActionResult<ApiResponse<List<TicketDTO>>>> GetMesTicketsAssignes()
+        public async Task<ActionResult<ApiResponse<PagedResult<TicketDTO>>>> GetMesTicketsPaged(
+            [FromQuery] TicketPagedRequest request)  // ✅ Utilise directement TicketPagedRequest
         {
             try
             {
                 var userId = GetCurrentUserId();
 
-                // Créer une requête filtrée par l'ID du technicien connecté
-                var request = new TicketPagedRequest
-                {
-                    Page = 1,
-                    PageSize = 100,
-                    SortBy = "DateCreation",
-                    SortDescending = true
-                };
+                _logger.LogInformation("Récupération paginée des tickets du technicien {UserId} - Page: {Page}, PageSize: {PageSize}, SearchTerm: {SearchTerm}, Statut: {Statut}",
+                    userId, request.Page, request.PageSize, request.SearchTerm, request.Statut);
 
-                var result = await _ticketService.GetTicketsPagedAsync(request);
+                var result = await _ticketService.GetMesTicketsPagedAsync(request, userId);
 
-                // Filtrer manuellement pour ne garder que les tickets assignés à l'utilisateur
-                if (result.IsSuccess && result.Data != null)
-                {
-                    var ticketsAssignes = result.Data.Items
-                        .Where(t => t.AssigneeId == userId)
-                        .ToList();
-
-                    var pagedResult = new PagedResult<TicketDTO>
-                    {
-                        Items = ticketsAssignes,
-                        TotalCount = ticketsAssignes.Count,
-                        Page = 1,
-                        PageSize = ticketsAssignes.Count
-                    };
-
-                    return Ok(ApiResponse<PagedResult<TicketDTO>>.Success(pagedResult));
-                }
+                if (!result.IsSuccess)
+                    return BadRequest(result);
 
                 return Ok(result);
             }
+            catch (UnauthorizedAccessException ex)
+            {
+                _logger.LogWarning(ex, "Tentative de récupération des tickets sans authentification");
+                return Unauthorized(ApiResponse<PagedResult<TicketDTO>>.Failure(ex.Message));
+            }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Erreur lors de la récupération des tickets assignés");
+                _logger.LogError(ex, "Erreur lors de la récupération paginée des tickets du technicien");
                 return StatusCode(500, ApiResponse<PagedResult<TicketDTO>>.Failure(
                     "Erreur interne du serveur"));
             }

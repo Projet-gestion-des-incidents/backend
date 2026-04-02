@@ -1675,6 +1675,79 @@ namespace projet0.Application.Services.Ticket
                 }
             });
         }
+        // Dans TicketService.cs
+        public async Task<ApiResponse<PagedResult<TicketDTO>>> GetMesTicketsPagedAsync(TicketPagedRequest request, Guid technicienId)
+        {
+            return await MeasureAsync(nameof(GetMesTicketsPagedAsync), request, async () =>
+            {
+                try
+                {
+                    _logger.LogInformation("Début GetMesTicketsPagedAsync - TechnicienId: {TechnicienId}, Page: {Page}, PageSize: {PageSize}, SearchTerm: {SearchTerm}",
+                        technicienId, request.Page, request.PageSize, request.SearchTerm);
+
+                    // 1. Construire le filtre de base
+                    var baseFilter = BuildFilter(request);
+
+                    // 2. Ajouter le filtre par technicien assigné
+                    Expression<Func<TicketEntity, bool>> technicienFilter = t => t.AssigneeId == technicienId;
+
+                    // 3. Combiner les filtres
+                    Expression<Func<TicketEntity, bool>> combinedFilter;
+                    if (baseFilter != null)
+                    {
+                        combinedFilter = baseFilter.AndAlso(technicienFilter);
+                    }
+                    else
+                    {
+                        combinedFilter = technicienFilter;
+                    }
+
+                    // 4. Obtenir la requête avec le filtre combiné
+                    var query = _ticketRepository.GetFilteredQuery(combinedFilter);
+
+                    // 5. Appliquer le tri
+                    if (!string.IsNullOrWhiteSpace(request.SortBy))
+                    {
+                        query = ApplySorting(query, request.SortBy, request.SortDescending);
+                    }
+                    else
+                    {
+                        query = query.OrderByDescending(t => t.DateCreation);
+                    }
+
+                    // 6. Compter le total
+                    var totalCount = await query.CountAsync();
+
+                    // 7. Pagination
+                    var items = await query
+                        .Skip((request.Page - 1) * request.PageSize)
+                        .Take(request.PageSize)
+                        .ToListAsync();
+
+                    // 8. Mapper vers DTO
+                    var dtos = new List<TicketDTO>();
+                    foreach (var ticket in items)
+                    {
+                        dtos.Add(await MapToDto(ticket));
+                    }
+
+                    // 9. Créer le résultat paginé
+                    var pagedResult = PagedResult<TicketDTO>.Create(
+                        dtos,
+                        totalCount,
+                        request.Page,
+                        request.PageSize
+                    );
+
+                    return ApiResponse<PagedResult<TicketDTO>>.Success(pagedResult);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Erreur lors de la récupération paginée des tickets du technicien");
+                    return ApiResponse<PagedResult<TicketDTO>>.Failure("Erreur interne du serveur: " + ex.Message);
+                }
+            });
+        }
         #endregion
     }
 }
