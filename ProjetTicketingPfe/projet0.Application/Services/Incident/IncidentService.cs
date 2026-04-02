@@ -671,26 +671,41 @@ namespace projet0.Application.Services.Incident
                 if (incident == null)
                     return ApiResponse<bool>.Failure("Incident non trouvé");
 
-                // Récupérer tous les tickets liés
                 var ticketsLies = await _incidentTicketRepository.GetTicketsByIncidentIdAsync(incidentId);
 
                 if (ticketsLies != null && ticketsLies.Any())
                 {
-                    // Si l'incident a au moins un ticket en cours, il est en cours
                     var aUnTicketEnCours = ticketsLies.Any(t => t.StatutTicket == StatutTicket.EnCours);
+                    var aUnTicketAssigne = ticketsLies.Any(t => t.StatutTicket == StatutTicket.Assigne);
+                    var tousLesTicketsResolus = ticketsLies.All(t => t.StatutTicket == StatutTicket.Resolu);
 
-                    if (aUnTicketEnCours && incident.StatutIncident != StatutIncident.Ferme)
+                    if (tousLesTicketsResolus)
                     {
-                        incident.StatutIncident = StatutIncident.EnCours;
+                        // ✅ TOUS les tickets sont résolus → incident fermé
+                        incident.StatutIncident = StatutIncident.Ferme;
+                        incident.DateResolution = DateTime.UtcNow;
+                        _logger.LogInformation("Incident {IncidentId} fermé car tous ses tickets sont résolus", incidentId);
                     }
-                    // Si tous les tickets sont résolus, l'incident peut être fermé
-                    // (mais c'est le technicien qui décide de fermer chaque incident individuellement)
+                    else if (aUnTicketEnCours)
+                    {
+                        // ✅ Au moins un ticket en cours → incident en cours
+                        incident.StatutIncident = StatutIncident.EnCours;
+                        incident.DateResolution = null;
+                        _logger.LogInformation("Incident {IncidentId} en cours", incidentId);
+                    }
+                    else if (aUnTicketAssigne && !aUnTicketEnCours)
+                    {
+                        // ✅ Tickets assignés mais aucun en cours → incident reste en cours
+                        incident.StatutIncident = StatutIncident.EnCours;
+                        incident.DateResolution = null;
+                    }
                 }
                 else
                 {
-                    // Pas de ticket, pas de statut
+                    // ✅ Plus aucun ticket lié → incident sans statut
                     incident.StatutIncident = null;
                     incident.DateResolution = null;
+                    _logger.LogInformation("Incident {IncidentId} : plus de tickets liés, statut remis à null", incidentId);
                 }
 
                 await _incidentRepository.SaveChangesAsync();
