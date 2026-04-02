@@ -102,9 +102,9 @@ namespace projet0.Infrastructure.Repositories
                 .Include(i => i.IncidentTickets)
                     .ThenInclude(it => it.Ticket)
                 .Include(i => i.EntitesImpactees)
-                .Include(i => i.IncidentTPEs)  // ✅ Inclure les TPEs
-                    .ThenInclude(it => it.TPE)  // ✅ Inclure les détails du TPE
-                .Include(i => i.PiecesJointes)  // ✅ Inclure les pièces jointes
+                .Include(i => i.IncidentTPEs)  
+                    .ThenInclude(it => it.TPE)  
+                .Include(i => i.PiecesJointes) 
                 .Include(i => i.Notifications)
                 .FirstOrDefaultAsync(i => i.Id == id);
         }

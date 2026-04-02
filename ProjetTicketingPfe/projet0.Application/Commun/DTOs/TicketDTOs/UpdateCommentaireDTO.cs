@@ -1,5 +1,4 @@
-﻿// Fichier: projet0.Application/Commun/DTOs/Ticket/UpdateCommentaireDTO.cs
-using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;

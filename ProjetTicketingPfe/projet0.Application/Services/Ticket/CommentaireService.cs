@@ -101,7 +101,7 @@ namespace projet0.Application.Services.Ticket
                             Fichier = fichier
                         };
 
-                        // ✅ Utiliser la méthode pour commentaires
+                        // Utiliser la méthode pour commentaires
                         var pieceJointe = await _pieceJointeService.SauvegarderFichierPourCommentaireAsync(
                             pieceDto, commentaire.Id, userId);
 
@@ -216,8 +216,8 @@ namespace projet0.Application.Services.Ticket
                 AuteurNom = commentaire.Auteur != null
                     ? $"{commentaire.Auteur.Nom} {commentaire.Auteur.Prenom}"
                     : "Inconnu",
-                TicketId = commentaire.TicketId,  // ✅ Ajoutez cette ligne
-                TicketReference = commentaire.Ticket?.ReferenceTicket,  // ✅ Ajoutez cette ligne
+                TicketId = commentaire.TicketId,
+                TicketReference = commentaire.Ticket?.ReferenceTicket,
                 PiecesJointes = commentaire.PiecesJointes?.Select(p => new PieceJointeDTO
                 {
                     Id = p.Id,
@@ -241,8 +241,8 @@ namespace projet0.Application.Services.Ticket
                 AuteurNom = commentaire.Auteur != null
                     ? $"{commentaire.Auteur.Nom} {commentaire.Auteur.Prenom}"
                     : "Inconnu",
-                TicketId = commentaire.TicketId,  // ✅ Ajoutez si la propriété existe
-                TicketReference = commentaire.Ticket?.ReferenceTicket,  // ✅ Ajoutez si la propriété existe
+                TicketId = commentaire.TicketId,
+                TicketReference = commentaire.Ticket?.ReferenceTicket,
                 PiecesJointes = commentaire.PiecesJointes?.Select(p => new PieceJointeDTO
                 {
                     Id = p.Id,

@@ -17,6 +17,7 @@ namespace projet0.Application.Commun.DTOs.Ticket
         public StatutTicket? StatutTicket { get; set; }
 
         public Guid? AssigneeId { get; set; }
+
         // Propriété calculée pour savoir si AssigneeId a été explicitement fourni
         public bool IsAssigneeIdSpecified => AssigneeId.HasValue;
         public DateTime? DateLimite { get; set; }

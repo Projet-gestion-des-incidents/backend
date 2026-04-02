@@ -35,7 +35,6 @@ namespace projet0.Infrastructure.Repositories
             return !await query.AnyAsync();
         }
 
-        // Dans TPERepository.cs
         public async Task<IQueryable<TPE>> QueryWithDetailsAsync()
         {
             return _context.TPEs
@@ -114,6 +113,5 @@ namespace projet0.Infrastructure.Repositories
                 _ => query.OrderBy(t => t.NumSerieComplet)
             };
         }
-
     }
 }

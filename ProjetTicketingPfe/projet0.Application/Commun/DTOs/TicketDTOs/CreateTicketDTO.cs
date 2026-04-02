@@ -16,6 +16,5 @@ namespace projet0.Application.Commun.DTOs.Ticket
         public DateTime? DateLimite { get; set; }
 
         public Guid? AssigneeId { get; set; }
-
     }
 }

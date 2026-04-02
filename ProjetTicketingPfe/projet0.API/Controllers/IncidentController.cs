@@ -107,7 +107,6 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
             }
         }
 
-        // Dans IncidentController.cs - GetDetails
         [HttpGet("{id}/details")]
         [Authorize(Policy = "IncidentRead")]
         public async Task<ActionResult<ApiResponse<IncidentDetailDTO>>> GetDetails(Guid id)
@@ -119,7 +118,7 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
                 if (!result.IsSuccess)
                     return NotFound(result);
 
-                // ✅ Ajouter les URLs des pièces jointes
+                // Ajouter les URLs des pièces jointes
                 if (result.Data.PiecesJointes != null)
                 {
                     foreach (var piece in result.Data.PiecesJointes)
@@ -208,6 +207,7 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
                     "Erreur interne du serveur lors de la mise à jour de l'incident"));
             }
         }
+
         [HttpDelete("{id}")]
         [Authorize(Policy = "IncidentDelete")]
         public async Task<ActionResult<ApiResponse<bool>>> Delete(Guid id)
@@ -223,7 +223,7 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
                 if (!incident.IsSuccess || incident.Data == null)
                     return NotFound(ApiResponse<bool>.Failure("Incident non trouvé"));
 
-                // 🔴 RÈGLES DE SUPPRESSION
+                // RÈGLES DE SUPPRESSION
                 if (isAdmin)
                 {
                     // Admin peut supprimer n'importe quel incident
@@ -239,7 +239,7 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
                         ));
                     }
 
-                    // ✅ SOLUTION RAPIDE : Vérifier si le statut est différent de 0 (Non traité)
+                    // SOLUTION RAPIDE : Vérifier si le statut est différent de 0 (Non traité)
                     // Dans votre enum, "Non traité" correspond à 0
                     if ((int)incident.Data.StatutIncident != 0)
                     {
@@ -447,8 +447,6 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
             }
         }
 
-        // Dans IncidentController.cs
-
         [HttpPut("{incidentId}/resoudre")]
         [Authorize(Policy = "IncidentUpdate")]
         public async Task<ActionResult<ApiResponse<bool>>> ResoudreIncident(Guid incidentId)
@@ -465,7 +463,6 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
                 return StatusCode(500, ApiResponse<bool>.Failure("Erreur interne"));
             }
         }
-        // Dans IncidentController.cs
 
         [HttpDelete("{incidentId}/tpes/{tpeId}")]
         [Authorize(Policy = "IncidentUpdate")]  // À adapter selon votre politique
@@ -486,9 +483,11 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
                 return StatusCode(500, ApiResponse<bool>.Failure("Erreur interne"));
             }
         }
+
         /// <summary>
         /// Lie plusieurs TPEs à un incident existant
         /// </summary>
+        /// 
         [HttpPost("{incidentId}/tpes")]
         [Authorize(Policy = "IncidentUpdate")]
         public async Task<ActionResult<ApiResponse<List<IncidentTPEDTO>>>> LierPlusieursTPEs(

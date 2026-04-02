@@ -10,7 +10,6 @@ namespace projet0.Application.Interfaces
     {
         Task<IEnumerable<TPE>> GetByCommercantIdAsync(Guid commercantId);
         Task<bool> IsNumSerieUniqueForModeleAsync(string numSerie, ModeleTPE modele, Guid? excludeId = null);
-        // ✅ Ajoutez cette méthode
         Task<IQueryable<TPE>> QueryWithDetailsAsync();
 
     }

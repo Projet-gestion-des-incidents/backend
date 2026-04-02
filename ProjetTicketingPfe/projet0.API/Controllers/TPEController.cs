@@ -17,8 +17,7 @@ namespace projet0.API.Controllers
     public class TPEController : ControllerBase
     {
         private readonly ITPEService _tpeService;
-        private readonly ILogger<TPEController> _logger;  
-
+        private readonly ILogger<TPEController> _logger;
 
         public TPEController(ITPEService tpeService, ILogger<TPEController> logger)
         {

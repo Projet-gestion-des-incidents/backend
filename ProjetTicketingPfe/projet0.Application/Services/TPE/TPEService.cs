@@ -365,7 +365,7 @@ namespace projet0.Application.Services.TPEService
             });
         }
 
-        // ✅ MÉTHODE PAGINÉE - AJOUTÉE ICI (dans la classe, pas dans le helper)
+        // MÉTHODE PAGINÉE - AJOUTÉE ICI (dans la classe, pas dans le helper)
         public async Task<ApiResponse<PagedResult<TPEDto>>> GetTPEsPagedAsync(TPEPagedRequest request)
         {
             return await MeasureAsync(nameof(GetTPEsPagedAsync), request, async () =>

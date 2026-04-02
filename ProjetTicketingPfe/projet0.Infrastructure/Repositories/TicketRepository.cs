@@ -151,7 +151,6 @@ namespace projet0.Infrastructure.Repositories
         public async Task<List<Ticket>> GetTicketsByCreateurAsync(Guid createurId)
         {
             return await _context.Tickets
-                //.Include(t => t.Createur)
                 .Include(t => t.Assignee)
                 .Where(t => t.CreateurId == createurId)
                 .OrderByDescending(t => t.DateCreation)
@@ -290,7 +289,6 @@ namespace projet0.Infrastructure.Repositories
         {
             return _context; // où _context est votre DbContext
         }
-
         public async Task<bool> ExistsAsync(Guid id)
         {
             return await _context.Set<Ticket>().AnyAsync(t => t.Id == id);

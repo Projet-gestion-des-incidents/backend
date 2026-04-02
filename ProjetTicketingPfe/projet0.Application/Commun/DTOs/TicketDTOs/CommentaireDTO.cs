@@ -14,8 +14,7 @@ namespace projet0.Application.Commun.DTOs.Ticket
         public Guid AuteurId { get; set; }
         public string AuteurNom { get; set; }
         public List<PieceJointeDTO> PiecesJointes { get; set; } = new();
-        public Guid TicketId { get; set; } // À ajouter si pas présent
-        public string? TicketReference { get; set; } // Optionnel pour contexte
-
+        public Guid TicketId { get; set; } 
+        public string? TicketReference { get; set; }
     }
 }

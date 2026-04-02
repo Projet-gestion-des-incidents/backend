@@ -28,18 +28,18 @@ namespace projet0.Application.Services.Ticket
         Task<ApiResponse<TicketDetailDTO>> GetTicketDetailAsync(Guid id, Guid userId);
 
         Task<ApiResponse<UpdateTicketResponseDTO>> UpdateTicketAsync(Guid id, UpdateTicketDTO dto, Guid userId);
-        // Dans ITicketService.cs
+
         Task<ApiResponse<LiaisonResultDTO>> LierIncidentsAuTicket(Guid ticketId, List<Guid> incidentIds, Guid userId);
+
         Task<ApiResponse<List<TicketDTO>>> GetTicketsByIncidentIdAsync(Guid incidentId);
 
         // Pour le mapping (utilisé dans les contrôleurs)
         Task<TicketDTO> MapToDto(TicketEntity ticket);
-        //Task<ApiResponse<UpdateTicketResponseDTO>> AdminUpdateTicketAsync(Guid id, AdminUpdateTicketDTO dto, Guid adminId);
+        
         Task<ApiResponse<UpdateTicketResponseDTO>> TechnicianUpdateTicketAsync(Guid id, TechnicianUpdateTicketDTO dto, Guid technicienId);
-        // Dans ITicketService.cs
+
         Task<ApiResponse<bool>> DelierIncidentDuTicket(Guid ticketId, Guid incidentId, Guid userId);
 
-        // Dans ITicketService.cs
         Task<ApiResponse<PagedResult<TicketDTO>>> GetMesTicketsPagedAsync(TicketPagedRequest request, Guid technicienId);
 
     }

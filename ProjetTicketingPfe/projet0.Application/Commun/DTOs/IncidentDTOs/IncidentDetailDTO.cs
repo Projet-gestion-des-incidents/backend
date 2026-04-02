@@ -11,10 +11,7 @@ namespace projet0.Application.Commun.DTOs.Incident
     {
         public List<IncidentTicketDTO> Tickets { get; set; }
         public List<EntiteImpacteeDTO> EntitesImpactees { get; set; }
-        // ✅ NOUVEAU : Liste des TPEs concernés
         public List<IncidentTPEDTO> TPEs { get; set; }
-
-        // ✅ NOUVEAU : Liste des pièces jointes
         public List<PieceJointeDTO> PiecesJointes { get; set; }
 
     }

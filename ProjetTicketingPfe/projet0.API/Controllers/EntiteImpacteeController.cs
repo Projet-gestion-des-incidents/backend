@@ -23,9 +23,7 @@ namespace projet0.API.Controllers
         {
             _service = service;
             _logger = logger;
-        }
-
-    
+        }    
 
         [HttpGet]
         public async Task<ActionResult<ApiResponse<List<EntiteImpacteeDTO>>>> GetAll()
@@ -57,10 +55,8 @@ namespace projet0.API.Controllers
             return Ok(result);
         }
 
-        // projet0.API/Controllers/EntiteImpacteeController.cs
-
         [HttpPost("add-to-incident")]
-        [Authorize(Policy = "AdminOnly")]  // Seul l'admin peut modifier
+        [Authorize(Policy = "AdminOnly")]
         public async Task<ActionResult<ApiResponse<EntiteImpacteeDTO>>> AddToIncident(
             [FromBody] AddEntiteImpacteeDTO dto)
         {
@@ -74,8 +70,6 @@ namespace projet0.API.Controllers
         {
             var result = await _service.RemoveFromIncidentAsync(id);
             return result.IsSuccess ? Ok(result) : BadRequest(result);
-        }
-
-        
+        }        
     }
 }

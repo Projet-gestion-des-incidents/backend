@@ -44,10 +44,8 @@ namespace projet0.Application.Mappings
 
             CreateMap<Incident, IncidentDTO>()
                 .ForMember(dest => dest.StatutIncidentLibelle, opt => opt.Ignore())
-                .ForMember(dest => dest.SeveriteIncidentLibelle, opt => opt.Ignore())                
-                .ForMember(dest => dest.CreatedByName, opt => opt.Ignore())
-                .ForMember(dest => dest.NombreTickets, opt => opt.Ignore())
-                .ForMember(dest => dest.NombreEntitesImpactees, opt => opt.Ignore());
+                .ForMember(dest => dest.SeveriteIncidentLibelle, opt => opt.Ignore())
+                .ForMember(dest => dest.CreatedByName, opt => opt.Ignore());
         }
     }
 }

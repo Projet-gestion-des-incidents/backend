@@ -31,12 +31,9 @@ namespace projet0.Application.Services.Incident
 
         // Pour le mapping (utilisé dans les contrôleurs)
         Task<IncidentDTO> MapToDto(IncidentEntity incident);
-        // Dans IIncidentService.cs
         Task<ApiResponse<bool>> ResoudreIncident(Guid incidentId, Guid userId);
         Task<ApiResponse<bool>> DelierTPEAsync(Guid incidentId, Guid tpeId, Guid userId);
-        // Dans IIncidentService.cs
         Task<IList<string>> GetUserRolesAsync(Guid userId);
-        // Dans IIncidentService.cs
         Task<ApiResponse<List<IncidentTPEDTO>>> LierTPEsAsync(Guid incidentId, List<Guid> tpeIds, Guid userId);
     }
 }

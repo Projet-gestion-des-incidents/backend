@@ -20,9 +20,6 @@ using Microsoft.EntityFrameworkCore;
 using System.Linq;
 using projet0.Application.Commun.DTOs.TicketDTOs;
 
-
-
-
 namespace projet0.Application.Services.Ticket
 {
     public class TicketService : ITicketService
@@ -314,7 +311,6 @@ namespace projet0.Application.Services.Ticket
                 ("date", true) => query.OrderByDescending(t => t.DateCreation),
                 ("statut", false) => query.OrderBy(t => t.StatutTicket),
                 ("statut", true) => query.OrderByDescending(t => t.StatutTicket),
-                // ✅ AJOUTER "id"
                 ("id", false) => query.OrderBy(t => t.Id),
                 ("id", true) => query.OrderByDescending(t => t.Id),
                 // Valeur par défaut si aucun cas ne correspond
@@ -457,7 +453,7 @@ namespace projet0.Application.Services.Ticket
                 }
             });
         }
-        // Dans TicketService.cs
+
         public async Task<ApiResponse<bool>> DeleteTicketAsync(Guid id, Guid userId)
         {
             return await MeasureAsync(nameof(DeleteTicketAsync), new { id }, async () =>
@@ -473,7 +469,7 @@ namespace projet0.Application.Services.Ticket
                     var userRoles = await _userRepository.GetUserRolesAsync(userId);
                     var isAdmin = userRoles.Contains("Admin");
 
-                    // 🔴 Si ce n'est pas un admin, appliquer les restrictions
+                    // Si ce n'est pas un admin, appliquer les restrictions
                     if (!isAdmin)
                     {
                         // RÈGLE : Ne peut pas supprimer un ticket en cours ou résolu
@@ -506,10 +502,10 @@ namespace projet0.Application.Services.Ticket
                     }
                     else
                     {
-                        // ✅ ADMIN : Peut tout supprimer, sans aucune restriction !
+                        // ADMIN : Peut tout supprimer, sans aucune restriction !
                         _logger.LogInformation("Admin supprime le ticket {Id} - Nettoyage des incidents liés", id);
 
-                        // 1️⃣ Récupérer tous les incidents liés AVANT de supprimer le ticket
+                        // Récupérer tous les incidents liés AVANT de supprimer le ticket
                         var incidentsLies = new List<IncidentEntity>();
                         if (ticket.IncidentTickets != null)
                         {
@@ -519,7 +515,7 @@ namespace projet0.Application.Services.Ticket
                                 .ToList();
                         }
 
-                        // 2️⃣ Supprimer d'abord toutes les liaisons (IncidentTicket)
+                        // Supprimer d'abord toutes les liaisons (IncidentTicket)
                         if (ticket.IncidentTickets != null)
                         {
                             foreach (var lien in ticket.IncidentTickets.ToList())
@@ -528,7 +524,7 @@ namespace projet0.Application.Services.Ticket
                             }
                         }
 
-                        // 3️⃣ Pour chaque incident lié, remettre son statut à null
+                        // Pour chaque incident lié, remettre son statut à null
                         foreach (var incident in incidentsLies)
                         {
                             incident.StatutIncident = null;
@@ -636,7 +632,6 @@ namespace projet0.Application.Services.Ticket
                 throw;
             }
         }
-
         
         public async Task<ApiResponse<bool>> LierTicketAIncident(Guid ticketId, Guid incidentId, Guid userId)
         {
@@ -687,6 +682,7 @@ namespace projet0.Application.Services.Ticket
                 }
             });
         }
+
         public async Task<ApiResponse<List<TicketDTO>>> GetTicketsByIncidentIdAsync(Guid incidentId)
         {
             return await MeasureAsync(nameof(GetTicketsByIncidentIdAsync), new { incidentId }, async () =>
@@ -796,7 +792,6 @@ namespace projet0.Application.Services.Ticket
             });
         }
 
-        // Dans TicketService.UpdateTicketStatutAsync
         public async Task<ApiResponse<UpdateTicketResponseDTO>> UpdateTicketAsync(Guid id, UpdateTicketDTO dto, Guid userId)
         {
             return await MeasureAsync(nameof(UpdateTicketAsync), new { id, dto }, async () =>
@@ -1212,202 +1207,6 @@ namespace projet0.Application.Services.Ticket
             };
         }
 
-    //    public async Task<ApiResponse<UpdateTicketResponseDTO>> AdminUpdateTicketAsync(
-    //Guid id,
-    //AdminUpdateTicketDTO dto,
-    //Guid adminId)
-    //    {
-    //        return await MeasureAsync(nameof(AdminUpdateTicketAsync), new { id, dto }, async () =>
-    //        {
-    //            // 1. Récupérer le contexte typé (ApplicationDbContext)
-    //            var context = _ticketRepository.GetDbContext() as ApplicationDbContext;
-    //            if (context == null)
-    //            {
-    //                return ApiResponse<UpdateTicketResponseDTO>.Failure("Erreur de contexte base de données");
-    //            }
-
-    //            using var transaction = await context.Database.BeginTransactionAsync();
-
-    //            try
-    //            {
-    //                _logger.LogWarning("=== DÉBUT ADMIN UPDATE TICKET {Id} ===", id);
-
-    //                // 2. Vérifier le rôle Admin
-    //                var userRoles = await _userRepository.GetUserRolesAsync(adminId);
-    //                if (!userRoles.Contains("Admin"))
-    //                {
-    //                    return ApiResponse<UpdateTicketResponseDTO>.Failure(
-    //                        "Accès non autorisé. Seul un admin peut utiliser cet endpoint.");
-    //                }
-
-    //                // 3. VÉRIFIER QUE LE TICKET EXISTE ET N'EST PAS RÉSOLU
-    //                var ticketExists = await context.Tickets
-    //                    .Where(t => t.Id == id)
-    //                    .Select(t => new {
-    //                        Exists = true,
-    //                        EstResolu = t.StatutTicket == StatutTicket.Resolu,
-    //                        Statut = t.StatutTicket,
-    //                        AssigneeActuel = t.AssigneeId
-    //                    })
-    //                    .FirstOrDefaultAsync();
-
-    //                if (ticketExists == null)
-    //                {
-    //                    return ApiResponse<UpdateTicketResponseDTO>.Failure($"Ticket {id} non trouvé");
-    //                }
-
-    //                if (ticketExists.EstResolu)
-    //                {
-    //                    return ApiResponse<UpdateTicketResponseDTO>.Failure(
-    //                        "Impossible de modifier un ticket résolu.");
-    //                }
-
-    //                _logger.LogWarning("État actuel du ticket - Statut: {Statut}, Assignee: {Assignee}",
-    //                    ticketExists.Statut, ticketExists.AssigneeActuel);
-
-    //                // 4. Vérifier le nouvel assigné (si fourni)
-    //                if (dto.AssigneeId.HasValue)
-    //                {
-    //                    var newAssignee = await _userRepository.GetByIdAsync(dto.AssigneeId.Value);
-    //                    if (newAssignee == null)
-    //                    {
-    //                        return ApiResponse<UpdateTicketResponseDTO>.Failure(
-    //                            "L'utilisateur assigné n'existe pas.");
-    //                    }
-
-    //                    var roles = await _userRepository.GetUserRolesAsync(dto.AssigneeId.Value);
-    //                    if (!roles.Contains("Technicien"))
-    //                    {
-    //                        return ApiResponse<UpdateTicketResponseDTO>.Failure(
-    //                            "Vous ne pouvez assigner un ticket qu'à un technicien.");
-    //                    }
-    //                }
-
-    //                // 5. PRÉPARER LES VALEURS À METTRE À JOUR
-    //                var modifications = new List<string>();
-    //                var ticket = await context.Tickets.FindAsync(id);
-
-    //                if (ticket == null)
-    //                {
-    //                    return ApiResponse<UpdateTicketResponseDTO>.Failure($"Ticket {id} non trouvé");
-    //                }
-
-    //                var ancienStatut = ticket.StatutTicket;
-
-    //                // Assignation
-    //                if (dto.AssigneeId.HasValue && dto.AssigneeId.Value != ticket.AssigneeId)
-    //                {
-    //                    ticket.AssigneeId = dto.AssigneeId.Value;
-    //                    ticket.StatutTicket = StatutTicket.Assigne;
-    //                    modifications.Add($"Assignation -> {dto.AssigneeId.Value}");
-    //                }
-
-    //                // Titre
-    //                if (!string.IsNullOrWhiteSpace(dto.TitreTicket) && dto.TitreTicket != ticket.TitreTicket)
-    //                {
-    //                    ticket.TitreTicket = dto.TitreTicket;
-    //                    modifications.Add("Titre");
-    //                }
-
-    //                // Description
-    //                if (dto.DescriptionTicket != null && dto.DescriptionTicket != ticket.DescriptionTicket)
-    //                {
-    //                    ticket.DescriptionTicket = dto.DescriptionTicket;
-    //                    modifications.Add("Description");
-    //                }
-
-    //                // Date limite
-    //                if (dto.DateLimite.HasValue && dto.DateLimite.Value != ticket.DateLimite)
-    //                {
-    //                    ticket.DateLimite = dto.DateLimite.Value;
-    //                    modifications.Add("Date limite");
-    //                }
-
-    //                ticket.UpdatedAt = DateTime.UtcNow;
-
-    //                // 6. SAUVEGARDER
-    //                if (modifications.Any())
-    //                {
-    //                    // Marquer l'entité comme modifiée
-    //                    context.Entry(ticket).State = EntityState.Modified;
-
-    //                    var saved = await context.SaveChangesAsync();
-    //                    _logger.LogWarning("Lignes affectées: {Saved}", saved);
-
-    //                    if (saved == 0)
-    //                    {
-    //                        await transaction.RollbackAsync();
-    //                        return ApiResponse<UpdateTicketResponseDTO>.Failure(
-    //                            "Aucune ligne mise à jour.");
-    //                    }
-
-    //                    // 7. AJOUTER L'HISTORIQUE
-    //                    var historique = new HistoriqueTicket
-    //                    {
-    //                        Id = Guid.NewGuid(),
-    //                        TicketId = ticket.Id,
-    //                        AncienStatut = ancienStatut,
-    //                        DateChangement = DateTime.UtcNow,
-    //                        ModifieParId = adminId
-    //                    };
-
-    //                    await context.HistoriqueTickets.AddAsync(historique);
-    //                    await context.SaveChangesAsync();
-
-    //                    await transaction.CommitAsync();
-
-    //                    _logger.LogWarning("✅ Mise à jour réussie. Modifications: {Modifs}", string.Join(", ", modifications));
-    //                }
-    //                else
-    //                {
-    //                    return ApiResponse<UpdateTicketResponseDTO>.Failure(
-    //                        "Aucune modification détectée.");
-    //                }
-
-    //                // 8. RECHARGER LE TICKET POUR LA RÉPONSE
-    //                var updatedTicket = await _ticketRepository.GetTicketWithDetailsAsync(id);
-    //                var detailDto = await MapToDetailDto(updatedTicket);
-    //                var responseDto = new UpdateTicketResponseDTO
-    //                {
-    //                    Id = detailDto.Id,
-    //                    ReferenceTicket = detailDto.ReferenceTicket,
-    //                    TitreTicket = detailDto.TitreTicket,
-    //                    DescriptionTicket = detailDto.DescriptionTicket,
-    //                    StatutTicket = detailDto.StatutTicket,
-    //                    StatutTicketLibelle = detailDto.StatutTicketLibelle,
-    //                    DateCreation = detailDto.DateCreation,
-    //                    DateLimite = detailDto.DateLimite,
-    //                    DateCloture = detailDto.DateCloture,
-    //                    CreateurId = detailDto.CreateurId,
-    //                    CreateurNom = detailDto.CreateurNom,
-    //                    AssigneeId = detailDto.AssigneeId,
-    //                    AssigneeNom = detailDto.AssigneeNom,
-    //                    NombreCommentaires = detailDto.NombreCommentaires,
-    //                    NombrePiecesJointes = detailDto.NombrePiecesJointes,
-    //                    Commentaires = detailDto.Commentaires
-    //                };
-
-    //                var message = $"Ticket mis à jour. Modifications: {string.Join(", ", modifications)}";
-
-    //                return ApiResponse<UpdateTicketResponseDTO>.Success(responseDto, message);
-    //            }
-    //            catch (DbUpdateConcurrencyException ex)
-    //            {
-    //                await transaction.RollbackAsync();
-    //                _logger.LogError(ex, "Conflit de concurrence pour le ticket {Id}", id);
-    //                return ApiResponse<UpdateTicketResponseDTO>.Failure(
-    //                    "Le ticket a été modifié entre-temps. Veuillez rafraîchir et réessayer.");
-    //            }
-    //            catch (Exception ex)
-    //            {
-    //                await transaction.RollbackAsync();
-    //                _logger.LogError(ex, "Erreur AdminUpdateTicket pour {Id}", id);
-    //                return ApiResponse<UpdateTicketResponseDTO>.Failure($"Erreur interne: {ex.Message}");
-    //            }
-    //        });
-    //    }
-
-        // Méthode utilitaire de mapping
         private UpdateTicketResponseDTO MapToUpdateResponse(TicketDetailDTO detailDto)
         {
             return new UpdateTicketResponseDTO
@@ -1616,7 +1415,6 @@ namespace projet0.Application.Services.Ticket
             });
         }
 
-        // À AJOUTER DANS TicketService.cs, dans la région des méthodes privées
         private async Task ReloadTicketAsync(TicketEntity ticket)
         {
             if (ticket == null) return;
@@ -1639,7 +1437,7 @@ namespace projet0.Application.Services.Ticket
                     var userRoles = await _userRepository.GetUserRolesAsync(userId);
                     var isAdmin = userRoles.Contains("Admin");
 
-                    // 🔴 RÈGLE 1 : Seul l'admin peut délier un incident d'un ticket
+                    // RÈGLE 1 : Seul l'admin peut délier un incident d'un ticket
                     if (!isAdmin)
                     {
                         _logger.LogWarning("Tentative de suppression liaison par un non-admin | UserId: {UserId}, TicketId: {TicketId}",
@@ -1651,7 +1449,7 @@ namespace projet0.Application.Services.Ticket
                         );
                     }
 
-                    // 🔴 RÈGLE 2 : L'admin ne peut délier que si le ticket n'est PAS "EnCours" ou "Resolu"
+                    // RÈGLE 2 : L'admin ne peut délier que si le ticket n'est PAS "EnCours" ou "Resolu"
                     if (ticket.StatutTicket == StatutTicket.EnCours || ticket.StatutTicket == StatutTicket.Resolu)
                     {
                         _logger.LogWarning("Tentative de suppression liaison par admin pour ticket avec statut {Statut} | TicketId: {TicketId}",
@@ -1678,7 +1476,7 @@ namespace projet0.Application.Services.Ticket
                     if (!supprime)
                         return ApiResponse<bool>.Failure("Erreur lors de la suppression");
 
-                    // ✅ Mettre à jour le statut de l'incident après déliaison
+                    // Mettre à jour le statut de l'incident après déliaison
                     await MettreAJourStatutIncidentApresDeliaison(incidentId);
 
                     await _incidentRepository.SaveChangesAsync();
@@ -1734,7 +1532,7 @@ namespace projet0.Application.Services.Ticket
                 }
             }
         }
-        // Dans TicketService.cs
+
         public async Task<ApiResponse<PagedResult<TicketDTO>>> GetMesTicketsPagedAsync(TicketPagedRequest request, Guid technicienId)
         {
             return await MeasureAsync(nameof(GetMesTicketsPagedAsync), request, async () =>

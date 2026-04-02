@@ -5,7 +5,6 @@ using System.Text;
 
 namespace projet0.Application.Commun.DTOs
 {
-    // Dans projet0.Application.Commun.DTOs
     public class TPEPagedRequest
     {
         // Pagination

@@ -15,8 +15,7 @@ namespace projet0.Application.Commun.DTOs.Ticket
         public string StatutTicketLibelle { get; set; }
         public string PrioriteTicketLibelle { get; set; }
         public DateTime DateCreation { get; set; }
-        public DateTime? DateLimite { get; set; }      // ✅ AJOUTER
-
+        public DateTime? DateLimite { get; set; }
         public DateTime? DateCloture { get; set; }
         public Guid CreateurId { get; set; }
         public string CreateurNom { get; set; }

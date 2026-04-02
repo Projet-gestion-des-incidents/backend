@@ -38,7 +38,6 @@ namespace projet0.API.Controllers
             _commentaireService = commentaireService; 
 
         }
-
         private Guid GetCurrentUserId()
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
@@ -64,12 +63,12 @@ namespace projet0.API.Controllers
                     EstInterne = c.EstInterne,
                     AuteurId = c.AuteurId,
                     AuteurNom = c.Auteur != null ? $"{c.Auteur.Nom} {c.Auteur.Prenom}" : "Inconnu",
-                    TicketId = c.TicketId,  // ✅ Ajouté
-                    TicketReference = c.Ticket?.ReferenceTicket,  // ✅ Ajouté
+                    TicketId = c.TicketId, 
+                    TicketReference = c.Ticket?.ReferenceTicket,  
                     PiecesJointes = c.PiecesJointes?.Select(p => new PieceJointeDTO
                     {
                         Id = p.Id,
-                        NomFichier = p.NomFichier,  // ✅ AJOUTER CETTE LIGNE
+                        NomFichier = p.NomFichier, 
 
                         DateAjout = p.DateAjout,
                         Url = $"{Request.Scheme}://{Request.Host}/api/pieces-jointes/{p.Id}"
@@ -84,7 +83,6 @@ namespace projet0.API.Controllers
                 return StatusCode(500, ApiResponse<List<CommentaireDTO>>.Failure("Erreur interne"));
             }
         }
-
 
         [HttpPost]
         [Authorize(Policy = "TicketComment")]
@@ -130,7 +128,6 @@ namespace projet0.API.Controllers
                     ticketResult.Data.ReferenceTicket,
                     ticketResult.Data.TitreTicket);
 
-
                 var commentaire = new CommentaireTicket
                 {
                     Id = Guid.NewGuid(),
@@ -163,8 +160,6 @@ namespace projet0.API.Controllers
                             var pieceDto = new CreatePieceJointeDTO
                             {
                                 NomFichier = fichier.FileName,
-                                
-                                //TypePieceJointe = DeterminerTypePieceJointe(fichier.FileName),
                                 Fichier = fichier
                             };
                             _logger.LogInformation("PieceDto.NomFichier après création: {NomFichier}", pieceDto.NomFichier);
@@ -215,23 +210,11 @@ namespace projet0.API.Controllers
                 return StatusCode(500, ApiResponse<CommentaireDTO>.Failure($"Erreur interne: {ex.Message}"));
             }
         }
-        /*private TypePieceJointe DeterminerTypePieceJointe(string nomFichier)
-        {
-            var extension = Path.GetExtension(nomFichier).ToLowerInvariant();
-
-            return extension switch
-            {
-                ".jpg" or ".jpeg" or ".png" or ".gif" or ".bmp" => TypePieceJointe.Image,
-                ".pdf" or ".doc" or ".docx" or ".txt" => TypePieceJointe.Document,
-                ".xls" or ".xlsx" or ".csv" => TypePieceJointe.Tableur,
-                ".zip" or ".rar" or ".7z" => TypePieceJointe.Archive,
-                _ => TypePieceJointe.Autre
-            };
-        }*/
 
         /// <summary>
         /// Récupérer un commentaire par son ID
         /// </summary>
+        /// 
         [HttpGet("{commentaireId}")]
         [Authorize(Policy = "TicketRead")]
         public async Task<ActionResult<ApiResponse<CommentaireDTO>>> GetCommentaireById(Guid commentaireId)
@@ -275,6 +258,7 @@ namespace projet0.API.Controllers
         /// <summary>
         /// Mettre à jour un commentaire (message et/ou pièces jointes)
         /// </summary>
+        /// 
         [HttpPut("{commentaireId}")]
         [Authorize(Policy = "TicketComment")]
         public async Task<ActionResult<ApiResponse<UpdateCommentaireResponseDTO>>> UpdateCommentaire(
@@ -295,9 +279,7 @@ namespace projet0.API.Controllers
                 // Vérifier que le commentaire existe
                 var commentaireExistant = await _commentaireRepository.GetByIdAsync(commentaireId);
                 if (commentaireExistant == null)
-                    return NotFound(ApiResponse<UpdateCommentaireResponseDTO>.Failure("Commentaire non trouvé"));
-
-                
+                    return NotFound(ApiResponse<UpdateCommentaireResponseDTO>.Failure("Commentaire non trouvé"));                
 
                 // Appeler le service
                 var result = await _commentaireService.UpdateCommentaireAsync(commentaireId, dto, userId);
@@ -323,6 +305,7 @@ namespace projet0.API.Controllers
         /// <summary>
         /// Supprimer un commentaire (supprime aussi ses pièces jointes)
         /// </summary>
+        /// 
         [HttpDelete("{commentaireId}")]
         [Authorize(Policy = "TicketDelete")]
         public async Task<ActionResult<ApiResponse<bool>>> DeleteCommentaire(Guid commentaireId)
@@ -362,6 +345,7 @@ namespace projet0.API.Controllers
         /// <summary>
         /// Récupère les pièces jointes d'un commentaire
         /// </summary>
+        /// 
         [HttpGet("{commentaireId}/pieces-jointes")]
         [Authorize(Policy = "TicketRead")]
         public async Task<ActionResult<ApiResponse<List<PieceJointeDTO>>>> GetPiecesJointesByCommentaire(Guid commentaireId)
@@ -396,6 +380,7 @@ namespace projet0.API.Controllers
         /// </summary>
         /// <param name="ticketId">ID du ticket (optionnel). Si fourni, filtre les commentaires pour ce ticket spécifique</param>
         /// <returns>Liste des commentaires du technicien</returns>
+        /// 
         [HttpGet("mes-commentaires")]
         [Authorize(Policy = "TicketRead")]
         public async Task<ActionResult<ApiResponse<List<CommentaireDTO>>>> GetMesCommentaires([FromQuery] Guid? ticketId = null)

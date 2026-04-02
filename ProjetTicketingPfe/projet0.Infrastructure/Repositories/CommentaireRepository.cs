@@ -21,7 +21,7 @@ namespace projet0.Infrastructure.Repositories
         {
             return await _context.CommentairesTicket  
                 .Include(c => c.Auteur)
-                .Include(c => c.Ticket)  // ✅ AJOUTER CETTE LIGNE
+                .Include(c => c.Ticket)
                 .Include(c => c.PiecesJointes)
                 .Where(c => c.TicketId == ticketId)
                 .OrderByDescending(c => c.DateCreation)

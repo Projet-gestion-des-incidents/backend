@@ -157,8 +157,7 @@ namespace projet0.Application.Services.EntiteImpacteeServices
                 _logger.LogError(ex, "Erreur lors de la suppression de l'entité impactée {EntiteId}", entiteImpacteeId);
                 return ApiResponse<bool>.Failure("Erreur interne du serveur");
             }
-        }
-        
+        }        
     }
 }
 

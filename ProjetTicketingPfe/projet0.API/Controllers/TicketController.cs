@@ -24,8 +24,7 @@ namespace projet0.API.Controllers
         private readonly ILogger<TicketController> _logger;
         private readonly IIncidentTicketRepository _incidentTicketRepository;
         private readonly IIncidentService _incidentService;
-        private readonly IUserService _userService; 
-
+        private readonly IUserService _userService;
 
         public TicketController(
             ITicketService ticketService,
@@ -173,7 +172,7 @@ namespace projet0.API.Controllers
             try
             {
                 var userId = GetCurrentUserId();
-                var userRoles = await _userService.GetUserRolesAsync(userId);  // ✅ Maintenant ça marche
+                var userRoles = await _userService.GetUserRolesAsync(userId); 
                 var isAdmin = userRoles.Contains("Admin");
                 var isTechnicien = userRoles.Contains("Technicien");
 
@@ -183,7 +182,7 @@ namespace projet0.API.Controllers
 
                 var ticket = result.Data;
 
-                // 🔴 RÈGLES DE SUPPRESSION
+                // RÈGLES DE SUPPRESSION
                 if (isAdmin)
                 {
                     // Admin : peut supprimer si statut = null, Assigné, ou Résolu
@@ -206,7 +205,7 @@ namespace projet0.API.Controllers
                         ));
                     }
 
-                    // ✅ CORRECTION : utiliser != null au lieu de HasValue
+                    // utiliser != null au lieu de HasValue
                     if (ticket.StatutTicket != null)
                     {
                         return BadRequest(ApiResponse<bool>.Failure(
@@ -315,7 +314,7 @@ namespace projet0.API.Controllers
 
                 foreach (var incident in incidents)
                 {
-                    // ✅ Utiliser GetIncidentDetailAsync qui existe déjà
+                    // Utiliser GetIncidentDetailAsync qui existe déjà
                     var result = await _incidentService.GetIncidentDetailAsync(incident.Id);
                     if (result.IsSuccess && result.Data != null)
                     {
@@ -332,64 +331,10 @@ namespace projet0.API.Controllers
             }
         }
 
-        [HttpPut("{ticketId}/statut")]
-        public async Task<ActionResult<ApiResponse<TicketDTO>>> UpdateStatut(
-    Guid ticketId,
-    [FromBody] UpdateTicketStatutDTO dto)
-        {
-            try
-            {
-                var userId = GetCurrentUserId();
-
-                // Créer un DTO de mise à jour avec seulement le statut
-                var updateDto = new UpdateTicketDTO
-                {
-                    StatutTicket = dto.StatutTicket
-                };
-
-                // Utiliser UpdateTicketAsync qui existe déjà
-                var result = await _ticketService.UpdateTicketAsync(ticketId, updateDto, userId);
-
-                if (!result.IsSuccess)
-                    return BadRequest(result);
-
-                // Retourner un TicketDTO (pas UpdateTicketResponseDTO)
-                var ticketDto = new TicketDTO
-                {
-                    Id = result.Data.Id,
-                    ReferenceTicket = result.Data.ReferenceTicket,
-                    TitreTicket = result.Data.TitreTicket,
-                    DescriptionTicket = result.Data.DescriptionTicket,
-                    StatutTicket = result.Data.StatutTicket,
-                    StatutTicketLibelle = result.Data.StatutTicketLibelle,
-                    DateCreation = result.Data.DateCreation,
-                    DateLimite = result.Data.DateLimite,
-                    DateCloture = result.Data.DateCloture,
-                    CreateurId = result.Data.CreateurId,
-                    CreateurNom = result.Data.CreateurNom,
-                    AssigneeId = result.Data.AssigneeId,
-                    AssigneeNom = result.Data.AssigneeNom,
-                    NombreCommentaires = result.Data.NombreCommentaires,
-                    NombrePiecesJointes = result.Data.NombrePiecesJointes
-                };
-
-                return Ok(ApiResponse<TicketDTO>.Success(ticketDto, result.Message));
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Erreur lors de la mise à jour du statut du ticket");
-                return StatusCode(500, ApiResponse<TicketDTO>.Failure("Erreur interne"));
-            }
-        }
-
-        // Dans TicketController.cs - AJOUTER CETTE MÉTHODE
-
-        // Dans TicketController.cs - Remplacez la méthode existante
-
         [HttpGet("mes-tickets")]
         [Authorize(Policy = "TicketRead")]
         public async Task<ActionResult<ApiResponse<PagedResult<TicketDTO>>>> GetMesTicketsPaged(
-            [FromQuery] TicketPagedRequest request)  // ✅ Utilise directement TicketPagedRequest
+            [FromQuery] TicketPagedRequest request)
         {
             try
             {
@@ -418,20 +363,6 @@ namespace projet0.API.Controllers
             }
         }
 
-        // Dans les méthodes AdminUpdateTicket et TechnicianUpdateTicket
-        //[HttpPut("{id}/admin-update")]
-        //[Authorize(Roles = "Admin")]
-        //public async Task<IActionResult> AdminUpdateTicket(Guid id, [FromBody] AdminUpdateTicketDTO dto)
-        //{
-        //    var userId = GetCurrentUserId();
-        //    var result = await _ticketService.AdminUpdateTicketAsync(id, dto, userId);
-
-        //    if (!result.IsSuccess)  // ← CHANGER Success en IsSuccess
-        //        return BadRequest(result);
-
-        //    return Ok(result);
-        //}
-
         [HttpPut("{id}/technician-update")]
         [Authorize(Roles = "Technicien")]
         public async Task<IActionResult> TechnicianUpdateTicket(Guid id, [FromBody] TechnicianUpdateTicketDTO dto)
@@ -439,12 +370,11 @@ namespace projet0.API.Controllers
             var userId = GetCurrentUserId();
             var result = await _ticketService.TechnicianUpdateTicketAsync(id, dto, userId);
 
-            if (!result.IsSuccess)  // ← CHANGER Success en IsSuccess
+            if (!result.IsSuccess) 
                 return BadRequest(result);
 
             return Ok(result);
         }
-        // Dans TicketController.cs
 
         [HttpDelete("{ticketId}/incidents/{incidentId}")]
         [Authorize(Policy = "AdminOnly")] // Ou la politique que vous voulez

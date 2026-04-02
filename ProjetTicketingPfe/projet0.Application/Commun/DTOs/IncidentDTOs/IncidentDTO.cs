@@ -19,8 +19,6 @@ namespace projet0.Application.Commun.DTOs.Incident
         public DateTime? UpdatedAt { get; set; }
         public Guid? CreatedById { get; set; }
         public string CreatedByName { get; set; }
-        public int NombreTickets { get; set; }
-        public int NombreEntitesImpactees { get; set; }
         public TypeProbleme TypeProbleme { get; set; }
         public string Emplacement { get; set; }
 

@@ -91,11 +91,7 @@ namespace projet0.Application.Services.Incident
                 dto.CreatedByName = user != null ? $"{user.Nom} {user.Prenom}" : "Utilisateur inconnu";
             }
 
-            // ✅ Remplir correctement les compteurs
-            dto.NombreEntitesImpactees = incident.EntitesImpactees?.Count ?? 0;
-            dto.NombreTickets = incident.IncidentTickets?.Count ?? 0;
-
-            // ✅ Ajouter aussi le type de problème si nécessaire
+            // Ajouter aussi le type de problème si nécessaire
             dto.TypeProbleme = incident.TypeProbleme;
 
             return dto;
@@ -173,10 +169,6 @@ namespace projet0.Application.Services.Incident
                     })
                     .ToList();
             }
-
-            // 9. Compter les relations
-            dto.NombreTickets = dto.Tickets.Count;
-            dto.NombreEntitesImpactees = dto.EntitesImpactees.Count;
 
             return dto;
         }
@@ -263,7 +255,7 @@ namespace projet0.Application.Services.Incident
         private IQueryable<IncidentEntity> ApplySorting(IQueryable<IncidentEntity> query, string sortBy, bool descending)
         {
             if (string.IsNullOrWhiteSpace(sortBy))
-                sortBy = "DateDetection";  // Garder le nom exact de la propriété
+                sortBy = "DateDetection";
 
             // Normaliser pour la comparaison
             var sortByLower = sortBy.ToLower();
@@ -279,7 +271,6 @@ namespace projet0.Application.Services.Incident
                 ("statut", false) => query.OrderBy(i => i.StatutIncident).ThenBy(i => i.DateDetection),
                 ("statut", true) => query.OrderByDescending(i => i.StatutIncident).ThenBy(i => i.DateDetection),
 
-                //  Maintenant on compare avec "datedetection"
                 ("datedetection", false) => query.OrderBy(i => i.DateDetection),
                 ("datedetection", true) => query.OrderByDescending(i => i.DateDetection),
 
@@ -288,7 +279,6 @@ namespace projet0.Application.Services.Incident
         }
 
         #endregion
-
 
         #region CRUD Operations
         public async Task<ApiResponse<IncidentDTO>> GetIncidentByIdAsync(Guid id)
@@ -569,7 +559,7 @@ namespace projet0.Application.Services.Incident
                 var isAdmin = userRoles.Contains("Admin");
                 var isCommercant = userRoles.Contains("Commercant");
 
-                // 🔴 RÈGLE : Si c'est un commerçant, vérifier si l'incident est modifiable
+                // RÈGLE : Si c'est un commerçant, vérifier si l'incident est modifiable
                 if (isCommercant && !isAdmin)
                 {
                     // Vérifier 1 : L'incident a-t-il déjà un statut ?
@@ -595,7 +585,7 @@ namespace projet0.Application.Services.Incident
                     }
                 }
 
-                // ✅ Gestion de la modification du TypeProbleme
+                // Gestion de la modification du TypeProbleme
                 bool typeProblemeModifie = false;
                 TypeEntiteImpactee? nouveauTypeEntiteImpactee = null;
 
@@ -608,7 +598,7 @@ namespace projet0.Application.Services.Incident
                         incident.TypeProbleme, dto.TypeProbleme.Value);
                 }
 
-                // ✅ Mise à jour des autres champs (admin ou commerçant)
+                // Mise à jour des autres champs (admin ou commerçant)
                 if (isCommercant || isAdmin)
                 {
                     if (!string.IsNullOrWhiteSpace(dto.DescriptionIncident))
@@ -627,7 +617,7 @@ namespace projet0.Application.Services.Incident
                 incident.UpdatedById = userId;
                 incident.UpdatedAt = DateTime.UtcNow;
 
-                // ✅ MISE À JOUR DE L'ENTITÉ IMPACTÉE si le TypeProbleme a changé
+                // MISE À JOUR DE L'ENTITÉ IMPACTÉE si le TypeProbleme a changé
                 if (typeProblemeModifie && nouveauTypeEntiteImpactee.HasValue)
                 {
                     // Récupérer l'entité impactée existante (il y en a normalement une seule)
@@ -666,6 +656,7 @@ namespace projet0.Application.Services.Incident
                 return ApiResponse<IncidentDTO>.Failure("Erreur interne serveur");
             }
         }
+
         /// <summary>
         /// Met à jour le statut d'un incident en fonction de ses tickets
         /// </summary>
@@ -738,7 +729,7 @@ namespace projet0.Application.Services.Incident
                 return ApiResponse<bool>.Failure("Erreur interne");
             }
         }
-        // Dans IncidentService.cs
+
         public async Task<ApiResponse<bool>> DeleteIncidentAsync(Guid id, Guid userId)
         {
             var sw = Stopwatch.StartNew();
@@ -759,7 +750,7 @@ namespace projet0.Application.Services.Incident
                 var isAdmin = userRoles.Contains("Admin");
                 var isCommercant = userRoles.Contains("Commercant");
 
-                // 🔴 Si c'est un commerçant, vérifier que c'est son incident
+                // Si c'est un commerçant, vérifier que c'est son incident
                 if (isCommercant && !isAdmin && incident.CreatedById != userId)
                 {
                     _logger.LogWarning("DeleteIncident | Commerçant tente de supprimer un incident qui ne lui appartient pas | UserId: {UserId}, Incident créé par: {CreatedById}",
@@ -929,8 +920,6 @@ namespace projet0.Application.Services.Incident
             });
         }
 
-        // Dans IncidentService.cs
-
         /// <summary>
         /// Marque un incident comme résolu (appelé par le technicien)
         /// </summary>
@@ -1016,7 +1005,7 @@ namespace projet0.Application.Services.Incident
                     if (incident == null)
                         return ApiResponse<bool>.Failure($"Incident {incidentId} non trouvé");
 
-                    // 🔴 RÈGLE : Ne peut supprimer la liaison que si l'incident n'a PAS de statut (null)
+                    // RÈGLE : Ne peut supprimer la liaison que si l'incident n'a PAS de statut (null)
                     if (incident.StatutIncident.HasValue)
                     {
                         _logger.LogWarning("Tentative de suppression liaison TPE pour incident avec statut {Statut} | IncidentId: {IncidentId}",

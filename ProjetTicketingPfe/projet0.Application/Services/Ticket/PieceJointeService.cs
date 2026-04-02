@@ -131,9 +131,7 @@ namespace projet0.Application.Services
         
         /// <summary>
         /// Génère l'URL pour une pièce jointe
-        /// </summary>
- 
-        
+        /// </summary>        
 
         public async Task<bool> SupprimerPiecesJointesAsync(List<Guid> pieceJointeIds)
         {
@@ -198,7 +196,7 @@ namespace projet0.Application.Services
                 Id = Guid.NewGuid(),
                 NomFichier = dto.NomFichier,
                 DateAjout = DateTime.UtcNow,
-                CommentaireId = commentaireId,  // ← ICI c'est CommentaireId
+                CommentaireId = commentaireId,
                 UploadedById = uploadedById
             };
 
@@ -207,7 +205,6 @@ namespace projet0.Application.Services
 
             return pieceJointe;
         }
-        // Dans PieceJointeService.cs
 
         /// <summary>
         /// Sauvegarde un fichier pour un incident
