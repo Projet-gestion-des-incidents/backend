@@ -510,6 +510,39 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
             }
         }
 
+        /// <summary>
+        /// Récupère tous les incidents qui n'ont aucun ticket lié
+        /// </summary>
+        [HttpGet("disponibles")]
+        [Authorize(Policy = "IncidentRead")]
+        public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetIncidentsSansTicket()
+        {
+            try
+            {
+                _logger.LogInformation("Récupération des incidents sans aucun ticket lié");
+
+                var incidents = await _incidentTicketRepository.GetIncidentsSansTicketAsync();
+
+                var dtos = new List<IncidentDTO>();
+                foreach (var incident in incidents)
+                {
+                    dtos.Add(await _incidentService.MapToDto(incident));
+                }
+
+                _logger.LogInformation("{Count} incident(s) sans ticket trouvé(s)", dtos.Count);
+
+                return Ok(ApiResponse<List<IncidentDTO>>.Success(
+                    dtos,
+                    $"{dtos.Count} incident(s) sans ticket associé"
+                ));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erreur lors de la récupération des incidents sans ticket");
+                return StatusCode(500, ApiResponse<List<IncidentDTO>>.Failure("Erreur interne"));
+            }
+        }
+
         #endregion
 
     }

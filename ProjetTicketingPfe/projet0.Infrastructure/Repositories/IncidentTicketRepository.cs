@@ -72,5 +72,29 @@ namespace projet0.Infrastructure.Repositories
 
             return true;
         }
+        public async Task<List<Guid>> GetIncidentIdsByTicketIdAsync(Guid ticketId)
+        {
+            return await _context.IncidentTickets
+                .Where(it => it.TicketId == ticketId)
+                .Select(it => it.IncidentId)
+                .ToListAsync();
+        }
+
+        public async Task<List<Incident>> GetIncidentsSansTicketAsync()
+        {
+            // Récupère les incidents qui n'apparaissent dans aucune liaison IncidentTicket
+            var incidentsAvecTickets = await _context.IncidentTickets
+                .Select(it => it.IncidentId)
+                .Distinct()
+                .ToListAsync();
+
+            var incidentsSansTicket = await _context.Incidents
+                .Include(i => i.EntitesImpactees)
+                .Where(i => !incidentsAvecTickets.Contains(i.Id))
+                .OrderByDescending(i => i.DateDetection)
+                .ToListAsync();
+
+            return incidentsSansTicket;
+        }
     }
 }
