@@ -1630,25 +1630,41 @@ namespace projet0.Application.Services.Ticket
             {
                 try
                 {
-                    // Vérifier que le ticket existe
+                    // Vérifier que le ticket existe avec ses détails
                     var ticket = await _ticketRepository.GetTicketWithDetailsAsync(ticketId);
                     if (ticket == null)
                         return ApiResponse<bool>.Failure($"Ticket {ticketId} non trouvé");
 
-                    // 🔴 RÈGLE : Ne peut supprimer la liaison que si le ticket n'a PAS de statut (null)
-                    if (ticket.StatutTicket.HasValue)
+                    // Vérifier les droits de l'utilisateur
+                    var userRoles = await _userRepository.GetUserRolesAsync(userId);
+                    var isAdmin = userRoles.Contains("Admin");
+
+                    // 🔴 RÈGLE 1 : Seul l'admin peut délier un incident d'un ticket
+                    if (!isAdmin)
                     {
-                        _logger.LogWarning("Tentative de suppression liaison pour ticket avec statut {Statut} | TicketId: {TicketId}",
+                        _logger.LogWarning("Tentative de suppression liaison par un non-admin | UserId: {UserId}, TicketId: {TicketId}",
+                            userId, ticketId);
+
+                        return ApiResponse<bool>.Failure(
+                            "Seul un administrateur peut supprimer une liaison entre un ticket et un incident.",
+                            resultCode: 93
+                        );
+                    }
+
+                    // 🔴 RÈGLE 2 : L'admin ne peut délier que si le ticket n'est PAS "EnCours" ou "Resolu"
+                    if (ticket.StatutTicket == StatutTicket.EnCours || ticket.StatutTicket == StatutTicket.Resolu)
+                    {
+                        _logger.LogWarning("Tentative de suppression liaison par admin pour ticket avec statut {Statut} | TicketId: {TicketId}",
                             ticket.StatutTicket, ticketId);
 
                         return ApiResponse<bool>.Failure(
-                            "Impossible de supprimer la liaison : le ticket a déjà un statut (assigné, en cours ou résolu).",
+                            "Impossible de supprimer la liaison : le ticket est en cours ou résolu.",
                             resultCode: 90
                         );
                     }
 
                     // Vérifier que l'incident existe
-                    var incident = await _incidentRepository.GetByIdAsync(incidentId);
+                    var incident = await _incidentRepository.GetIncidentWithDetailsAsync(incidentId);
                     if (incident == null)
                         return ApiResponse<bool>.Failure($"Incident {incidentId} non trouvé");
 
@@ -1659,12 +1675,16 @@ namespace projet0.Application.Services.Ticket
 
                     // Supprimer la liaison
                     var supprime = await _incidentTicketRepository.DeleteLiaisonAsync(ticketId, incidentId);
-
                     if (!supprime)
                         return ApiResponse<bool>.Failure("Erreur lors de la suppression");
 
-                    _logger.LogInformation("Liaison supprimée entre ticket {TicketId} et incident {IncidentId} par {UserId}",
-                        ticketId, incidentId, userId);
+                    // ✅ Mettre à jour le statut de l'incident après déliaison
+                    await MettreAJourStatutIncidentApresDeliaison(incidentId);
+
+                    await _incidentRepository.SaveChangesAsync();
+
+                    _logger.LogInformation("Liaison supprimée entre ticket {TicketId} (Statut: {Statut}) et incident {IncidentId} par Admin {UserId}",
+                        ticketId, ticket.StatutTicket, incidentId, userId);
 
                     return ApiResponse<bool>.Success(true, "Liaison supprimée avec succès");
                 }
@@ -1674,6 +1694,45 @@ namespace projet0.Application.Services.Ticket
                     return ApiResponse<bool>.Failure("Erreur interne du serveur");
                 }
             });
+        }
+
+        // Méthode helper pour mettre à jour le statut de l'incident
+        private async Task MettreAJourStatutIncidentApresDeliaison(Guid incidentId)
+        {
+            var incident = await _incidentRepository.GetIncidentWithDetailsAsync(incidentId);
+            if (incident == null) return;
+
+            // Récupérer tous les tickets encore liés à cet incident
+            var ticketsRestants = await _incidentTicketRepository.GetTicketsByIncidentIdAsync(incidentId);
+
+            if (!ticketsRestants.Any())
+            {
+                // Plus aucun ticket lié à cet incident
+                incident.StatutIncident = null;
+                incident.DateResolution = null;
+                _logger.LogInformation("Incident {IncidentId} : plus de tickets liés, statut remis à null", incidentId);
+            }
+            else
+            {
+                // Vérifie si des tickets sont encore en cours
+                var aUnTicketEnCours = ticketsRestants.Any(t => t.StatutTicket == StatutTicket.EnCours);
+
+                if (!aUnTicketEnCours)
+                {
+                    // Plus de tickets en cours, l'incident n'est plus "EnCours"
+                    if (incident.StatutIncident == StatutIncident.EnCours)
+                    {
+                        incident.StatutIncident = null;
+                        incident.DateResolution = null;
+                        _logger.LogInformation("Incident {IncidentId} : plus de tickets en cours, statut remis à null", incidentId);
+                    }
+                }
+                else
+                {
+                    // L'incident reste en cours car d'autres tickets sont encore en cours
+                    _logger.LogInformation("Incident {IncidentId} : reste en cours car d'autres tickets sont encore en cours", incidentId);
+                }
+            }
         }
         // Dans TicketService.cs
         public async Task<ApiResponse<PagedResult<TicketDTO>>> GetMesTicketsPagedAsync(TicketPagedRequest request, Guid technicienId)
