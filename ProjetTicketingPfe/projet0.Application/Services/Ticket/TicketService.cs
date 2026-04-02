@@ -1231,9 +1231,9 @@ namespace projet0.Application.Services.Ticket
         }
 
         public async Task<ApiResponse<UpdateTicketResponseDTO>> TechnicianUpdateTicketAsync(
-    Guid id,
-    TechnicianUpdateTicketDTO dto,
-    Guid technicienId)
+            Guid id,
+            TechnicianUpdateTicketDTO dto,
+            Guid technicienId)
         {
             return await MeasureAsync(nameof(TechnicianUpdateTicketAsync), new { id, dto }, async () =>
             {
@@ -1310,18 +1310,20 @@ namespace projet0.Application.Services.Ticket
                             ticket.StatutTicket = nouveauStatut;
                             modifications.Add($"Statut -> {GetStatutLibelle(nouveauStatut)}");
 
+                            // ✅ Mettre à jour les incidents liés pour TOUT changement de statut
+                            if (ticket.IncidentTickets != null && ticket.IncidentTickets.Any())
+                            {
+                                foreach (var lien in ticket.IncidentTickets)
+                                {
+                                    await _incidentService.MettreAJourStatutIncident(lien.IncidentId);
+                                }
+                                modifications.Add("Incidents mis à jour");
+                            }
+
                             if (nouveauStatut == StatutTicket.Resolu)
                             {
                                 ticket.DateCloture = DateTime.UtcNow;
                                 modifications.Add("Date clôture enregistrée");
-
-                                if (ticket.IncidentTickets != null)
-                                {
-                                    foreach (var lien in ticket.IncidentTickets)
-                                    {
-                                        await _incidentService.MettreAJourStatutIncident(lien.IncidentId);
-                                    }
-                                }
                             }
                         }
                         else
@@ -1338,7 +1340,7 @@ namespace projet0.Application.Services.Ticket
                             $"Modifications refusées: {string.Join("; ", erreurs)}");
                     }
 
-                    // RÈGLE 5: Sauvegarder avec gestion de concurrence
+                    // RÈGLE 5: Sauvegarder
                     if (modifications.Any())
                     {
                         ticket.Historiques ??= new List<HistoriqueTicket>();
@@ -1357,13 +1359,10 @@ namespace projet0.Application.Services.Ticket
                         try
                         {
                             var saved = await _ticketRepository.SaveChangesAsync();
-
                             if (saved == 0)
                             {
-                                _logger.LogWarning("Conflit de concurrence pour le ticket {Id}", id);
                                 var entry = _ticketRepository.GetDbContext().Entry(ticket);
                                 await entry.ReloadAsync();
-
                                 return ApiResponse<UpdateTicketResponseDTO>.Failure(
                                     "Le ticket a été modifié par un autre utilisateur. Veuillez rafraîchir.");
                             }
@@ -1373,13 +1372,11 @@ namespace projet0.Application.Services.Ticket
                             _logger.LogWarning(ex, "Conflit de concurrence pour le ticket {Id}", id);
                             var entry = _ticketRepository.GetDbContext().Entry(ticket);
                             await entry.ReloadAsync();
-
                             return ApiResponse<UpdateTicketResponseDTO>.Failure(
                                 "Le ticket a été modifié par un autre utilisateur. Veuillez rafraîchir.");
                         }
                     }
 
-                    // 6. Préparer la réponse
                     var detailDto = await MapToDetailDto(ticket);
                     var responseDto = new UpdateTicketResponseDTO
                     {
