@@ -554,9 +554,9 @@ namespace projet0.Application.Services.Incident
         }
 
         public async Task<ApiResponse<IncidentDTO>> UpdateIncidentAsync(
-    Guid incidentId,
-    UpdateIncidentDTO dto,
-    Guid userId)
+            Guid incidentId,
+            UpdateIncidentDTO dto,
+            Guid userId)
         {
             try
             {
@@ -572,7 +572,7 @@ namespace projet0.Application.Services.Incident
                 // 🔴 RÈGLE : Si c'est un commerçant, vérifier si l'incident est modifiable
                 if (isCommercant && !isAdmin)
                 {
-                    // Vérifier 1 : L'incident a-t-il déjà un statut ? (EnCours ou Fermé)
+                    // Vérifier 1 : L'incident a-t-il déjà un statut ?
                     if (incident.StatutIncident.HasValue)
                     {
                         return ApiResponse<IncidentDTO>.Failure(
@@ -595,7 +595,20 @@ namespace projet0.Application.Services.Incident
                     }
                 }
 
-                // ✅ Le commerçant peut modifier ces champs (si les vérifications sont passées)
+                // ✅ Gestion de la modification du TypeProbleme
+                bool typeProblemeModifie = false;
+                TypeEntiteImpactee? nouveauTypeEntiteImpactee = null;
+
+                if (dto.TypeProbleme.HasValue && dto.TypeProbleme.Value != incident.TypeProbleme)
+                {
+                    typeProblemeModifie = true;
+                    nouveauTypeEntiteImpactee = MapTypeProblemeToTypeEntiteImpactee(dto.TypeProbleme.Value);
+                    incident.TypeProbleme = dto.TypeProbleme.Value;
+                    _logger.LogInformation("TypeProbleme modifié de {Ancien} à {Nouveau}",
+                        incident.TypeProbleme, dto.TypeProbleme.Value);
+                }
+
+                // ✅ Mise à jour des autres champs (admin ou commerçant)
                 if (isCommercant || isAdmin)
                 {
                     if (!string.IsNullOrWhiteSpace(dto.DescriptionIncident))
@@ -603,9 +616,6 @@ namespace projet0.Application.Services.Incident
 
                     if (!string.IsNullOrWhiteSpace(dto.Emplacement))
                         incident.Emplacement = dto.Emplacement;
-
-                    if (dto.TypeProbleme.HasValue)
-                        incident.TypeProbleme = dto.TypeProbleme.Value;
                 }
 
                 // Seul l'admin peut modifier la sévérité
@@ -616,6 +626,34 @@ namespace projet0.Application.Services.Incident
 
                 incident.UpdatedById = userId;
                 incident.UpdatedAt = DateTime.UtcNow;
+
+                // ✅ MISE À JOUR DE L'ENTITÉ IMPACTÉE si le TypeProbleme a changé
+                if (typeProblemeModifie && nouveauTypeEntiteImpactee.HasValue)
+                {
+                    // Récupérer l'entité impactée existante (il y en a normalement une seule)
+                    var entiteImpactee = incident.EntitesImpactees?.FirstOrDefault();
+
+                    if (entiteImpactee != null)
+                    {
+                        // Mettre à jour le type de l'entité impactée
+                        entiteImpactee.TypeEntiteImpactee = nouveauTypeEntiteImpactee.Value;
+                        _logger.LogInformation("Entité impactée mise à jour de {AncienType} à {NouveauType}",
+                            entiteImpactee.TypeEntiteImpactee, nouveauTypeEntiteImpactee.Value);
+                    }
+                    else
+                    {
+                        // Si pour une raison quelconque il n'y a pas d'entité impactée, on en crée une
+                        _logger.LogWarning("Aucune entité impactée trouvée pour l'incident {IncidentId}, création d'une nouvelle", incidentId);
+
+                        incident.EntitesImpactees ??= new List<EntiteImpactee>();
+                        incident.EntitesImpactees.Add(new EntiteImpactee
+                        {
+                            Id = Guid.NewGuid(),
+                            TypeEntiteImpactee = nouveauTypeEntiteImpactee.Value,
+                            IncidentId = incident.Id
+                        });
+                    }
+                }
 
                 await _incidentRepository.SaveChangesAsync();
 
