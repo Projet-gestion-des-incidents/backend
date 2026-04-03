@@ -339,22 +339,6 @@ namespace projet0.API.Controllers
             {
                 var userId = GetCurrentUserId();
 
-                // ✅ Si le statut demandé est "Assigne", on le force à null (ne pas filtrer)
-                // ou on retourne une liste vide
-                if (request.Statut == StatutTicket.Assigne)
-                {
-                    _logger.LogInformation("Filtre Assigné ignoré pour les tickets du technicien");
-                    // Option 1: Retourner une liste vide
-                    var emptyResult = new PagedResult<TicketDTO>
-                    {
-                        Items = new List<TicketDTO>(),
-                        TotalCount = 0,
-                        Page = request.Page,
-                        PageSize = request.PageSize
-                    };
-                    return Ok(ApiResponse<PagedResult<TicketDTO>>.Success(emptyResult));
-                }
-
                 _logger.LogInformation("Récupération paginée des tickets du technicien {UserId} - Page: {Page}, PageSize: {PageSize}, SearchTerm: {SearchTerm}, Statut: {Statut}",
                     userId, request.Page, request.PageSize, request.SearchTerm, request.Statut);
 

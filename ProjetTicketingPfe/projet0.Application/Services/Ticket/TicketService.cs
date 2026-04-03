@@ -1559,10 +1559,7 @@ namespace projet0.Application.Services.Ticket
             {
                 try
                 {
-                    _logger.LogInformation("Début GetMesTicketsPagedAsync - TechnicienId: {TechnicienId}, Page: {Page}, PageSize: {PageSize}, SearchTerm: {SearchTerm}",
-                        technicienId, request.Page, request.PageSize, request.SearchTerm);
-
-                    // 1. Construire le filtre de base
+                    // 1. Construire le filtre de base (inclut le filtre par statut si demandé)
                     var baseFilter = BuildFilter(request);
 
                     // 2. Ajouter le filtre par technicien assigné
@@ -1582,10 +1579,8 @@ namespace projet0.Application.Services.Ticket
                     // 4. Obtenir la requête avec le filtre combiné
                     var query = _ticketRepository.GetFilteredQuery(combinedFilter);
 
-                    // ✅ CORRECTION : Le technicien ne voit PAS les tickets "Assigné"
-                    // Il voit uniquement les tickets "En cours" et "Résolu"
-                    query = query.Where(t => t.StatutTicket == StatutTicket.EnCours ||
-                                              t.StatutTicket == StatutTicket.Resolu);
+                    // ✅ PAS DE FILTRE SUPPLÉMENTAIRE SUR LE STATUT
+                    // La méthode BuildFilter s'occupe déjà du filtre par statut
 
                     // 5. Appliquer le tri
                     if (!string.IsNullOrWhiteSpace(request.SortBy))
@@ -1630,6 +1625,7 @@ namespace projet0.Application.Services.Ticket
                 }
             });
         }
+
         #endregion
     }
 }
