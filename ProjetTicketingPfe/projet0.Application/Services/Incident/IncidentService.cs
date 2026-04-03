@@ -813,23 +813,26 @@ namespace projet0.Application.Services.Incident
                         .ToList();
                 }
 
-                // Vérifications pour commerçant...
-                if (isCommercant && !isAdmin && incident.CreatedById != userId)
-                {
-                    return ApiResponse<bool>.Failure("Vous ne pouvez supprimer que vos propres incidents.", resultCode: 72);
-                }
-
+                // Règles pour le commerçant
                 if (isCommercant && !isAdmin)
                 {
-                    if (incident.StatutIncident.HasValue)
+                    // 1. Vérifier que c'est SON incident
+                    if (incident.CreatedById != userId)
                     {
-                        return ApiResponse<bool>.Failure("Vous ne pouvez pas supprimer un incident qui est déjà en cours ou fermé.", resultCode: 48);
+                        return ApiResponse<bool>.Failure("Vous ne pouvez supprimer que vos propres incidents.", resultCode: 72);
                     }
 
-                    if (incident.IncidentTickets != null && incident.IncidentTickets.Any())
+                    // 2. Vérifier que l'incident n'est PAS FERMÉ
+                    if (incident.StatutIncident == StatutIncident.Ferme)
                     {
-                        return ApiResponse<bool>.Failure("Impossible de supprimer un incident lié à des tickets. Veuillez d'abord supprimer les liens.", resultCode: 49);
+                        return ApiResponse<bool>.Failure(
+                            "Vous ne pouvez pas supprimer un incident fermé.",
+                            resultCode: 48
+                        );
                     }
+
+                    // ✅ Plus de vérification sur les tickets liés
+                    // Le commerçant peut supprimer son incident même s'il est lié à des tickets
                 }
 
                 // Admin : supprimer les liaisons
