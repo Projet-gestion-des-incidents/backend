@@ -294,6 +294,23 @@ namespace projet0.Application.Services.Incident
                 query = query.Where(i => i.DateResolution.HasValue &&
                                          i.DateResolution.Value.Year == request.YearResolution.Value);
             }
+            if (request.DateDetection.HasValue)
+            {
+                var date = request.DateDetection.Value.Date;
+                var nextDay = date.AddDays(1);
+                query = query.Where(i => i.DateDetection >= date && i.DateDetection < nextDay);
+            }
+
+            // ✅ NOUVEAU : Filtre par date de résolution exacte
+            if (request.DateResolution.HasValue)
+            {
+                var date = request.DateResolution.Value.Date;
+                var nextDay = date.AddDays(1);
+                query = query.Where(i => i.DateResolution.HasValue &&
+                                         i.DateResolution.Value >= date &&
+                                         i.DateResolution.Value < nextDay);
+            }
+
 
             return query;
         }
