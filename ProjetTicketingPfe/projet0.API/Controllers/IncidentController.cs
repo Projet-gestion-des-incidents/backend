@@ -322,26 +322,38 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
             }
         }
 
+        // Remplacer l'ancienne méthode GetMyIncidents par celle-ci :
+
         [HttpGet("my-incidents")]
-        [Authorize(Policy = "IncidentRead")]  
-        public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetMyIncidents()
+        [Authorize(Policy = "IncidentRead")]
+        public async Task<ActionResult<ApiResponse<PagedResult<IncidentDTO>>>> GetMyIncidents(
+            [FromQuery] IncidentSearchRequest request)  // ✅ Ajout des filtres
         {
             try
             {
                 var userId = GetCurrentUserId();
-                var result = await _incidentService.GetIncidentsByCreatedByAsync(userId);
+
+                _logger.LogInformation("Récupération paginée des incidents du commerçant {UserId} - Page: {Page}, PageSize: {PageSize}, SearchTerm: {SearchTerm}, Statut: {Statut}",
+                    userId, request.Page, request.PageSize, request.SearchTerm, request.StatutIncident);
+
+                // Appeler une nouvelle méthode du service avec le filtre par utilisateur
+                var result = await _incidentService.GetMyIncidentsPagedAsync(request, userId);
+
+                if (!result.IsSuccess)
+                    return BadRequest(result);
+
                 return Ok(result);
             }
             catch (UnauthorizedAccessException ex)
             {
                 _logger.LogWarning(ex, "Tentative de récupération de ses incidents sans authentification");
-                return Unauthorized(ApiResponse<List<IncidentDTO>>.Failure(ex.Message));
+                return Unauthorized(ApiResponse<PagedResult<IncidentDTO>>.Failure(ex.Message));
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Erreur lors de la récupération de mes incidents");
-                return StatusCode(500, ApiResponse<List<IncidentDTO>>.Failure(
-                    "Erreur interne du serveur lors de la récupération de vos incidents"));
+                _logger.LogError(ex, "Erreur lors de la récupération paginée de mes incidents");
+                return StatusCode(500, ApiResponse<PagedResult<IncidentDTO>>.Failure(
+                    "Erreur interne du serveur"));
             }
         }
 

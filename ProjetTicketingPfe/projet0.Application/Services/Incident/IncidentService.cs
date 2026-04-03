@@ -1225,6 +1225,81 @@ namespace projet0.Application.Services.Incident
             };
         }
 
+        // Dans IncidentService.cs
+        public async Task<ApiResponse<PagedResult<IncidentDTO>>> GetMyIncidentsPagedAsync(IncidentSearchRequest request, Guid userId)
+        {
+            return await MeasureAsync(nameof(GetMyIncidentsPagedAsync), request, async () =>
+            {
+                try
+                {
+                    _logger.LogInformation("Début GetMyIncidentsPagedAsync - UserId: {UserId}, Page: {Page}, PageSize: {PageSize}, SearchTerm: {SearchTerm}",
+                        userId, request.Page, request.PageSize, request.SearchTerm);
+
+                    // 1. Obtenir la requête de base avec les détails
+                    var query = _incidentRepository.QueryWithDetails();
+
+                    // 2. Filtrer par l'utilisateur connecté (ses propres incidents)
+                    query = query.Where(i => i.CreatedById == userId);
+
+                    // 3. Recherche utilisateurs pour le SearchTerm (si nécessaire)
+                    List<Guid> matchedUserIds = new();
+                    if (!string.IsNullOrWhiteSpace(request.SearchTerm))
+                    {
+                        var userSearchRequest = new UserSearchRequest
+                        {
+                            SearchTerm = request.SearchTerm,
+                            Page = 1,
+                            PageSize = 1000
+                        };
+
+                        var (users, _) = await _userRepository.SearchUsersAsync(userSearchRequest);
+                        matchedUserIds = users.Select(u => u.Id).ToList();
+                    }
+
+                    // 4. Appliquer tous les filtres (comme dans SearchIncidentsAsync)
+                    query = ApplySearchFilters(query, request, matchedUserIds);
+
+                    // 5. Compter le total AVANT pagination
+                    var totalCount = await query.CountAsync();
+                    _logger.LogInformation("Total incidents trouvés pour l'utilisateur {UserId}: {TotalCount}", userId, totalCount);
+
+                    // 6. Appliquer le tri
+                    query = ApplySorting(query, request.SortBy, request.SortDescending);
+
+                    // 7. Appliquer la pagination
+                    var pagedIncidents = await query
+                        .Skip((request.Page - 1) * request.PageSize)
+                        .Take(request.PageSize)
+                        .ToListAsync();
+
+                    _logger.LogInformation("{Count} incidents récupérés pour la page {Page}", pagedIncidents.Count, request.Page);
+
+                    // 8. Mapper vers DTO
+                    var dtos = new List<IncidentDTO>();
+                    foreach (var incident in pagedIncidents)
+                    {
+                        dtos.Add(await MapToDto(incident));
+                    }
+
+                    // 9. Créer le résultat paginé
+                    var result = new PagedResult<IncidentDTO>
+                    {
+                        Items = dtos,
+                        TotalCount = totalCount,
+                        Page = request.Page,
+                        PageSize = request.PageSize
+                    };
+
+                    return ApiResponse<PagedResult<IncidentDTO>>.Success(result);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Erreur lors de la récupération paginée des incidents de l'utilisateur {UserId}", userId);
+                    return ApiResponse<PagedResult<IncidentDTO>>.Failure("Erreur interne du serveur");
+                }
+            });
+        }
+
         #endregion
     }
 }
