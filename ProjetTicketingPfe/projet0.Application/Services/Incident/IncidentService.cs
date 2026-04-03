@@ -228,7 +228,10 @@ namespace projet0.Application.Services.Incident
                     case "nontraite":
                     case "non traité":
                     case "non-traite":
-                        query = query.Where(i => i.StatutIncident == null);
+                        // Pour "Non traité", inclure NULL ET 0
+                        query = query.Where(i =>
+                            i.StatutIncident == null ||
+                            i.StatutIncident == StatutIncident.NonTraite);
                         break;
                     case "encours":
                     case "en cours":
@@ -239,6 +242,11 @@ namespace projet0.Application.Services.Incident
                         query = query.Where(i => i.StatutIncident == StatutIncident.Ferme);
                         break;
                 }
+            }
+            else if (request.StatutIncident.HasValue)
+            {
+                // Si c'est un nombre (valeur enum)
+                query = query.Where(i => i.StatutIncident == request.StatutIncident.Value);
             }
 
             // ✅ FILTRE PAR SÉVÉRITÉ (CORRIGÉ)
