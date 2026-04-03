@@ -1582,6 +1582,11 @@ namespace projet0.Application.Services.Ticket
                     // 4. Obtenir la requête avec le filtre combiné
                     var query = _ticketRepository.GetFilteredQuery(combinedFilter);
 
+                    // ✅ CORRECTION : Le technicien ne voit PAS les tickets "Assigné"
+                    // Il voit uniquement les tickets "En cours" et "Résolu"
+                    query = query.Where(t => t.StatutTicket == StatutTicket.EnCours ||
+                                              t.StatutTicket == StatutTicket.Resolu);
+
                     // 5. Appliquer le tri
                     if (!string.IsNullOrWhiteSpace(request.SortBy))
                     {

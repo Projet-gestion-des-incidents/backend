@@ -601,8 +601,13 @@ namespace projet0.Application.Services.Incident
                 // RÈGLE : Si c'est un commerçant, vérifier si l'incident est modifiable
                 if (isCommercant && !isAdmin)
                 {
-                    // Vérifier 1 : L'incident a-t-il déjà un statut ?
-                    if (incident.StatutIncident.HasValue)
+                    // ✅ CORRECTION : Vérifier si l'incident est en cours (StatutIncident = 1) ou fermé (StatutIncident = 2)
+                    // "Non traité" = 0 → modifiable
+                    // "En cours" = 1 → non modifiable
+                    // "Fermé/Résolu" = 2 → non modifiable
+
+                    if (incident.StatutIncident == StatutIncident.EnCours ||
+                        incident.StatutIncident == StatutIncident.Ferme)
                     {
                         return ApiResponse<IncidentDTO>.Failure(
                             "Vous ne pouvez pas modifier un incident qui est déjà en cours ou fermé.",
@@ -618,11 +623,12 @@ namespace projet0.Application.Services.Incident
                             userId, incidentId, ticketsLies.Count());
 
                         return ApiResponse<IncidentDTO>.Failure(
-                            "Vous ne pouvez pas modifier un incident qui est déjà lié à un ticket.",
+                            "Cet incident ne peut pas être modifié car il est déjà lié à un ticket.",
                             resultCode: 71
                         );
                     }
                 }
+
 
                 // Gestion de la modification du TypeProbleme
                 bool typeProblemeModifie = false;
