@@ -32,11 +32,29 @@ namespace projet0.API.Controllers
             _otpService = otpService;
             _userManager = userManager;
         }
-
+        // Dans AuthController.cs
         [HttpPost("register")]
         [AllowAnonymous]
-        public async Task<IActionResult> Register(RegisterDTO dto)
-            => Ok(await _authService.RegisterAsync(dto));
+        public async Task<IActionResult> Register([FromBody] RegisterDTO dto)
+        {
+            // ✅ Vérifier la validité du modèle
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage)
+                    .ToList();
+
+                return BadRequest(ApiResponse<AuthResponseDTO>.Failure(
+                    message: "Données d'inscription invalides",
+                    errors: errors,
+                    resultCode: 99
+                ));
+            }
+
+            var result = await _authService.RegisterAsync(dto);
+            return Ok(result);
+        }
 
         [HttpPost("login")]
         [AllowAnonymous]

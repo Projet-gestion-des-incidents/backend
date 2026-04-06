@@ -34,46 +34,97 @@ namespace projet0.Application.Services.Auth
         }
 
         // ================= REGISTER =================
+        // Dans Application/Services/Auth/AuthService.cs
+        // Dans AuthService.RegisterAsync - Ajouter ces validations
+        // Dans AuthService.RegisterAsync - Ajouter ces validations
         public async Task<ApiResponse<AuthResponseDTO>> RegisterAsync(RegisterDTO dto)
         {
-            var role = await _roleManager.FindByIdAsync(dto.RoleId);
+            // ✅ 1. Valider le modèle (les annotations sont déjà vérifiées par le contrôleur)
+            // Mais on peut ajouter des validations supplémentaires
 
-            if (role == null || role.Name == "Admin")
+            // ✅ 2. Vérifier l'unicité de l'email
+            var existingEmail = await _userManager.FindByEmailAsync(dto.Email);
+            if (existingEmail != null)
             {
                 return ApiResponse<AuthResponseDTO>.Failure(
-                    message: "Rôle invalide",
-                    resultCode: 15
+                    message: "Cet email est déjà utilisé",
+                    resultCode: 10
                 );
             }
 
+            // ✅ 3. Vérifier l'unicité du nom d'utilisateur
+            var existingUserName = await _userManager.FindByNameAsync(dto.UserName);
+            if (existingUserName != null)
+            {
+                return ApiResponse<AuthResponseDTO>.Failure(
+                    message: "Ce nom d'utilisateur est déjà pris",
+                    resultCode: 11
+                );
+            }
+
+            // ✅ 4. Vérifier l'unicité du numéro de téléphone (si fourni)
+            if (!string.IsNullOrEmpty(dto.PhoneNumber))
+            {
+                var users = _userManager.Users.ToList();
+                var existingPhone = users.FirstOrDefault(u => u.PhoneNumber == dto.PhoneNumber);
+                if (existingPhone != null)
+                {
+                    return ApiResponse<AuthResponseDTO>.Failure(
+                        message: "Ce numéro de téléphone est déjà utilisé",
+                        resultCode: 12
+                    );
+                }
+            }
+
+            // ✅ 5. Vérifier la force du mot de passe (validation supplémentaire)
+            var passwordValidator = new PasswordValidator<ApplicationUser>();
+            var passwordResult = await passwordValidator.ValidateAsync(_userManager, null, dto.Password);
+            if (!passwordResult.Succeeded)
+            {
+                var errors = passwordResult.Errors.Select(e => e.Description).ToList();
+                return ApiResponse<AuthResponseDTO>.Failure(
+                    message: "Le mot de passe ne respecte pas les règles de sécurité",
+                    errors: errors,
+                    resultCode: 13
+                );
+            }
+
+            // ✅ 6. Récupérer le rôle "Technicien"
+            var role = await _roleManager.FindByNameAsync("Technicien");
+            if (role == null)
+            {
+                role = new IdentityRole<Guid> { Name = "Technicien", NormalizedName = "TECHNICIEN" };
+                await _roleManager.CreateAsync(role);
+            }
+
+            // ✅ 7. Créer l'utilisateur (EmailConfirmed forcé à false)
             var user = new ApplicationUser
             {
                 UserName = dto.UserName,
                 Email = dto.Email,
                 Nom = dto.Nom,
                 Prenom = dto.Prenom,
-                Adresse = dto.Adresse,  // ✅ AJOUTER CETTE LIGNE
-
-                PhoneNumber = dto.PhoneNumber, 
+                PhoneNumber = dto.PhoneNumber,
                 BirthDate = dto.BirthDate,
-                EmailConfirmed = false 
+               
+                EmailConfirmed = false  // ✅ Toujours false - l'utilisateur doit confirmer son email
             };
 
             var result = await _userManager.CreateAsync(user, dto.Password);
 
             if (!result.Succeeded)
             {
-              return ApiResponse<AuthResponseDTO>.Failure(
-              message: "Erreur lors de la création de l'utilisateur",
-              errors: result.Errors.Select(e => e.Description).ToList(),
-              resultCode: 1
-                  );
+                return ApiResponse<AuthResponseDTO>.Failure(
+                    message: "Erreur lors de la création de l'utilisateur",
+                    errors: result.Errors.Select(e => e.Description).ToList(),
+                    resultCode: 1
+                );
             }
 
-            // Assignation du rôle par défaut
+            // ✅ 8. Assignation du rôle Technicien
             await _userManager.AddToRoleAsync(user, role.Name);
 
-            // ENVOYER UN OTP POUR CONFIRMER L'EMAIL
+            // ✅ 9. Envoyer OTP pour confirmer l'email
             var otpResult = await _otpService.GenerateAndSendOtpAsync(
                 user,
                 OtpPurpose.EmailConfirmation
@@ -81,19 +132,16 @@ namespace projet0.Application.Services.Auth
 
             if (otpResult.ResultCode != 0)
             {
-             // Gérer l'erreur d'envoi OTP
-             return ApiResponse<AuthResponseDTO>.Failure(
-             message: "Compte créé, mais erreur lors de l'envoi du code de confirmation",
-             resultCode: 2
-                 );
+                return ApiResponse<AuthResponseDTO>.Failure(
+                    message: "Compte créé, mais erreur lors de l'envoi du code de confirmation",
+                    resultCode: 2
+                );
             }
 
-        // NE PAS DONNER DE TOKEN D'ACCÈS IMMÉDIATEMENT
-        // L'utilisateur doit d'abord confirmer son email
-        return ApiResponse<AuthResponseDTO>.Success(
-        data: null,
-        message: "Compte créé avec succès. Veuillez confirmer votre email.",
-        resultCode: 0
+            return ApiResponse<AuthResponseDTO>.Success(
+                data: null,
+                message: "Compte technicien créé avec succès. Veuillez confirmer votre email avec le code reçu.",
+                resultCode: 0
             );
         }
 
