@@ -16,5 +16,7 @@ namespace projet0.Application.Commun.DTOs
         public string? NewPassword { get; set; }
         public string? ConfirmPassword { get; set; }
         public string? Image { get; set; }
+        public string? Adresse { get; set; }
+
     }
 }

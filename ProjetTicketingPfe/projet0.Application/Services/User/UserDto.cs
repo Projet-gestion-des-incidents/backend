@@ -21,6 +21,7 @@ namespace projet0.Application.Services.User
 
         public DateTime? BirthDate { get; set; }
         public UserStatut Statut { get; set; }
+        public string? Adresse { get; set; }
         public string StatutString => Statut.ToString(); // Pour affichage simple
 
     }

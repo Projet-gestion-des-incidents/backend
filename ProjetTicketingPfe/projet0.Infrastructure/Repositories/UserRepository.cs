@@ -114,7 +114,9 @@ namespace projet0.Infrastructure.Repositories
                     Image = user.Image,
                     Role = roleName,
                     Statut = user.Statut,
-                    BirthDate = user.BirthDate
+                    BirthDate = user.BirthDate,
+                    Adresse = user.Adresse  // ✅ AJOUTER CETTE LIGNE
+
                 });
             }
 
@@ -273,7 +275,9 @@ namespace projet0.Infrastructure.Repositories
                         Image = user.Image,
                         Role = roleName,
                         Statut = user.Statut,
-                        BirthDate = user.BirthDate
+                        BirthDate = user.BirthDate,
+                        Adresse = user.Adresse  // ✅ AJOUTER CETTE LIGNE
+
                     });
                 }
             }

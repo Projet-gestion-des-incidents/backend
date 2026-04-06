@@ -14,7 +14,9 @@ namespace projet0.Application.Commun.DTOs
         public bool EmailConfirmed { get; set; } = false;
         public string RoleId { get; set; }
         public string? PhoneNumber { get; set; }
-        public DateTime? BirthDate { get; set; } 
+        public DateTime? BirthDate { get; set; }
+        public string? Adresse { get; set; }
+
 
     }
 }

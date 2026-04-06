@@ -161,6 +161,8 @@ namespace projet0.API.Controllers
                 user.Image,
                 user.BirthDate,
                 user.Statut,
+                user.Adresse,  // ✅ AJOUTER CETTE LIGNE
+
                 user.TicketsCrees,
                 user.TicketsAssignes,
                 user.Commentaires,

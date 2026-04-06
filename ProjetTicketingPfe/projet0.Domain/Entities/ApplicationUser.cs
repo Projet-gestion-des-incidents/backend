@@ -10,6 +10,7 @@ namespace projet0.Domain.Entities
         public string? Image { get; set; }
         public DateTime? BirthDate { get; set; }
         public UserStatut Statut { get; set; } = UserStatut.Actif;
+        public string? Adresse { get; set; }
         public virtual ICollection<Ticket> TicketsCrees { get; set; }
         public virtual ICollection<Ticket> TicketsAssignes { get; set; }        
         public virtual ICollection<CommentaireTicket> Commentaires { get; set; }

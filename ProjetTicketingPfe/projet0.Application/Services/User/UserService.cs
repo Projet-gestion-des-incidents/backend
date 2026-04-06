@@ -217,6 +217,8 @@ namespace projet0.Application.Services.User
                 PhoneNumber = dto.PhoneNumber,
                 BirthDate = dto.BirthDate,
                 Image = imageUrl,
+                Adresse = dto.Adresse,  // ✅ AJOUTER CETTE LIGNE
+
                 EmailConfirmed = true // Email confirmé automatiquement pour les utilisateurs créés par admin
             };
 
@@ -348,6 +350,8 @@ namespace projet0.Application.Services.User
                     user.Prenom = dto.Prenom;
                     user.PhoneNumber = dto.PhoneNumber;
                     user.Image = dto.Image;
+                    user.Adresse = dto.Adresse;  // ✅ AJOUTER CETTE LIGNE
+
                     //user.Age = dto.Age;
 
                     var result = await _userRepository.UpdateAsync(user);
@@ -520,6 +524,10 @@ namespace projet0.Application.Services.User
                         );
                     }
 
+                    // ✅ DÉCLARER hasChanges ICI, au début
+                    bool hasChanges = false;
+                    bool emailChanged = false;
+
                     // 2. Journaliser la requête reçue (pour debug)
                     _logger.LogDebug("EditProfile request received for user {UserId}", userId);
                     _logger.LogDebug("Image data received (first 100 chars): {ImagePreview}",
@@ -597,9 +605,11 @@ namespace projet0.Application.Services.User
                         }
                     }
 
-                    // 6. Mise à jour des informations de base
-                    bool hasChanges = false;
-                    bool emailChanged = false;
+                    if (!string.IsNullOrEmpty(dto.Adresse) && dto.Adresse != user.Adresse)
+                    {
+                        user.Adresse = dto.Adresse;
+                        hasChanges = true;
+                    }
 
                     if (!string.IsNullOrEmpty(dto.UserName) && dto.UserName != user.UserName)
                     {

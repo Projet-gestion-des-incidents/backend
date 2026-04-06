@@ -52,7 +52,8 @@ namespace projet0.Application.Services.Auth
                 Email = dto.Email,
                 Nom = dto.Nom,
                 Prenom = dto.Prenom,
-                
+                Adresse = dto.Adresse,  // ✅ AJOUTER CETTE LIGNE
+
                 PhoneNumber = dto.PhoneNumber, 
                 BirthDate = dto.BirthDate,
                 EmailConfirmed = false 
