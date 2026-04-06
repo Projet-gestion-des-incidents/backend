@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using projet0.Application.Commun.DTOs.Ticket;
 using projet0.Application.Commun.Ressources;
 using projet0.Application.Interfaces;
+using projet0.Application.Services.Incident;
+using projet0.Application.Services.User;
 using System.Security.Claims;
 
 namespace projet0.API.Controllers
@@ -14,13 +16,19 @@ namespace projet0.API.Controllers
     {
         private readonly IPieceJointeService _pieceJointeService;
         private readonly ILogger<PieceJointeController> _logger;
+        private readonly IUserService _userService;
+        private readonly IIncidentService _incidentService;
 
         public PieceJointeController(
             IPieceJointeService pieceJointeService,
-            ILogger<PieceJointeController> logger)
+            ILogger<PieceJointeController> logger,
+            IUserService userService,
+            IIncidentService incidentService)
         {
             _pieceJointeService = pieceJointeService;
             _logger = logger;
+            _userService = userService;
+            _incidentService = incidentService;
         }
 
         [HttpGet("{id}")]
@@ -43,11 +51,57 @@ namespace projet0.API.Controllers
         }
 
         [HttpDelete("{id}")]
-        [Authorize(Policy = "TicketDelete")]
+        [Authorize]  // ✅ Changez de [Authorize(Policy = "TicketDelete")] à [Authorize] seulement
         public async Task<ActionResult<ApiResponse<bool>>> Supprimer(Guid id)
         {
             try
             {
+                var userId = GetCurrentUserId();
+
+                // 1. Récupérer la pièce jointe
+                var pieceJointe = await _pieceJointeService.GetMetadataAsync(id);
+                if (pieceJointe == null)
+                    return NotFound(ApiResponse<bool>.Failure("Pièce jointe non trouvée"));
+
+                // 2. Vérifier les droits de l'utilisateur
+                var userRoles = await _userService.GetUserRolesAsync(userId);
+                var isAdmin = userRoles.Contains("Admin");
+                var isCommercant = userRoles.Contains("Commercant");
+
+                // 3. Si c'est une pièce jointe d'incident
+                if (pieceJointe.IncidentId.HasValue)
+                {
+                    // Récupérer l'incident
+                    var incident = await _incidentService.GetIncidentByIdAsync(pieceJointe.IncidentId.Value);
+
+                    if (incident == null || incident.Data == null)
+                        return NotFound(ApiResponse<bool>.Failure("Incident associé non trouvé"));
+
+                    // Admin peut supprimer n'importe quelle pièce jointe
+                    if (isAdmin)
+                    {
+                        // OK
+                    }
+                    // Commerçant peut supprimer uniquement les pièces jointes de SES incidents
+                    else if (isCommercant && incident.Data.CreatedById == userId)
+                    {
+                        // OK
+                    }
+                    else
+                    {
+                        return Forbid();
+                    }
+                }
+                else
+                {
+                    // Pour les autres types de pièces jointes (commentaires...), seul l'admin peut supprimer
+                    if (!isAdmin)
+                    {
+                        return Forbid();
+                    }
+                }
+
+                // 4. Procéder à la suppression
                 var result = await _pieceJointeService.SupprimerFichierAsync(id);
                 if (!result)
                     return NotFound();
@@ -60,7 +114,6 @@ namespace projet0.API.Controllers
                 return StatusCode(500, ApiResponse<bool>.Failure("Erreur interne"));
             }
         }
-        // Dans PieceJointeController.cs
 
         /// <summary>
         /// Ajouter des pièces jointes à un incident
@@ -134,15 +187,34 @@ namespace projet0.API.Controllers
         [HttpDelete("incident/{incidentId}")]
         [Authorize(Policy = "IncidentUpdate")]
         public async Task<ActionResult<ApiResponse<bool>>> SupprimerPiecesJointesIncident(
-    Guid incidentId,
-    [FromBody] List<Guid> pieceJointeIds)
+            Guid incidentId,
+            [FromBody] List<Guid> pieceJointeIds)
         {
             try
             {
+                var userId = GetCurrentUserId();
+
+                // ✅ Récupérer l'incident
+                var incident = await _incidentService.GetIncidentByIdAsync(incidentId);
+                if (incident == null || incident.Data == null)
+                {
+                    return NotFound(ApiResponse<bool>.Failure("Incident non trouvé"));
+                }
+
+                // ✅ Vérifier les droits
+                var userRoles = await _userService.GetUserRolesAsync(userId);
+                var isAdmin = userRoles.Contains("Admin");
+                var isCommercant = userRoles.Contains("Commercant");
+
+                // Si c'est un commerçant, vérifier que l'incident lui appartient
+                if (isCommercant && !isAdmin && incident.Data.CreatedById != userId)
+                {
+                    return Forbid(); // 403 - Accès non autorisé
+                }
+
                 // Vérifier que les pièces appartiennent bien à cet incident
                 foreach (var id in pieceJointeIds)
                 {
-                    // ✅ Utiliser GetMetadataAsync qui retourne un objet PieceJointe
                     var piece = await _pieceJointeService.GetMetadataAsync(id);
                     if (piece == null)
                     {
