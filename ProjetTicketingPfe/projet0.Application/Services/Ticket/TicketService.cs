@@ -202,7 +202,7 @@ namespace projet0.Application.Services.Ticket
                 predicates.Add(t => t.DateCreation < dateFin);
             }
 
-            // RECHERCHE AVANCÉE - Sur le nom du créateur, la référence et le titre
+            // RECHERCHE AVANCÉE - Sur le nom du créateur, la référence, le titre et le nom de l'assigné
             if (!string.IsNullOrWhiteSpace(request.SearchTerm))
             {
                 var term = request.SearchTerm.ToLower().Trim();
@@ -215,12 +215,20 @@ namespace projet0.Application.Services.Ticket
                     t.TitreTicket.ToLower().Contains(term) ||
 
                     // Recherche dans le nom du créateur (prénom + nom)
-                (t.Createur != null && (
-                    (t.Createur.Nom.ToLower().Contains(term)) ||
-                    (t.Createur.Prenom.ToLower().Contains(term)) ||
-                    (t.Createur.Nom.ToLower() + " " + t.Createur.Prenom.ToLower()).Contains(term) ||
-                    (t.Createur.Prenom.ToLower() + " " + t.Createur.Nom.ToLower()).Contains(term)
-                ))
+                    (t.Createur != null && (
+                        t.Createur.Nom.ToLower().Contains(term) ||
+                        t.Createur.Prenom.ToLower().Contains(term) ||
+                        (t.Createur.Nom.ToLower() + " " + t.Createur.Prenom.ToLower()).Contains(term) ||
+                        (t.Createur.Prenom.ToLower() + " " + t.Createur.Nom.ToLower()).Contains(term)
+                    )) ||
+
+                    // ✅ NOUVEAU : Recherche dans le nom de l'assigné (prénom + nom)
+                    (t.Assignee != null && (
+                        t.Assignee.Nom.ToLower().Contains(term) ||
+                        t.Assignee.Prenom.ToLower().Contains(term) ||
+                        (t.Assignee.Nom.ToLower() + " " + t.Assignee.Prenom.ToLower()).Contains(term) ||
+                        (t.Assignee.Prenom.ToLower() + " " + t.Assignee.Nom.ToLower()).Contains(term)
+                    ))
                 );
             }
 
