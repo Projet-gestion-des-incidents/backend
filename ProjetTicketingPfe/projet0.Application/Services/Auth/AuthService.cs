@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using projet0.Application.Commun.DTOs;
 using projet0.Application.Commun.Ressources;
 using projet0.Application.Services.Otp;
@@ -19,11 +20,12 @@ namespace projet0.Application.Services.Auth
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly ITokenService _tokenService;
         private readonly IOtpService _otpService;
+        private readonly ILogger _logger;
         public AuthService(
             UserManager<ApplicationUser> userManager,
             ITokenService tokenService, RoleManager<IdentityRole<Guid>> roleManager,
             SignInManager<ApplicationUser> signInManager,
-            IConfiguration config, IOtpService otpService)
+            IConfiguration config, IOtpService otpService, ILogger<AuthService> logger)
         {
             _userManager = userManager;
             _roleManager = roleManager;
@@ -31,6 +33,7 @@ namespace projet0.Application.Services.Auth
             _tokenService = tokenService;
             _config = config;
             _otpService = otpService;
+            _logger = logger;
         }
 
         // ================= REGISTER =================
@@ -158,14 +161,88 @@ namespace projet0.Application.Services.Auth
                 );
             }
 
-            // NETTOYER LE LOCKOUT EXPIRÉ
+            var roles = await _userManager.GetRolesAsync(user);
+            var isAdmin = roles.Contains("Admin");
+
+            // ============================================
+            // ✅ ADMIN : Pas de lockout
+            // ============================================
+            if (isAdmin)
+            {
+                // Vérifier le mot de passe
+                if (!await _userManager.CheckPasswordAsync(user, dto.Password))
+                {
+                    _logger.LogWarning("Tentative de connexion admin échouée pour {Email}", dto.Email);
+                    return ApiResponse<AuthResponseDTO>.Failure(
+                        message: "Email ou mot de passe incorrect",
+                        resultCode: 10
+                    );
+                }
+
+                // Réinitialiser le compteur de tentatives si nécessaire
+                if (await _userManager.GetAccessFailedCountAsync(user) > 0)
+                {
+                    await _userManager.ResetAccessFailedCountAsync(user);
+                }
+
+                // Vérifier si le compte est désactivé (lockout permanent par admin)
+                var lockoutEnd = await _userManager.GetLockoutEndDateAsync(user);
+                if (lockoutEnd.HasValue && lockoutEnd.Value == DateTimeOffset.MaxValue)
+                {
+                    return ApiResponse<AuthResponseDTO>.Failure(
+                        message: "Votre compte a été désactivé. Contactez l'administrateur.",
+                        resultCode: 15
+                    );
+                }
+
+                // S'assurer que le statut est Actif
+                if (user.Statut != UserStatut.Actif)
+                {
+                    user.Statut = UserStatut.Actif;
+                    await _userManager.UpdateAsync(user);
+                }
+
+                // Générer les tokens
+                var accessToken = _tokenService.GenerateAccessToken(user, roles);
+                var refreshToken = _tokenService.GenerateRefreshToken(user);
+                var userRole = roles.FirstOrDefault();
+
+                var response = new AuthResponseDTO
+                {
+                    AccessToken = accessToken,
+                    RefreshToken = refreshToken,
+                    ExpiresAt = DateTime.UtcNow.AddMinutes(
+                        int.Parse(_config["Jwt:AccessTokenExpirationMinutes"])
+                    ),
+                    UserName = user.UserName,
+                    Role = userRole,
+                    Email = user.Email,
+                    EmailConfirmed = user.EmailConfirmed
+                };
+
+                _logger.LogInformation("Connexion admin réussie pour {Email}", dto.Email);
+
+                return ApiResponse<AuthResponseDTO>.Success(
+                    data: response,
+                    message: "Connexion réussie",
+                    resultCode: 0
+                );
+            }
+
+            // ============================================
+            // ✅ NON-ADMIN : Logique avec lockout
+            // ============================================
+
+            // 1. NETTOYER LE LOCKOUT EXPIRÉ (restaure le statut si nécessaire)
             await CleanExpiredLockoutForUserAsync(user);
 
-            // VÉRIFIER SI L'UTILISATEUR EST LOCKOUT
+            // 2. SYNCHRONISER LE STATUT (vérification supplémentaire)
+            await SyncUserStatusAsync(user);
+
+            // 3. VÉRIFIER SI L'UTILISATEUR EST ENCORE LOCKOUT
             var isLockedOut = await _userManager.IsLockedOutAsync(user);
             if (isLockedOut)
             {
-                // Distinguer lockout permanent (désactivation admin) vs temporaire (tentatives échouées)
                 var lockoutEnd = await _userManager.GetLockoutEndDateAsync(user);
 
                 if (lockoutEnd.HasValue && lockoutEnd.Value == DateTimeOffset.MaxValue)
@@ -179,7 +256,6 @@ namespace projet0.Application.Services.Auth
                 else
                 {
                     // LOCKOUT TEMPORAIRE (3 mauvais mots de passe)
-                    // Calculer le temps restant
                     var remainingTime = lockoutEnd.HasValue
                         ? (lockoutEnd.Value - DateTimeOffset.UtcNow)
                         : TimeSpan.FromMinutes(15);
@@ -206,7 +282,9 @@ namespace projet0.Application.Services.Auth
             {
                 if (signInResult.IsLockedOut)
                 {
-                    // L'utilisateur vient d'être lockout par cette tentative
+                    // L'utilisateur vient d'être lockout - Mettre à jour le statut
+                    await UpdateUserStatusAfterLockoutAsync(user);
+
                     return ApiResponse<AuthResponseDTO>.Failure(
                         message: "Trop de tentatives échouées. Votre compte est temporairement bloqué.",
                         resultCode: 14
@@ -221,7 +299,6 @@ namespace projet0.Application.Services.Auth
                 }
                 else
                 {
-                    // Mauvais mot de passe
                     var failedCount = await _userManager.GetAccessFailedCountAsync(user);
                     var remainingAttempts = Math.Max(0, 3 - failedCount);
 
@@ -242,15 +319,21 @@ namespace projet0.Application.Services.Auth
                 }
             }
 
-            // SUCCÈS - RÉINITIALISER LE COMPTEUR D'ÉCHECS
+            // SUCCÈS - RÉINITIALISER LE COMPTEUR D'ÉCHECS ET LE STATUT
             if (await _userManager.GetAccessFailedCountAsync(user) > 0)
             {
                 await _userManager.ResetAccessFailedCountAsync(user);
             }
 
-            var roles = await _userManager.GetRolesAsync(user);
+            // S'assurer que le statut est Actif après une connexion réussie
+            if (user.Statut != UserStatut.Actif)
+            {
+                user.Statut = UserStatut.Actif;
+                await _userManager.UpdateAsync(user);
+            }
 
-            if (!user.EmailConfirmed && !roles.Contains("Admin"))
+            // Vérifier la confirmation d'email
+            if (!user.EmailConfirmed)
             {
                 return ApiResponse<AuthResponseDTO>.Failure(
                     message: "Veuillez confirmer votre email avant de vous connecter",
@@ -258,31 +341,87 @@ namespace projet0.Application.Services.Auth
                 );
             }
 
-            var accessToken = _tokenService.GenerateAccessToken(user, roles);
-            var refreshToken = _tokenService.GenerateRefreshToken(user);
-            var userRole = roles.FirstOrDefault();
+            // Générer les tokens
+            var accessTokenNonAdmin = _tokenService.GenerateAccessToken(user, roles);
+            var refreshTokenNonAdmin = _tokenService.GenerateRefreshToken(user);
+            var userRoleNonAdmin = roles.FirstOrDefault();
 
-            var response = new AuthResponseDTO
+            var responseNonAdmin = new AuthResponseDTO
             {
-                AccessToken = accessToken,
-                RefreshToken = refreshToken,
+                AccessToken = accessTokenNonAdmin,
+                RefreshToken = refreshTokenNonAdmin,
                 ExpiresAt = DateTime.UtcNow.AddMinutes(
                     int.Parse(_config["Jwt:AccessTokenExpirationMinutes"])
                 ),
                 UserName = user.UserName,
-                Role = userRole,
+                Role = userRoleNonAdmin,
                 Email = user.Email,
                 EmailConfirmed = user.EmailConfirmed
             };
 
+            _logger.LogInformation("Connexion réussie pour {Email}", dto.Email);
+
             return ApiResponse<AuthResponseDTO>.Success(
-                data: response,
+                data: responseNonAdmin,
                 message: "Connexion réussie",
                 resultCode: 0
             );
         }
 
-        // Méthode pour nettoyer le lockout expiré
+
+
+        // Méthode utilitaire pour détecter un lockout permanent
+        private bool IsPermanentLockout(DateTimeOffset lockoutEnd)
+        {
+            // Si lockoutEnd est très loin dans le futur (>= 1 an), considérer comme permanent
+            return lockoutEnd > DateTimeOffset.UtcNow.AddYears(1);
+        }
+
+        // Dans AuthService.cs, ajoutez ces méthodes
+
+        /// <summary>
+        /// Synchronise le champ Statut avec LockoutEnd
+        /// </summary>
+        private async Task SyncUserStatusAsync(ApplicationUser user)
+        {
+            var lockoutEnd = await _userManager.GetLockoutEndDateAsync(user);
+            var isLockedOut = await _userManager.IsLockedOutAsync(user);
+
+            // Vérifier si l'utilisateur est actuellement bloqué
+            var isCurrentlyLocked = isLockedOut || (lockoutEnd.HasValue && lockoutEnd.Value > DateTimeOffset.UtcNow);
+
+            if (isCurrentlyLocked)
+            {
+                if (user.Statut != UserStatut.Inactif)
+                {
+                    user.Statut = UserStatut.Inactif;
+                    await _userManager.UpdateAsync(user);
+                }
+            }
+            else
+            {
+                // ✅ Si non bloqué, le statut doit être Actif
+                if (user.Statut != UserStatut.Actif)
+                {
+                    user.Statut = UserStatut.Actif;
+                    await _userManager.UpdateAsync(user);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Met à jour le statut après un lockout (3 tentatives échouées)
+        /// </summary>
+        private async Task UpdateUserStatusAfterLockoutAsync(ApplicationUser user)
+        {
+            user.Statut = UserStatut.Inactif;
+            await _userManager.UpdateAsync(user);
+            _logger.LogInformation("Utilisateur {UserId} bloqué après 3 tentatives - Statut mis à Inactif", user.Id);
+        }
+
+        /// <summary>
+        /// Nettoie le lockout expiré et restaure le statut
+        /// </summary>
         private async Task CleanExpiredLockoutForUserAsync(ApplicationUser user)
         {
             var lockoutEnd = await _userManager.GetLockoutEndDateAsync(user);
@@ -292,17 +431,32 @@ namespace projet0.Application.Services.Auth
                 lockoutEnd.Value != DateTimeOffset.MaxValue &&
                 lockoutEnd.Value <= DateTimeOffset.UtcNow)
             {
-                await _userManager.SetLockoutEndDateAsync(user, null);
-                await _userManager.ResetAccessFailedCountAsync(user);
-                //_logger.LogDebug("Lockout temporaire expiré nettoyé pour {Email}", user.Email);
-            }
-        }    
+                _logger.LogInformation("Lockout expiré pour l'utilisateur {UserId} - Fin: {LockoutEnd}",
+                    user.Id, lockoutEnd.Value);
 
-        // Méthode utilitaire pour détecter un lockout permanent
-        private bool IsPermanentLockout(DateTimeOffset lockoutEnd)
-        {
-            // Si lockoutEnd est très loin dans le futur (>= 1 an), considérer comme permanent
-            return lockoutEnd > DateTimeOffset.UtcNow.AddYears(1);
+                // 1. Supprimer le lockout
+                await _userManager.SetLockoutEndDateAsync(user, null);
+
+                // 2. Réinitialiser le compteur de tentatives
+                await _userManager.ResetAccessFailedCountAsync(user);
+
+                // 3. ✅ RESTAURER LE STATUT À ACTIF
+                if (user.Statut != UserStatut.Actif)
+                {
+                    user.Statut = UserStatut.Actif;
+                    var updateResult = await _userManager.UpdateAsync(user);
+
+                    if (updateResult.Succeeded)
+                    {
+                        _logger.LogInformation("Statut de l'utilisateur {UserId} restauré à Actif", user.Id);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Échec de la mise à jour du statut pour {UserId}", user.Id);
+                    }
+                }
+            }
         }
+
     }
 }
