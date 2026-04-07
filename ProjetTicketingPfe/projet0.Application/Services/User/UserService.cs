@@ -132,168 +132,7 @@ namespace projet0.Application.Services.User
             );
 
         // ================= CREATE =================
-        public Task<ApiResponse<ApplicationUser>> CreateAsync(UserDto dto)
-    => MeasureAsync(
-        actionName: "CreateUser",
-        input: dto,
-        async () =>
-        {
-            // 1. Validation de l'email
-            if (!await _userRepository.IsEmailUniqueAsync(dto.Email))
-            {
-                _logger.LogWarning(
-                    "BUSINESS_RULE EmailAlreadyUsed | {Email}",
-                    dto.Email
-                );
-
-                return ApiResponse<ApplicationUser>.Failure(
-                    message: UserMessages.EmailAlreadyUsed,
-                    resultCode: 10);
-            }
-
-            // 2. Validation du nom d'utilisateur
-            if (!await _userRepository.IsUserNameUniqueAsync(dto.UserName))
-            {
-                _logger.LogWarning(
-                    "BUSINESS_RULE UserNameAlreadyUsed | {UserName}",
-                    dto.UserName
-                );
-
-                return ApiResponse<ApplicationUser>.Failure(
-                    message: UserMessages.UserNameAlreadyUsed,
-                    resultCode: 11
-                );
-            }
-
-            // 3. Vérification du rôle
-            var role = await _roleManager.FindByIdAsync(dto.RoleId.ToString());
-            if (role == null)
-            {
-                return ApiResponse<ApplicationUser>.Failure(
-                    message: "Le rôle spécifié n'existe pas",
-                    resultCode: 13);
-            }
-
-            // 4. Empêcher la création d'Admin
-            if (role.Name == "Admin")
-            {
-                return ApiResponse<ApplicationUser>.Failure(
-                    message: "Impossible de créer un utilisateur Admin via ce service",
-                    resultCode: 14);
-            }
-
-            // 5. Gestion de l'image
-            string imageUrl = null;
-            if (!string.IsNullOrEmpty(dto.Image))
-            {
-                try
-                {
-                    // Accepter soit Base64, soit URL existante
-                    if (dto.Image.StartsWith("data:image"))
-                    {
-                        imageUrl = await SaveBase64ImageAsync(dto.Image);
-                    }
-                    else
-                    {
-                        // Si c'est déjà une URL, l'utiliser directement
-                        imageUrl = dto.Image;
-                    }
-                    _logger.LogDebug("Image sauvegardée, URL: {ImageUrl}", imageUrl);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Erreur sauvegarde image: {Message}", ex.Message);
-                    // Continuer sans image
-                }
-            }
-
-            // 6. Création de l'utilisateur
-            var user = new ApplicationUser
-            {
-                UserName = dto.UserName,
-                Email = dto.Email,
-                Nom = dto.Nom,
-                Prenom = dto.Prenom,
-                PhoneNumber = dto.PhoneNumber,
-                BirthDate = dto.BirthDate,
-                Image = imageUrl,
-                Adresse = dto.Adresse,  // ✅ AJOUTER CETTE LIGNE
-
-                EmailConfirmed = true // Email confirmé automatiquement pour les utilisateurs créés par admin
-            };
-
-            // 7. Mot de passe par défaut
-            string defaultPassword = "Azerty123";
-
-            var result = await _userRepository.CreateAsync(user, defaultPassword);
-
-            if (!result.Succeeded)
-            {
-                _logger.LogError(
-                    "DB_ERROR CreateUser failed | {@Errors}",
-                    result.Errors
-                );
-
-                // Vérifier si l'erreur est liée au mot de passe
-                var passwordError = result.Errors.FirstOrDefault(e => e.Code.Contains("Password"));
-                if (passwordError != null)
-                {
-                    return ApiResponse<ApplicationUser>.Failure(
-                        message: $"Le mot de passe par défaut ne respecte pas les règles de sécurité. {passwordError.Description}",
-                        errors: result.Errors.Select(e => e.Description).ToList(),
-                        resultCode: 16
-                    );
-                }
-
-                return ApiResponse<ApplicationUser>.Failure(
-                    message: UserMessages.CreateUserError,
-                    errors: result.Errors.Select(e => e.Description).ToList(),
-                    resultCode: 12
-                );
-            }
-
-            // 8. Assignation du rôle
-            var roleResult = await _userManager.AddToRoleAsync(user, role.Name);
-
-            if (!roleResult.Succeeded)
-            {
-                _logger.LogWarning(
-                    "Role assignment failed for user {UserId} | Role: {RoleName} | Errors: {@Errors}",
-                    user.Id,
-                    role.Name,
-                    roleResult.Errors
-                );
-
-                // Option: Vous pouvez décider de supprimer l'utilisateur si le rôle échoue
-                // await _userManager.DeleteAsync(user);
-                // return ApiResponse<ApplicationUser>.Failure(
-                //     message: "Échec de l'assignation du rôle",
-                //     errors: roleResult.Errors.Select(e => e.Description).ToList(),
-                //     resultCode: 15
-                // );
-            }
-
-            _logger.LogInformation(
-                "SUCCESS CreateUser | UserId = {UserId} | Email: {Email} | Role: {RoleName} | DefaultPassword: {Password}",
-                user.Id,
-                user.Email,
-                role.Name,
-                defaultPassword
-            );
-
-            // 9. Retourner la réponse avec des informations supplémentaires
-            var responseData = new
-            {
-                User = user,
-                DefaultPassword = defaultPassword,
-                Message = $"Utilisateur créé avec succès. Mot de passe par défaut: {defaultPassword}"
-            };
-
-            return ApiResponse<ApplicationUser>.Success(
-                data: user,
-                message: $"Utilisateur créé avec succès. Mot de passe par défaut: {defaultPassword}",
-                resultCode: 0
-            );
+      
 
             // Dans CreateAsync, après la création réussie :
             /*try
@@ -321,7 +160,7 @@ namespace projet0.Application.Services.User
             {
                 _logger.LogWarning(ex, "Erreur lors de l'envoi de l'email de bienvenue");
             }*/
-        });
+       
 
         // ================= UPDATE =================
         public Task<ApiResponse<ApplicationUser>> UpdateAsync(Guid id, UserDto dto)
@@ -1170,6 +1009,143 @@ namespace projet0.Application.Services.User
                     message: $"Magasin '{dto.NomMagasin}' créé avec succès. Mot de passe par défaut: {defaultPassword}",
                     resultCode: 0);
             });
+        }
+        // Dans UserService.cs
+        public async Task<ApiResponse<PagedResult<TechnicienDto>>> GetTechniciensPagedAsync(TechnicienSearchRequest request)
+        {
+            return await MeasureAsync("GetTechniciensPaged", request, async () =>
+            {
+                try
+                {
+                    // 1. Récupérer tous les utilisateurs avec le rôle Technicien
+                    var techniciens = await _userManager.GetUsersInRoleAsync("Technicien");
+
+                    // 2. Convertir en IQueryable pour appliquer les filtres
+                    var query = techniciens.AsQueryable();
+
+                    // 3. Appliquer les filtres
+                    if (!string.IsNullOrWhiteSpace(request.SearchTerm))
+                    {
+                        var term = request.SearchTerm.ToLower();
+                        query = query.Where(t =>
+                            t.Nom.ToLower().Contains(term) ||
+                            t.Prenom.ToLower().Contains(term) ||
+                            t.Email.ToLower().Contains(term) ||
+                            t.UserName.ToLower().Contains(term));
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(request.Nom))
+                    {
+                        query = query.Where(t => t.Nom.ToLower().Contains(request.Nom.ToLower()));
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(request.Prenom))
+                    {
+                        query = query.Where(t => t.Prenom.ToLower().Contains(request.Prenom.ToLower()));
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(request.Email))
+                    {
+                        query = query.Where(t => t.Email.ToLower().Contains(request.Email.ToLower()));
+                    }
+
+                    if (request.Statut.HasValue)
+                    {
+                        query = query.Where(t => t.Statut == request.Statut.Value);
+                    }
+
+                    if (request.BirthDate.HasValue)
+                    {
+                        query = query.Where(t => t.BirthDate.HasValue && t.BirthDate.Value.Date == request.BirthDate.Value.Date);
+                    }
+
+                    if (request.BirthYear.HasValue)
+                    {
+                        query = query.Where(t => t.BirthDate.HasValue && t.BirthDate.Value.Year == request.BirthYear.Value);
+                    }
+
+                    // 4. Compter le total AVANT pagination
+                    var totalCount = query.Count();
+
+                    // 5. Appliquer le tri
+                    query = ApplySortingToTechniciens(query, request.SortBy, request.SortDescending);
+
+                    // 6. Appliquer la pagination
+                    var page = Math.Max(1, request.Page);
+                    var pageSize = Math.Clamp(request.PageSize, 1, 100);
+                    var skip = (page - 1) * pageSize;
+
+                    var paginatedTechniciens = query
+                        .Skip(skip)
+                        .Take(pageSize)
+                        .ToList();
+
+                    // 7. Mapper vers DTO
+                    var dtos = paginatedTechniciens.Select(t => new TechnicienDto
+                    {
+                        Id = t.Id,
+                        Nom = t.Nom,
+                        Prenom = t.Prenom,
+                        Email = t.Email
+                    }).ToList();
+
+                    // 8. Créer le résultat paginé
+                    var pagedResult = new PagedResult<TechnicienDto>
+                    {
+                        Items = dtos,
+                        TotalCount = totalCount,
+                        Page = page,
+                        PageSize = pageSize
+                    };
+
+                    _logger.LogInformation("SUCCESS GetTechniciensPaged | Total: {TotalCount} | Page: {Page}/{TotalPages}",
+                        totalCount, page, (int)Math.Ceiling((double)totalCount / pageSize));
+
+                    return ApiResponse<PagedResult<TechnicienDto>>.Success(
+                        data: pagedResult,
+                        message: $"{dtos.Count} technicien(s) trouvé(s) sur {totalCount}",
+                        resultCode: 0);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Erreur lors de la récupération paginée des techniciens");
+                    return ApiResponse<PagedResult<TechnicienDto>>.Failure(
+                        message: "Erreur interne du serveur",
+                        resultCode: 33);
+                }
+            });
+        }
+
+        // Méthode helper pour le tri des techniciens
+        private IQueryable<ApplicationUser> ApplySortingToTechniciens(
+            IQueryable<ApplicationUser> query,
+            string? sortBy,
+            bool descending)
+        {
+            if (string.IsNullOrWhiteSpace(sortBy))
+                return query.OrderBy(t => t.Nom).ThenBy(t => t.Prenom);
+
+            var sortByLower = sortBy.ToLower();
+
+            return (sortByLower, descending) switch
+            {
+                ("nom", false) => query.OrderBy(t => t.Nom),
+                ("nom", true) => query.OrderByDescending(t => t.Nom),
+
+                ("prenom", false) => query.OrderBy(t => t.Prenom),
+                ("prenom", true) => query.OrderByDescending(t => t.Prenom),
+
+                ("email", false) => query.OrderBy(t => t.Email),
+                ("email", true) => query.OrderByDescending(t => t.Email),
+
+                ("username", false) => query.OrderBy(t => t.UserName),
+                ("username", true) => query.OrderByDescending(t => t.UserName),
+
+                ("birthdate", false) => query.OrderBy(t => t.BirthDate),
+                ("birthdate", true) => query.OrderByDescending(t => t.BirthDate),
+
+                _ => query.OrderBy(t => t.Nom).ThenBy(t => t.Prenom)
+            };
         }
     }
 }

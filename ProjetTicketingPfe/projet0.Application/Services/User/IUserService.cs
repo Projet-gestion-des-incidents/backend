@@ -16,7 +16,7 @@ namespace projet0.Application.Services.User
         Task<IEnumerable<ApplicationUser>> GetAllAsync();
         Task<ApiResponse<PagedResult<UserWithRoleDto>>> GetAllUsersWithRolesAsync(PagedRequest request);
         Task<ApplicationUser> GetByIdAsync(Guid id);
-        Task<ApiResponse<ApplicationUser>> CreateAsync(UserDto dto);
+      
         Task<ApiResponse<ApplicationUser>> UpdateAsync(Guid id, UserDto dto);
         Task<ApiResponse<string>> DesactivateAsync(Guid id);
         Task<ApiResponse<string>> DeleteAsync(Guid id);
@@ -27,6 +27,8 @@ namespace projet0.Application.Services.User
         // Dans IUserService.cs
         Task<ApiResponse<ApplicationUser>> CreateTechnicienAsync(CreateTechnicienDto dto);
         Task<ApiResponse<ApplicationUser>> CreateCommercantAsync(CreateCommercantDto dto);
+        Task<ApiResponse<PagedResult<TechnicienDto>>> GetTechniciensPagedAsync(TechnicienSearchRequest request);
+
     }
 
 }

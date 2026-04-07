@@ -83,13 +83,7 @@ namespace projet0.API.Controllers
             });
         }
 
-        [HttpPost]
-        [Authorize(Policy = "AdminOnly")]
-        public async Task<IActionResult> Create(UserDto dto)
-        {
-            var result = await _userService.CreateAsync(dto);
-            return Ok(result);
-        }
+    
 
         [HttpPut("{id}")]
         [Authorize(Policy = "AdminOnly")]
@@ -215,17 +209,22 @@ namespace projet0.API.Controllers
         // projet0.API/Controllers/UserController.cs
 
 
+        // Dans UserController.cs - Remplacer l'ancienne méthode GetTechniciens
+
+        /// <summary>
+        /// Récupère la liste paginée des techniciens avec recherche et filtres
+        /// </summary>
         [HttpGet("techniciens")]
         [Authorize(Policy = "UserRead")]
-        public async Task<ActionResult<ApiResponse<IEnumerable<TechnicienDto>>>> GetTechniciens()
+        public async Task<ActionResult<ApiResponse<PagedResult<TechnicienDto>>>> GetTechniciensPaged(
+            [FromQuery] TechnicienSearchRequest request)
         {
             try
             {
-                // 🔴 Récupérer l'ID directement depuis le User
                 var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
                 if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
                 {
-                    return Unauthorized(ApiResponse<IEnumerable<TechnicienDto>>.Failure(
+                    return Unauthorized(ApiResponse<PagedResult<TechnicienDto>>.Failure(
                         "Utilisateur non authentifié"));
                 }
 
@@ -233,35 +232,60 @@ namespace projet0.API.Controllers
                 var isAdmin = userRoles.Contains("Admin");
                 var isTechnicien = userRoles.Contains("Technicien");
 
-                _logger.LogInformation("Récupération de la liste des techniciens par {UserId} (Admin: {IsAdmin})",
-                    userId, isAdmin);
+                _logger.LogInformation("Récupération paginée des techniciens par {UserId} (Admin: {IsAdmin}) - Page: {Page}, SearchTerm: {SearchTerm}",
+                    userId, isAdmin, request.Page, request.SearchTerm);
 
-                var result = await _userService.GetTechniciensAsync();
+                var result = await _userService.GetTechniciensPagedAsync(request);
 
                 if (!result.IsSuccess)
                     return BadRequest(result);
 
-                var techniciens = result.Data.ToList();
-
-                // FILTRAGE SELON LE RÔLE
-                if (!isAdmin && isTechnicien)
+                // Si c'est un technicien qui consulte, on masque son propre profil
+                if (!isAdmin && isTechnicien && result.Data.Items.Any())
                 {
-                    // Si c'est un technicien, on exclut l'utilisateur connecté
-                    techniciens = techniciens.Where(t => t.Id != userId).ToList();
+                    var filteredItems = result.Data.Items.Where(t => t.Id != userId).ToList();
+                    var filteredResult = new PagedResult<TechnicienDto>
+                    {
+                        Items = filteredItems,
+                        TotalCount = filteredItems.Count,
+                        Page = request.Page,
+                        PageSize = request.PageSize
+                    };
+
                     _logger.LogInformation("Technicien connecté: exclusion de lui-même. {Count} techniciens restants",
-                        techniciens.Count);
+                        filteredItems.Count);
+
+                    return Ok(ApiResponse<PagedResult<TechnicienDto>>.Success(
+                        data: filteredResult,
+                        message: $"{filteredItems.Count} technicien(s) trouvé(s)",
+                        resultCode: 0));
                 }
 
-                return Ok(ApiResponse<IEnumerable<TechnicienDto>>.Success(
-                    data: techniciens,
-                    message: $"{techniciens.Count} technicien(s) trouvé(s)",
-                    resultCode: 0
-                ));
+                // Ajouter les en-têtes de pagination
+                Response.Headers.Append("X-Pagination-TotalCount", result.Data.TotalCount.ToString());
+                Response.Headers.Append("X-Pagination-Page", result.Data.Page.ToString());
+                Response.Headers.Append("X-Pagination-PageSize", result.Data.PageSize.ToString());
+                Response.Headers.Append("X-Pagination-TotalPages",
+                    Math.Ceiling((double)result.Data.TotalCount / result.Data.PageSize).ToString());
+
+                return Ok(new
+                {
+                    Data = result.Data.Items,
+                    Pagination = new
+                    {
+                        result.Data.Page,
+                        result.Data.PageSize,
+                        result.Data.TotalCount,
+                        TotalPages = (int)Math.Ceiling((double)result.Data.TotalCount / result.Data.PageSize),
+                        result.Data.HasPreviousPage,
+                        result.Data.HasNextPage
+                    }
+                });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Erreur lors de la récupération des techniciens");
-                return StatusCode(500, ApiResponse<IEnumerable<TechnicienDto>>.Failure(
+                _logger.LogError(ex, "Erreur lors de la récupération paginée des techniciens");
+                return StatusCode(500, ApiResponse<PagedResult<TechnicienDto>>.Failure(
                     "Erreur interne du serveur"));
             }
         }
