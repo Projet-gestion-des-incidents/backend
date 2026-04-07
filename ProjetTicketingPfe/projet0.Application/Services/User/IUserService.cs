@@ -28,7 +28,8 @@ namespace projet0.Application.Services.User
         Task<ApiResponse<ApplicationUser>> CreateTechnicienAsync(CreateTechnicienDto dto);
         Task<ApiResponse<ApplicationUser>> CreateCommercantAsync(CreateCommercantDto dto);
         Task<ApiResponse<PagedResult<TechnicienDto>>> GetTechniciensPagedAsync(TechnicienSearchRequest request);
-
+        // Dans IUserService.cs
+        Task<ApiResponse<PagedResult<CommercantDto>>> GetCommercantsPagedAsync(CommercantSearchRequest request);
     }
 
 }

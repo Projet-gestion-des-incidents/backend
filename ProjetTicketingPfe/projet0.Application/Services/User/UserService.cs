@@ -1147,6 +1147,141 @@ namespace projet0.Application.Services.User
                 _ => query.OrderBy(t => t.Nom).ThenBy(t => t.Prenom)
             };
         }
+        // Dans UserService.cs
+        public async Task<ApiResponse<PagedResult<CommercantDto>>> GetCommercantsPagedAsync(CommercantSearchRequest request)
+        {
+            return await MeasureAsync("GetCommercantsPaged", request, async () =>
+            {
+                try
+                {
+                    // 1. Récupérer tous les utilisateurs avec le rôle Commercant
+                    var commercants = await _userManager.GetUsersInRoleAsync("Commercant");
+
+                    // 2. Convertir en IQueryable pour appliquer les filtres
+                    var query = commercants.AsQueryable();
+
+                    // 3. Appliquer les filtres
+                    if (!string.IsNullOrWhiteSpace(request.SearchTerm))
+                    {
+                        var term = request.SearchTerm.ToLower();
+                        query = query.Where(c =>
+                            c.UserName.ToLower().Contains(term) ||      // Nom du magasin
+                            c.Email.ToLower().Contains(term) ||
+                            (c.PhoneNumber != null && c.PhoneNumber.Contains(term)) ||
+                            (c.Adresse != null && c.Adresse.ToLower().Contains(term)));
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(request.NomMagasin))
+                    {
+                        query = query.Where(c => c.UserName.ToLower().Contains(request.NomMagasin.ToLower()));
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(request.Email))
+                    {
+                        query = query.Where(c => c.Email.ToLower().Contains(request.Email.ToLower()));
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(request.PhoneNumber))
+                    {
+                        query = query.Where(c => c.PhoneNumber != null && c.PhoneNumber.Contains(request.PhoneNumber));
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(request.Adresse))
+                    {
+                        query = query.Where(c => c.Adresse != null && c.Adresse.ToLower().Contains(request.Adresse.ToLower()));
+                    }
+
+                    if (request.Statut.HasValue)
+                    {
+                        query = query.Where(c => c.Statut == request.Statut.Value);
+                    }
+
+                    // 4. Compter le total AVANT pagination
+                    var totalCount = query.Count();
+
+                    // 5. Appliquer le tri
+                    query = ApplySortingToCommercants(query, request.SortBy, request.SortDescending);
+
+                    // 6. Appliquer la pagination
+                    var page = Math.Max(1, request.Page);
+                    var pageSize = Math.Clamp(request.PageSize, 1, 100);
+                    var skip = (page - 1) * pageSize;
+
+                    var paginatedCommercants = query
+                        .Skip(skip)
+                        .Take(pageSize)
+                        .ToList();
+
+                    // 7. Mapper vers DTO
+                    var dtos = paginatedCommercants.Select(c => new CommercantDto
+                    {
+                        Id = c.Id,
+                        NomMagasin = c.UserName,
+                        Email = c.Email,
+                        PhoneNumber = c.PhoneNumber,
+                        Adresse = c.Adresse,
+                        Statut = c.Statut,
+                        
+                    }).ToList();
+
+                    // 8. Créer le résultat paginé
+                    var pagedResult = new PagedResult<CommercantDto>
+                    {
+                        Items = dtos,
+                        TotalCount = totalCount,
+                        Page = page,
+                        PageSize = pageSize
+                    };
+
+                    _logger.LogInformation("SUCCESS GetCommercantsPaged | Total: {TotalCount} | Page: {Page}/{TotalPages}",
+                        totalCount, page, (int)Math.Ceiling((double)totalCount / pageSize));
+
+                    return ApiResponse<PagedResult<CommercantDto>>.Success(
+                        data: pagedResult,
+                        message: $"{dtos.Count} commerçant(s) trouvé(s) sur {totalCount}",
+                        resultCode: 0);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Erreur lors de la récupération paginée des commerçants");
+                    return ApiResponse<PagedResult<CommercantDto>>.Failure(
+                        message: "Erreur interne du serveur",
+                        resultCode: 33);
+                }
+            });
+        }
+
+        // Méthode helper pour le tri des commerçants
+        private IQueryable<ApplicationUser> ApplySortingToCommercants(
+            IQueryable<ApplicationUser> query,
+            string? sortBy,
+            bool descending)
+        {
+            if (string.IsNullOrWhiteSpace(sortBy))
+                return query.OrderBy(c => c.UserName);
+
+            var sortByLower = sortBy.ToLower();
+
+            return (sortByLower, descending) switch
+            {
+                ("nommagasin", false) => query.OrderBy(c => c.UserName),
+                ("nommagasin", true) => query.OrderByDescending(c => c.UserName),
+
+                ("email", false) => query.OrderBy(c => c.Email),
+                ("email", true) => query.OrderByDescending(c => c.Email),
+
+                ("phonenumber", false) => query.OrderBy(c => c.PhoneNumber),
+                ("phonenumber", true) => query.OrderByDescending(c => c.PhoneNumber),
+
+                ("adresse", false) => query.OrderBy(c => c.Adresse),
+                ("adresse", true) => query.OrderByDescending(c => c.Adresse),
+
+                ("statut", false) => query.OrderBy(c => c.Statut),
+                ("statut", true) => query.OrderByDescending(c => c.Statut),
+
+                _ => query.OrderBy(c => c.UserName)
+            };
+        }
     }
 }
 

@@ -336,6 +336,55 @@ namespace projet0.API.Controllers
             var result = await _userService.CreateCommercantAsync(dto);
             return Ok(result);
         }
+
+        // Dans UserController.cs
+
+        /// <summary>
+        /// Récupère la liste paginée des commerçants avec recherche et filtres
+        /// </summary>
+        [HttpGet("commercants")]
+        [Authorize(Policy = "AdminOnly")]
+        public async Task<ActionResult<ApiResponse<PagedResult<CommercantDto>>>> GetCommercantsPaged(
+            [FromQuery] CommercantSearchRequest request)
+        {
+            try
+            {
+                _logger.LogInformation("Récupération paginée des commerçants - Page: {Page}, PageSize: {PageSize}, SearchTerm: {SearchTerm}",
+                    request.Page, request.PageSize, request.SearchTerm);
+
+                var result = await _userService.GetCommercantsPagedAsync(request);
+
+                if (!result.IsSuccess)
+                    return BadRequest(result);
+
+                // Ajouter les en-têtes de pagination
+                Response.Headers.Append("X-Pagination-TotalCount", result.Data.TotalCount.ToString());
+                Response.Headers.Append("X-Pagination-Page", result.Data.Page.ToString());
+                Response.Headers.Append("X-Pagination-PageSize", result.Data.PageSize.ToString());
+                Response.Headers.Append("X-Pagination-TotalPages",
+                    Math.Ceiling((double)result.Data.TotalCount / result.Data.PageSize).ToString());
+
+                return Ok(new
+                {
+                    Data = result.Data.Items,
+                    Pagination = new
+                    {
+                        result.Data.Page,
+                        result.Data.PageSize,
+                        result.Data.TotalCount,
+                        TotalPages = (int)Math.Ceiling((double)result.Data.TotalCount / result.Data.PageSize),
+                        result.Data.HasPreviousPage,
+                        result.Data.HasNextPage
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erreur lors de la récupération paginée des commerçants");
+                return StatusCode(500, ApiResponse<PagedResult<CommercantDto>>.Failure(
+                    "Erreur interne du serveur"));
+            }
+        }
     }
 
 }

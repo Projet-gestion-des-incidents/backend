@@ -1,0 +1,19 @@
+﻿using projet0.Domain.Entities;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace projet0.Application.Commun.DTOs
+{
+    public class CommercantDto
+    {
+        public Guid Id { get; set; }
+        public string NomMagasin { get; set; }      // UserName
+        public string Email { get; set; }
+        public string? PhoneNumber { get; set; }
+        public string? Adresse { get; set; }
+        public UserStatut Statut { get; set; }
+        
+        
+    }
+}
