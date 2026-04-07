@@ -30,7 +30,7 @@ namespace projet0.Application.Commun.DTOs
 
     public class UpdateTPEDto
     {
-        public string NumSerie { get; set; }
+     
         public ModeleTPE Modele { get; set; }
         public Guid CommercantId { get; set; }
     }
