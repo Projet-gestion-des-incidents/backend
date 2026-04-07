@@ -11,6 +11,7 @@ namespace projet0.Application.Interfaces
         Task<IEnumerable<TPE>> GetByCommercantIdAsync(Guid commercantId);
         Task<bool> IsNumSerieUniqueForModeleAsync(string numSerie, ModeleTPE modele, Guid? excludeId = null);
         Task<IQueryable<TPE>> QueryWithDetailsAsync();
-
+        Task<int> GetNextSequenceNumberAsync(ModeleTPE modele);
+        Task<string> GenerateNumSerieAsync(ModeleTPE modele);
     }
 }

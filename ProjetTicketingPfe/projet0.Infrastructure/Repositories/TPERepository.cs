@@ -113,5 +113,32 @@ namespace projet0.Infrastructure.Repositories
                 _ => query.OrderBy(t => t.NumSerieComplet)
             };
         }
+        // Dans TPERepository.cs
+        public async Task<int> GetNextSequenceNumberAsync(ModeleTPE modele)
+        {
+            // Récupérer le dernier numéro de série pour ce modèle
+            var dernierTPE = await _dbSet
+                .Where(t => t.Modele == modele)
+                .OrderByDescending(t => t.NumSerie)
+                .FirstOrDefaultAsync();
+
+            if (dernierTPE == null)
+                return 1;
+
+            // Extraire le numéro séquentiel (les 3 derniers chiffres par exemple)
+            if (int.TryParse(dernierTPE.NumSerie, out int dernierNumero))
+            {
+                return dernierNumero + 1;
+            }
+
+            return 1;
+        }
+
+        public async Task<string> GenerateNumSerieAsync(ModeleTPE modele)
+        {
+            var nextNumber = await GetNextSequenceNumberAsync(modele);
+            // Formater avec 6 chiffres (ex: 000001, 000002, ...)
+            return nextNumber.ToString("D6");
+        }
     }
 }

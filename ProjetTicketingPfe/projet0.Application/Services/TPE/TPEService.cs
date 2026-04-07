@@ -57,17 +57,7 @@ namespace projet0.Application.Services.TPEService
         {
             return await MeasureAsync("CreateTPE", dto, async () =>
             {
-                // 1. NOUVELLE VALIDATION : Vérifier que le numéro de série fait 6 caractères
-                if (string.IsNullOrWhiteSpace(dto.NumSerie) || dto.NumSerie.Length != 6)
-                {
-                    _logger.LogWarning("NumSerie must be exactly 6 characters | NumSerie: {NumSerie}", dto.NumSerie);
-                    return ApiResponse<TPEDto>.Failure(
-                        message: "Le numéro de série doit contenir exactement 6 caractères",
-                        resultCode: 46
-                    );
-                }
-
-                // 2. Vérifier que l'utilisateur existe
+                // 1. Vérifier que l'utilisateur existe
                 var commercant = await _userRepository.GetByIdAsync(dto.CommercantId);
                 if (commercant == null)
                 {
@@ -78,7 +68,7 @@ namespace projet0.Application.Services.TPEService
                     );
                 }
 
-                // 3. Vérifier que l'utilisateur a le rôle "Commercant"
+                // 2. Vérifier que l'utilisateur a le rôle "Commercant"
                 var roles = await _userRepository.GetUserRolesAsync(dto.CommercantId);
                 if (!roles.Contains("Commercant"))
                 {
@@ -90,26 +80,21 @@ namespace projet0.Application.Services.TPEService
                     );
                 }
 
-                // 4. Vérifier l'unicité du numéro de série pour ce modèle
-                if (!await _tpeRepository.IsNumSerieUniqueForModeleAsync(dto.NumSerie, dto.Modele))
-                {
-                    _logger.LogWarning("NumSerie already used for this model | {NumSerie} | Modele: {Modele}",
-                        dto.NumSerie, dto.Modele);
-                    return ApiResponse<TPEDto>.Failure(
-                        message: $"Ce numéro de série est déjà utilisé pour le modèle {dto.Modele}",
-                        resultCode: 41
-                    );
-                }
+                // 3. ✅ GÉNÉRER LE NUMÉRO DE SÉRIE AUTOMATIQUEMENT
+                var numSerie = await _tpeRepository.GenerateNumSerieAsync(dto.Modele);
 
-                // 5. Générer le numéro de série complet avec abréviation
+                _logger.LogInformation("Numéro de série généré pour le modèle {Modele}: {NumSerie}",
+                    dto.Modele, numSerie);
+
+                // 4. Générer le numéro de série complet avec abréviation
                 var abbreviation = ModeleTPEHelper.GetAbbreviation(dto.Modele);
-                var numSerieComplet = $"{abbreviation}-{dto.NumSerie}";
+                var numSerieComplet = $"{abbreviation}-{numSerie}";
 
-                // 6. Créer le TPE
+                // 5. Créer le TPE
                 var tpe = new TpeEntity
                 {
                     Id = Guid.NewGuid(),
-                    NumSerie = dto.NumSerie,
+                    NumSerie = numSerie,
                     NumSerieComplet = numSerieComplet,
                     Modele = dto.Modele,
                     CommercantId = dto.CommercantId,
@@ -118,7 +103,7 @@ namespace projet0.Application.Services.TPEService
                 await _tpeRepository.AddAsync(tpe);
                 await _tpeRepository.SaveChangesAsync();
 
-                // 7. Mapper vers DTO
+                // 6. Mapper vers DTO
                 var tpeDto = new TPEDto
                 {
                     Id = tpe.Id,

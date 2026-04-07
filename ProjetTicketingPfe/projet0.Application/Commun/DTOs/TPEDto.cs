@@ -20,9 +20,6 @@ namespace projet0.Application.Commun.DTOs
 
     public class CreateTPEDto
     {
-        [Required]
-        [StringLength(6, MinimumLength = 6, ErrorMessage = "Le numéro de série doit contenir exactement 6 caractères")]
-        public string NumSerie { get; set; }
 
         [Required]
         public ModeleTPE Modele { get; set; }
