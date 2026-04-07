@@ -24,6 +24,9 @@ namespace projet0.Application.Services.User
         Task<IList<string>> GetUserRolesAsync(Guid userId);
         // projet0.Application/Services/User/IUserService.cs
         Task<ApiResponse<IEnumerable<TechnicienDto>>> GetTechniciensAsync();
+        // Dans IUserService.cs
+        Task<ApiResponse<ApplicationUser>> CreateTechnicienAsync(CreateTechnicienDto dto);
+        Task<ApiResponse<ApplicationUser>> CreateCommercantAsync(CreateCommercantDto dto);
     }
 
 }

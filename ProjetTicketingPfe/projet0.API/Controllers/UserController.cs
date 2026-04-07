@@ -265,6 +265,53 @@ namespace projet0.API.Controllers
                     "Erreur interne du serveur"));
             }
         }
+        // Dans UserController.cs
+
+        /// <summary>
+        /// Créer un technicien (par admin)
+        /// </summary>
+        [HttpPost("technicien")]
+        [Authorize(Policy = "AdminOnly")]
+        public async Task<IActionResult> CreateTechnicien([FromBody] CreateTechnicienDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage)
+                    .ToList();
+                return BadRequest(ApiResponse<ApplicationUser>.Failure(
+                    message: "Données invalides",
+                    errors: errors,
+                    resultCode: 99));
+            }
+
+            var result = await _userService.CreateTechnicienAsync(dto);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Créer un commerçant (magasin) par admin
+        /// </summary>
+        [HttpPost("commercant")]
+        [Authorize(Policy = "AdminOnly")]
+        public async Task<IActionResult> CreateCommercant([FromBody] CreateCommercantDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage)
+                    .ToList();
+                return BadRequest(ApiResponse<ApplicationUser>.Failure(
+                    message: "Données invalides",
+                    errors: errors,
+                    resultCode: 99));
+            }
+
+            var result = await _userService.CreateCommercantAsync(dto);
+            return Ok(result);
+        }
     }
 
 }

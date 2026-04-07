@@ -1010,6 +1010,167 @@ namespace projet0.Application.Services.User
                     }
                 });
         }
+
+        // Dans UserService.cs
+
+        // ================= CREATE TECHNICIEN =================
+        public async Task<ApiResponse<ApplicationUser>> CreateTechnicienAsync(CreateTechnicienDto dto)
+        {
+            return await MeasureAsync("CreateTechnicien", dto, async () =>
+            {
+                // 1. Validation de l'email
+                if (!await _userRepository.IsEmailUniqueAsync(dto.Email))
+                {
+                    return ApiResponse<ApplicationUser>.Failure(
+                        message: "Cet email est déjà utilisé",
+                        resultCode: 10);
+                }
+
+                // 2. Validation du nom d'utilisateur
+                if (!await _userRepository.IsUserNameUniqueAsync(dto.UserName))
+                {
+                    return ApiResponse<ApplicationUser>.Failure(
+                        message: "Ce nom d'utilisateur est déjà pris",
+                        resultCode: 11);
+                }
+
+                // 3. Récupérer le rôle Technicien
+                var role = await _roleManager.FindByNameAsync("Technicien");
+                if (role == null)
+                {
+                    return ApiResponse<ApplicationUser>.Failure(
+                        message: "Le rôle Technicien n'existe pas",
+                        resultCode: 13);
+                }
+
+                // 4. Créer l'utilisateur
+                var user = new ApplicationUser
+                {
+                    UserName = dto.UserName,
+                    Email = dto.Email,
+                    Nom = dto.Nom,
+                    Prenom = dto.Prenom,
+                    
+                    EmailConfirmed = true,
+                    Statut = UserStatut.Actif
+                };
+
+                string defaultPassword = "Azerty123";
+                var result = await _userRepository.CreateAsync(user, defaultPassword);
+
+                if (!result.Succeeded)
+                {
+                    return ApiResponse<ApplicationUser>.Failure(
+                        message: "Erreur lors de la création du technicien",
+                        errors: result.Errors.Select(e => e.Description).ToList(),
+                        resultCode: 12);
+                }
+
+                // 5. Assigner le rôle
+                await _userManager.AddToRoleAsync(user, role.Name);
+
+                _logger.LogInformation("Technicien créé avec succès | Email: {Email} | Mot de passe: {Password}",
+                    user.Email, defaultPassword);
+
+                return ApiResponse<ApplicationUser>.Success(
+                    data: user,
+                    message: $"Technicien créé avec succès. Mot de passe par défaut: {defaultPassword}",
+                    resultCode: 0);
+            });
+        }
+
+        // ================= CREATE COMMERCANT (MAGASIN) =================
+        public async Task<ApiResponse<ApplicationUser>> CreateCommercantAsync(CreateCommercantDto dto)
+        {
+            return await MeasureAsync("CreateCommercant", dto, async () =>
+            {
+                // ✅ 1. Validation de l'email (UNIQUE pour TOUS les users)
+                if (!await _userRepository.IsEmailUniqueAsync(dto.Email))
+                {
+                    return ApiResponse<ApplicationUser>.Failure(
+                        message: "Cet email est déjà utilisé",
+                        resultCode: 10);
+                }
+
+                // ✅ 2. Validation du numéro de téléphone (UNIQUE pour TOUS les users)
+                if (!string.IsNullOrEmpty(dto.PhoneNumber))
+                {
+                    var users = _userManager.Users.ToList();
+                    var existingPhone = users.FirstOrDefault(u => u.PhoneNumber == dto.PhoneNumber);
+                    if (existingPhone != null)
+                    {
+                        return ApiResponse<ApplicationUser>.Failure(
+                            message: "Ce numéro de téléphone est déjà utilisé",
+                            resultCode: 12);
+                    }
+                }
+
+                // ❌ SUPPRIMER LA VÉRIFICATION D'UNICITÉ DU NOM MAGASIN
+                // Le nom du magasin peut être redondant
+                // if (!await _userRepository.IsUserNameUniqueAsync(dto.NomMagasin))
+                // {
+                //     return ApiResponse<ApplicationUser>.Failure(
+                //         message: "Ce nom de magasin est déjà utilisé",
+                //         resultCode: 11);
+                // }
+
+                // 3. Récupérer le rôle Commercant
+                var role = await _roleManager.FindByNameAsync("Commercant");
+                if (role == null)
+                {
+                    return ApiResponse<ApplicationUser>.Failure(
+                        message: "Le rôle Commercant n'existe pas",
+                        resultCode: 13);
+                }
+
+                // 4. Générer un UserName unique pour Identity (obligatoire)
+                // Solution : Ajouter un suffixe numérique si nécessaire
+                var baseUserName = dto.NomMagasin.Replace(" ", "_");
+                var userName = baseUserName;
+                var counter = 1;
+
+                while (await _userManager.FindByNameAsync(userName) != null)
+                {
+                    userName = $"{baseUserName}_{counter}";
+                    counter++;
+                }
+
+                // 5. Créer l'utilisateur
+                var user = new ApplicationUser
+                {
+                    UserName = userName,                          // UserName technique unique
+                    Email = dto.Email,
+                    Nom = dto.NomMagasin,                         // Nom du magasin (peut être redondant)
+                    Prenom = "Magasin",                           // Valeur par défaut
+                    PhoneNumber = dto.PhoneNumber,
+                    Adresse = dto.Adresse,
+                    EmailConfirmed = true,
+                    Statut = UserStatut.Actif
+                };
+
+                string defaultPassword = "Azerty123";
+                var result = await _userRepository.CreateAsync(user, defaultPassword);
+
+                if (!result.Succeeded)
+                {
+                    return ApiResponse<ApplicationUser>.Failure(
+                        message: "Erreur lors de la création du commerçant",
+                        errors: result.Errors.Select(e => e.Description).ToList(),
+                        resultCode: 12);
+                }
+
+                // 6. Assigner le rôle
+                await _userManager.AddToRoleAsync(user, role.Name);
+
+                _logger.LogInformation("Commerçant (magasin) créé avec succès | Nom magasin: {NomMagasin} | UserName technique: {UserName} | Email: {Email}",
+                    dto.NomMagasin, user.UserName, user.Email);
+
+                return ApiResponse<ApplicationUser>.Success(
+                    data: user,
+                    message: $"Magasin '{dto.NomMagasin}' créé avec succès. Mot de passe par défaut: {defaultPassword}",
+                    resultCode: 0);
+            });
+        }
     }
 }
 
