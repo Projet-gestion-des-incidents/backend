@@ -7,6 +7,7 @@ using projet0.Application.Common.Models.Pagination;
 using projet0.Application.Commun.DTOs;
 using projet0.Application.Interfaces;
 using projet0.Domain.Entities;
+using projet0.Domain.Enums;
 using projet0.Infrastructure.Data;
 using System;
 using System.Collections.Generic;
@@ -516,7 +517,79 @@ namespace projet0.Infrastructure.Repositories
                 // ============================================
                 if (isTechnicien)
                 {
-                    // Récupérer les tickets créés par cet utilisateur avec leurs commentaires et pièces jointes
+                    // 2.1 Gérer les tickets assignés au technicien
+                    var ticketsAssignes = await _context.Tickets
+                        .Include(t => t.IncidentTickets)
+                            .ThenInclude(it => it.Incident)
+                        .Where(t => t.AssigneeId == user.Id)
+                        .ToListAsync();
+
+                    if (ticketsAssignes.Any())
+                    {
+                        foreach (var ticket in ticketsAssignes)
+                        {
+                            var ancienStatut = ticket.StatutTicket;
+
+                            ticket.AssigneeId = null;
+
+                            if (ticket.StatutTicket == StatutTicket.Resolu)
+                            {
+                                _logger.LogInformation("Ticket {TicketId} (Résolu) - Désassigné, statut conservé", ticket.Id);
+                            }
+                            else
+                            {
+                                ticket.StatutTicket = null;
+                                _logger.LogInformation("Ticket {TicketId} ({AncienStatut}) - Désassigné, statut → null",
+                                    ticket.Id, ancienStatut);
+                            }
+
+                            // ✅ Mettre à jour les incidents liés à ce ticket
+                            if (ticket.IncidentTickets != null && ticket.IncidentTickets.Any())
+                            {
+                                foreach (var lien in ticket.IncidentTickets)
+                                {
+                                    if (lien.Incident != null)
+                                    {
+                                        // Vérifier si l'incident a encore des tickets en cours
+                                        var autresTicketsEnCours = await _context.IncidentTickets
+                                            .Where(it => it.IncidentId == lien.IncidentId && it.TicketId != ticket.Id)
+                                            .Select(it => it.Ticket)
+                                            .AnyAsync(t => t.StatutTicket == StatutTicket.EnCours);
+
+                                        if (!autresTicketsEnCours)
+                                        {
+                                            // Plus aucun ticket en cours lié à cet incident
+                                            var incident = lien.Incident;
+                                            var ancienStatutIncident = incident.StatutIncident;
+
+                                            incident.StatutIncident = null;
+                                            incident.DateResolution = null;
+
+                                            _logger.LogInformation("Incident {IncidentId} n'a plus de tickets en cours, statut → null",
+                                                incident.Id);
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Ajouter un historique
+                            ticket.Historiques ??= new List<HistoriqueTicket>();
+                            ticket.Historiques.Add(new HistoriqueTicket
+                            {
+                                Id = Guid.NewGuid(),
+                                TicketId = ticket.Id,
+                                AncienStatut = ancienStatut,
+                                DateChangement = DateTime.UtcNow,
+                                ModifieParId = user.Id
+                            });
+                        }
+
+                        await _context.SaveChangesAsync();
+                        _logger.LogInformation("{Count} ticket(s) désassigné(s) du technicien {UserId}",
+                            ticketsAssignes.Count, user.Id);
+                    }
+
+                    // 2.2 Tickets créés par le technicien (inchangé)
                     var ticketsCrees = await _context.Tickets
                         .Include(t => t.Commentaires)
                             .ThenInclude(c => c.PiecesJointes)
@@ -525,7 +598,6 @@ namespace projet0.Infrastructure.Repositories
 
                     foreach (var ticket in ticketsCrees)
                     {
-                        // Supprimer les fichiers physiques des pièces jointes des commentaires
                         if (ticket.Commentaires != null && ticket.Commentaires.Any())
                         {
                             foreach (var commentaire in ticket.Commentaires)
@@ -537,32 +609,18 @@ namespace projet0.Infrastructure.Repositories
                                         var filePath = Path.Combine(_environment.ContentRootPath, "uploads", "commentaires", piece.NomFichier);
                                         if (File.Exists(filePath))
                                         {
-                                            try
-                                            {
-                                                File.Delete(filePath);
-                                                _logger.LogInformation("Fichier physique supprimé: {FilePath}", filePath);
-                                            }
-                                            catch (Exception ex)
-                                            {
-                                                _logger.LogWarning(ex, "Erreur lors de la suppression du fichier {FilePath}", filePath);
-                                            }
-                                        }
-                                        else
-                                        {
-                                            _logger.LogWarning("Fichier non trouvé: {FilePath}", filePath);
+                                            try { File.Delete(filePath); } catch { }
                                         }
                                     }
                                 }
                             }
                         }
 
-                        // Supprimer les commentaires du ticket
                         if (ticket.Commentaires?.Any() == true)
                         {
                             _context.CommentairesTicket.RemoveRange(ticket.Commentaires);
                         }
 
-                        // Supprimer les incidents liés au ticket
                         var incidentsTicket = await _context.IncidentTickets
                             .Where(i => i.TicketId == ticket.Id)
                             .ToListAsync();
@@ -572,7 +630,6 @@ namespace projet0.Infrastructure.Repositories
                         }
                     }
 
-                    // Supprimer les tickets créés
                     if (ticketsCrees.Any())
                     {
                         _context.Tickets.RemoveRange(ticketsCrees);
@@ -584,20 +641,20 @@ namespace projet0.Infrastructure.Repositories
                 // ============================================
 
                 // 3.1 Gérer les tickets assignés (mettre à null l'assignation)
-                var ticketsAssignes = await _context.Tickets
+                // ✅ Remplacer "ticketsAssignes" par "ticketsAssignesGeneraux"
+                var ticketsAssignesGeneraux = await _context.Tickets
                     .Where(t => t.AssigneeId == user.Id)
                     .ToListAsync();
 
-                if (ticketsAssignes.Any())
+                if (ticketsAssignesGeneraux.Any())
                 {
-                    foreach (var ticket in ticketsAssignes)
+                    foreach (var ticket in ticketsAssignesGeneraux)
                     {
                         ticket.AssigneeId = null;
                     }
                     _logger.LogInformation("{Count} ticket(s) désassigné(s) de l'utilisateur {UserId}",
-                        ticketsAssignes.Count, user.Id);
+                        ticketsAssignesGeneraux.Count, user.Id);
                 }
-
                 // 3.2 Supprimer les commentaires directs (et leurs pièces jointes)
                 var commentairesDirects = await _context.CommentairesTicket
                     .Include(c => c.PiecesJointes)
