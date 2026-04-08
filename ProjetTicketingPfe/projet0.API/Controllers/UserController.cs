@@ -29,59 +29,11 @@ namespace projet0.API.Controllers
 
         }
 
-        [HttpGet]
-        [Authorize(Policy = "UserRead")]
-        public async Task<IActionResult> GetAll()
-        {
-            var users = await _userService.GetAllAsync();
-            return Ok(users);
-        }
+        
 
-        [HttpGet("{id}")]
-        [Authorize(Policy = "UserRead")]
-        public async Task<IActionResult> GetById(Guid id)
-        {
-            var user = await _userService.GetByIdAsync(id);
-            if (user == null) return NotFound();
-            return Ok(user);
-        }
 
-        // GET api/users/roles
-        [HttpGet("roles")]
-        [Authorize(Policy = "AdminOnly")]
-        [ServiceFilter(typeof(ValidatePaginationFilter))]
-        public async Task<IActionResult> GetAllWithRoles([FromQuery] PagedRequest request)
-        {
-            var result = await _userService.GetAllUsersWithRolesAsync(request);
 
-            if (!result.IsSuccess)
-                return StatusCode(400, new
-                {
-                    Success = false,
-                    Message = result.Message,
-                    Timestamp = DateTime.UtcNow
-                });
-
-            // Créer manuellement la réponse paginée
-            Response.Headers.Append("X-Pagination-TotalCount", result.Data.TotalCount.ToString());
-            Response.Headers.Append("X-Pagination-Page", result.Data.Page.ToString());
-            Response.Headers.Append("X-Pagination-PageSize", result.Data.PageSize.ToString());
-            Response.Headers.Append("X-Pagination-TotalPages", result.Data.TotalPages.ToString());
-
-            return Ok(new
-            {
-                Data = result.Data.Items,
-                Pagination = new
-                {
-                    result.Data.Page,
-                    result.Data.PageSize,
-                    result.Data.TotalCount,
-                    result.Data.TotalPages,
-                    result.Data.HasPreviousPage,
-                    result.Data.HasNextPage
-                }
-            });
-        }
+        
 
     
 

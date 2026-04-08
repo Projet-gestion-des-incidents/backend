@@ -195,7 +195,9 @@ namespace projet0.Infrastructure.Repositories
                     u.Nom.ToLower().Contains(term) ||
                     u.Prenom.ToLower().Contains(term) ||
                     u.Email.ToLower().Contains(term) ||
-                    u.UserName.ToLower().Contains(term));
+                    u.UserName.ToLower().Contains(term) ||
+            (u.PhoneNumber != null && u.PhoneNumber.Contains(term)) ||
+            (u.Adresse != null && u.Adresse.ToLower().Contains(term)));
             }
 
             // 3. Filtres additionnels
