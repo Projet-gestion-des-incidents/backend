@@ -1,5 +1,7 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using projet0.Application.Common.Models.Pagination;
 using projet0.Application.Commun.DTOs;
@@ -19,19 +21,23 @@ namespace projet0.Infrastructure.Repositories
         private readonly RoleManager<IdentityRole<Guid>> _roleManager;
         private readonly ApplicationDbContext _context;
         private readonly ILogger<UserRepository> _logger;
+        private readonly IWebHostEnvironment _environment;  // ✅ AJOUTER
+
 
 
         public UserRepository(
             ApplicationDbContext context,
             UserManager<ApplicationUser> userManager,
             RoleManager<IdentityRole<Guid>> roleManager,
-            ILogger<UserRepository> logger)
+            ILogger<UserRepository> logger,
+            IWebHostEnvironment environment)
             : base(context)
         {
             _userManager = userManager;
             _roleManager = roleManager;
             _context = context; // Ajouter cette ligne
             _logger = logger; // Ajouter cette ligne
+            _environment = environment;  // ✅ AJOUTER
 
         }
 
@@ -457,21 +463,53 @@ namespace projet0.Infrastructure.Repositories
                             incidents.Count, user.Id);
                     }
                 }
-
                 // ============================================
-                // 2. POUR UN TECHNICIEN (code existant)
+                // 2. POUR UN TECHNICIEN
                 // ============================================
                 if (isTechnicien)
                 {
-                    // Récupérer les tickets créés par cet utilisateur
+                    // Récupérer les tickets créés par cet utilisateur avec leurs commentaires et pièces jointes
                     var ticketsCrees = await _context.Tickets
                         .Include(t => t.Commentaires)
+                            .ThenInclude(c => c.PiecesJointes)  // ✅ Inclure les pièces jointes
                         .Where(t => t.CreateurId == user.Id)
                         .ToListAsync();
 
                     foreach (var ticket in ticketsCrees)
                     {
-                        // Supprimer les commentaires du ticket
+                        // ✅ Supprimer les fichiers physiques des pièces jointes des commentaires
+                        if (ticket.Commentaires != null && ticket.Commentaires.Any())
+                        {
+                            foreach (var commentaire in ticket.Commentaires)
+                            {
+                                if (commentaire.PiecesJointes != null && commentaire.PiecesJointes.Any())
+                                {
+                                    foreach (var piece in commentaire.PiecesJointes)
+                                    {
+                                        // Supprimer le fichier physique
+                                        var filePath = Path.Combine(_environment.ContentRootPath, "uploads", "commentaires", piece.NomFichier);
+                                        if (File.Exists(filePath))
+                                        {
+                                            try
+                                            {
+                                                File.Delete(filePath);
+                                                _logger.LogInformation("Fichier physique supprimé: {FilePath}", filePath);
+                                            }
+                                            catch (Exception ex)
+                                            {
+                                                _logger.LogWarning(ex, "Erreur lors de la suppression du fichier {FilePath}", filePath);
+                                            }
+                                        }
+                                        else
+                                        {
+                                            _logger.LogWarning("Fichier non trouvé: {FilePath}", filePath);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Supprimer les commentaires du ticket (la suppression en cascade supprimera les entités PieceJointe)
                         if (ticket.Commentaires?.Any() == true)
                         {
                             _context.CommentairesTicket.RemoveRange(ticket.Commentaires);
@@ -513,12 +551,38 @@ namespace projet0.Infrastructure.Repositories
                         ticketsAssignes.Count, user.Id);
                 }
 
-                // 3.2 Supprimer les commentaires directs
+                // 3.2 Supprimer les commentaires directs (et leurs pièces jointes)
                 var commentaires = await _context.CommentairesTicket
+                    .Include(c => c.PiecesJointes)  // ✅ Inclure les pièces jointes
                     .Where(c => c.AuteurId == user.Id)
                     .ToListAsync();
+
                 if (commentaires.Any())
                 {
+                    foreach (var commentaire in commentaires)
+                    {
+                        // ✅ Supprimer les fichiers physiques des pièces jointes
+                        if (commentaire.PiecesJointes != null && commentaire.PiecesJointes.Any())
+                        {
+                            foreach (var piece in commentaire.PiecesJointes)
+                            {
+                                var filePath = Path.Combine(_environment.ContentRootPath, "uploads", "commentaires", piece.NomFichier);
+                                if (File.Exists(filePath))
+                                {
+                                    try
+                                    {
+                                        File.Delete(filePath);
+                                        _logger.LogInformation("Fichier physique supprimé: {FilePath}", filePath);
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        _logger.LogWarning(ex, "Erreur lors de la suppression du fichier {FilePath}", filePath);
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     _context.CommentairesTicket.RemoveRange(commentaires);
                 }
 
