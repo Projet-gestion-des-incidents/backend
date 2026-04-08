@@ -414,6 +414,8 @@ namespace projet0.Infrastructure.Repositories
 
                     // 1.2 Récupérer tous les incidents créés par ce commerçant
                     var incidentsCommercant = await _context.Incidents
+                        .Include(i => i.IncidentTickets)
+                            .ThenInclude(it => it.Ticket)
                         .Where(i => i.CreatedById == user.Id)
                         .ToListAsync();
 
@@ -425,10 +427,10 @@ namespace projet0.Infrastructure.Repositories
                         foreach (var incident in incidentsCommercant)
                         {
                             // Récupérer les tickets liés à cet incident
-                            var ticketsLies = await _context.IncidentTickets
-                                .Where(it => it.IncidentId == incident.Id)
+                            var ticketsLies = incident.IncidentTickets?
                                 .Select(it => it.Ticket)
-                                .ToListAsync();
+                                .Where(t => t != null)
+                                .ToList() ?? new List<Ticket>();
 
                             ticketsImpactes.AddRange(ticketsLies);
 
@@ -442,12 +444,9 @@ namespace projet0.Infrastructure.Repositories
                             }
 
                             // Supprimer les liaisons Incident-Ticket
-                            var incidentTickets = await _context.IncidentTickets
-                                .Where(it => it.IncidentId == incident.Id)
-                                .ToListAsync();
-                            if (incidentTickets.Any())
+                            if (incident.IncidentTickets != null && incident.IncidentTickets.Any())
                             {
-                                _context.IncidentTickets.RemoveRange(incidentTickets);
+                                _context.IncidentTickets.RemoveRange(incident.IncidentTickets);
                             }
 
                             // Supprimer les pièces jointes de l'incident
@@ -457,6 +456,15 @@ namespace projet0.Infrastructure.Repositories
 
                             if (piecesJointesIncident.Any())
                             {
+                                // Supprimer les fichiers physiques
+                                foreach (var piece in piecesJointesIncident)
+                                {
+                                    var filePath = Path.Combine(_environment.ContentRootPath, "uploads", "incidents", piece.NomFichier);
+                                    if (File.Exists(filePath))
+                                    {
+                                        try { File.Delete(filePath); } catch { }
+                                    }
+                                }
                                 _context.PiecesJointes.RemoveRange(piecesJointesIncident);
                             }
                         }
@@ -466,7 +474,7 @@ namespace projet0.Infrastructure.Repositories
                         _logger.LogInformation("Suppression de {Count} incident(s) du commerçant {UserId}",
                             incidentsCommercant.Count, user.Id);
 
-                        // Vérifier et supprimer les tickets qui n'ont plus d'incidents
+                        // ✅ NOUVEAU : Vérifier et supprimer les tickets qui n'ont plus d'incidents
                         var ticketsUniques = ticketsImpactes.Distinct().ToList();
 
                         foreach (var ticket in ticketsUniques)
@@ -489,7 +497,7 @@ namespace projet0.Infrastructure.Repositories
 
                                 foreach (var commentaire in commentairesTicket)
                                 {
-                                    // Supprimer les fichiers physiques
+                                    // Supprimer les fichiers physiques des pièces jointes
                                     if (commentaire.PiecesJointes != null)
                                     {
                                         foreach (var piece in commentaire.PiecesJointes)
@@ -511,7 +519,6 @@ namespace projet0.Infrastructure.Repositories
                         await _context.SaveChangesAsync();
                     }
                 }
-
                 // ============================================
                 // 2. POUR UN TECHNICIEN
                 // ============================================
