@@ -383,7 +383,7 @@ namespace projet0.Infrastructure.Repositories
                 // ============================================
                 if (isCommercant)
                 {
-                    // 1.1 Récupérer tous les TPEs du commerçant
+                    // 1.1 Récupérer tous les TPEs du commerçant (détacher)
                     var tpes = await _context.TPEs
                         .Where(t => t.CommercantId == user.Id)
                         .ToListAsync();
@@ -392,35 +392,29 @@ namespace projet0.Infrastructure.Repositories
                     {
                         foreach (var tpe in tpes)
                         {
-                            // Supprimer les liaisons Incident-TPE pour ces TPEs
+                            // Supprimer les liaisons Incident-TPE
                             var incidentTPEs = await _context.IncidentTPEs
                                 .Where(it => it.TPEId == tpe.Id)
                                 .ToListAsync();
-
                             if (incidentTPEs.Any())
                             {
                                 _context.IncidentTPEs.RemoveRange(incidentTPEs);
-                                _logger.LogInformation("Suppression de {Count} liaisons Incident-TPE pour le TPE {TPEId}",
-                                    incidentTPEs.Count, tpe.Id);
                             }
-
-                            // Le TPE reste mais on supprime son lien avec le commerçant
                             tpe.CommercantId = null;
                         }
-
                         _context.TPEs.UpdateRange(tpes);
                         _logger.LogInformation("{Count} TPE(s) détachés du commerçant {UserId}", tpes.Count, user.Id);
                     }
 
-                    // 1.2 Récupérer tous les incidents créés par ce commerçant
+                    // 1.2 Récupérer tous les incidents ET les tickets liés
                     var incidentsCommercant = await _context.Incidents
                         .Include(i => i.IncidentTickets)
                             .ThenInclude(it => it.Ticket)
                         .Where(i => i.CreatedById == user.Id)
                         .ToListAsync();
 
-                    // Récupérer les tickets qui seront impactés (avant suppression des incidents)
-                    var ticketsImpactes = new List<Ticket>();
+                    // ✅ Récupérer TOUS les tickets liés aux incidents (avant suppression)
+                    var ticketsLiesAuxIncidents = new List<Ticket>();
 
                     if (incidentsCommercant.Any())
                     {
@@ -432,7 +426,7 @@ namespace projet0.Infrastructure.Repositories
                                 .Where(t => t != null)
                                 .ToList() ?? new List<Ticket>();
 
-                            ticketsImpactes.AddRange(ticketsLies);
+                            ticketsLiesAuxIncidents.AddRange(ticketsLies);
 
                             // Supprimer les liaisons Incident-TPE
                             var incidentTPEs = await _context.IncidentTPEs
@@ -449,21 +443,16 @@ namespace projet0.Infrastructure.Repositories
                                 _context.IncidentTickets.RemoveRange(incident.IncidentTickets);
                             }
 
-                            // Supprimer les pièces jointes de l'incident
+                            // Supprimer les pièces jointes de l'incident (fichiers physiques)
                             var piecesJointesIncident = await _context.PiecesJointes
                                 .Where(p => p.IncidentId == incident.Id)
                                 .ToListAsync();
-
                             if (piecesJointesIncident.Any())
                             {
-                                // Supprimer les fichiers physiques
                                 foreach (var piece in piecesJointesIncident)
                                 {
                                     var filePath = Path.Combine(_environment.ContentRootPath, "uploads", "incidents", piece.NomFichier);
-                                    if (File.Exists(filePath))
-                                    {
-                                        try { File.Delete(filePath); } catch { }
-                                    }
+                                    if (File.Exists(filePath)) { try { File.Delete(filePath); } catch { } }
                                 }
                                 _context.PiecesJointes.RemoveRange(piecesJointesIncident);
                             }
@@ -474,8 +463,8 @@ namespace projet0.Infrastructure.Repositories
                         _logger.LogInformation("Suppression de {Count} incident(s) du commerçant {UserId}",
                             incidentsCommercant.Count, user.Id);
 
-                        // ✅ NOUVEAU : Vérifier et supprimer les tickets qui n'ont plus d'incidents
-                        var ticketsUniques = ticketsImpactes.Distinct().ToList();
+                        // ✅ CRUCIAL : Vérifier et supprimer les tickets qui n'ont plus d'incidents
+                        var ticketsUniques = ticketsLiesAuxIncidents.Distinct().ToList();
 
                         foreach (var ticket in ticketsUniques)
                         {
@@ -486,10 +475,9 @@ namespace projet0.Infrastructure.Repositories
 
                             if (ticketAvecIncidents != null && (ticketAvecIncidents.IncidentTickets == null || !ticketAvecIncidents.IncidentTickets.Any()))
                             {
-                                // Plus aucun incident lié → supprimer le ticket
                                 _logger.LogInformation("Ticket {TicketId} n'a plus d'incidents, suppression automatique", ticket.Id);
 
-                                // Supprimer les commentaires et pièces jointes du ticket
+                                // Supprimer les commentaires du ticket et leurs pièces jointes
                                 var commentairesTicket = await _context.CommentairesTicket
                                     .Include(c => c.PiecesJointes)
                                     .Where(c => c.TicketId == ticket.Id)
@@ -497,21 +485,18 @@ namespace projet0.Infrastructure.Repositories
 
                                 foreach (var commentaire in commentairesTicket)
                                 {
-                                    // Supprimer les fichiers physiques des pièces jointes
                                     if (commentaire.PiecesJointes != null)
                                     {
                                         foreach (var piece in commentaire.PiecesJointes)
                                         {
                                             var filePath = Path.Combine(_environment.ContentRootPath, "uploads", "commentaires", piece.NomFichier);
-                                            if (File.Exists(filePath))
-                                            {
-                                                try { File.Delete(filePath); } catch { }
-                                            }
+                                            if (File.Exists(filePath)) { try { File.Delete(filePath); } catch { } }
                                         }
                                     }
                                 }
-
                                 _context.CommentairesTicket.RemoveRange(commentairesTicket);
+
+                                // Supprimer le ticket
                                 _context.Tickets.Remove(ticketAvecIncidents);
                             }
                         }
