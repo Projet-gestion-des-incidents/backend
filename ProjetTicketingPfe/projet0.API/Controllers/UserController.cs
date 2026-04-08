@@ -327,6 +327,49 @@ namespace projet0.API.Controllers
                     "Erreur interne du serveur"));
             }
         }
+
+        // Dans UserController.cs
+
+/// <summary>
+/// Modifier le profil d'un technicien
+/// </summary>
+[Authorize]
+[HttpPut("me/technicien")]
+public async Task<IActionResult> EditTechnicienProfile([FromBody] EditTechnicienProfileDto dto)
+        {
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+                return Unauthorized();
+
+            // Vérifier le rôle
+            var roles = await _userService.GetUserRolesAsync(userId);
+            if (!roles.Contains("Technicien"))
+                return BadRequest(ApiResponse<ApplicationUser>.Failure("Cette API est réservée aux techniciens", resultCode: 99));
+
+            var result = await _userService.EditTechnicienProfileAsync(userId, dto);
+            return result.ResultCode == 0 ? Ok(result) : BadRequest(result);
+        }
+
+        /// <summary>
+        /// Modifier le profil d'un commerçant (magasin)
+        /// </summary>
+        [Authorize]
+        [HttpPut("me/commercant")]
+        public async Task<IActionResult> EditCommercantProfile([FromBody] EditCommercantProfileDto dto)
+        {
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+                return Unauthorized();
+
+            // Vérifier le rôle
+            var roles = await _userService.GetUserRolesAsync(userId);
+            if (!roles.Contains("Commercant"))
+                return BadRequest(ApiResponse<ApplicationUser>.Failure("Cette API est réservée aux commerçants", resultCode: 99));
+
+            var result = await _userService.EditCommercantProfileAsync(userId, dto);
+            return result.ResultCode == 0 ? Ok(result) : BadRequest(result);
+        }
+      
     }
 
 }

@@ -1282,6 +1282,251 @@ namespace projet0.Application.Services.User
                 _ => query.OrderBy(c => c.UserName)
             };
         }
+
+        // ================= EDIT TECHNICIEN PROFILE =================
+        public async Task<ApiResponse<ApplicationUser>> EditTechnicienProfileAsync(Guid userId, EditTechnicienProfileDto dto)
+        {
+            return await MeasureAsync("EditTechnicienProfile", new { userId, dto }, async () =>
+            {
+                var user = await _userRepository.GetByIdAsync(userId);
+                if (user == null)
+                {
+                    return ApiResponse<ApplicationUser>.Failure(UserMessages.UserNotFound, resultCode: 20);
+                }
+
+                // Vérifier le rôle
+                var roles = await _userManager.GetRolesAsync(user);
+                if (!roles.Contains("Technicien"))
+                {
+                    return ApiResponse<ApplicationUser>.Failure("Seul un technicien peut modifier ce profil", resultCode: 99);
+                }
+
+                bool hasChanges = false;
+                bool emailChanged = false;
+
+                // 1. Vérifier l'unicité de l'email (si changé)
+                if (!string.IsNullOrEmpty(dto.Email) && dto.Email != user.Email)
+                {
+                    // ✅ Vérifier que le nouvel email n'est pas déjà utilisé par un AUTRE utilisateur
+                    var existingUser = await _userManager.FindByEmailAsync(dto.Email);
+                    if (existingUser != null && existingUser.Id != userId)
+                    {
+                        return ApiResponse<ApplicationUser>.Failure("Cet email est déjà utilisé par un autre compte", resultCode: 10);
+                    }
+                    user.Email = dto.Email;
+                    user.EmailConfirmed = false;
+                    user.NormalizedEmail = dto.Email.ToUpper();
+                    hasChanges = true;
+                    emailChanged = true;
+                }
+
+                // 2. Vérifier l'unicité du nom d'utilisateur (si changé)
+                if (!string.IsNullOrEmpty(dto.Nom) && dto.Nom != user.UserName)
+                {
+                    var existingUser = await _userManager.FindByNameAsync(dto.Nom);
+                    if (existingUser != null && existingUser.Id != userId)
+                    {
+                        return ApiResponse<ApplicationUser>.Failure("Ce nom d'utilisateur est déjà pris", resultCode: 11);
+                    }
+                    user.UserName = dto.Nom;
+                    user.NormalizedUserName = dto.Nom.ToUpper();
+                    hasChanges = true;
+                }
+
+                // 3. Vérifier l'unicité du téléphone (si changé)
+                if (!string.IsNullOrEmpty(dto.PhoneNumber) && dto.PhoneNumber != user.PhoneNumber)
+                {
+                    var existingPhone = await _userManager.Users
+                        .FirstOrDefaultAsync(u => u.PhoneNumber == dto.PhoneNumber && u.Id != userId);
+                    if (existingPhone != null)
+                    {
+                        return ApiResponse<ApplicationUser>.Failure("Ce numéro de téléphone est déjà utilisé", resultCode: 12);
+                    }
+                    user.PhoneNumber = dto.PhoneNumber;
+                    hasChanges = true;
+                }
+
+                // 4. Autres champs
+                if (!string.IsNullOrEmpty(dto.Nom) && dto.Nom != user.Nom)
+                {
+                    user.Nom = dto.Nom;
+                    hasChanges = true;
+                }
+
+                if (!string.IsNullOrEmpty(dto.Prenom) && dto.Prenom != user.Prenom)
+                {
+                    user.Prenom = dto.Prenom;
+                    hasChanges = true;
+                }
+
+                if (dto.BirthDate.HasValue && dto.BirthDate != user.BirthDate)
+                {
+                    user.BirthDate = dto.BirthDate;
+                    hasChanges = true;
+                }
+
+                if (!string.IsNullOrEmpty(dto.Image) && dto.Image != user.Image)
+                {
+                    user.Image = dto.Image;
+                    hasChanges = true;
+                }
+
+                // 5. Gestion du mot de passe (uniquement si fourni)
+                if (!string.IsNullOrEmpty(dto.CurrentPassword) && !string.IsNullOrEmpty(dto.NewPassword))
+                {
+                    // ✅ Vérifier le mot de passe actuel
+                    var passwordValid = await _userManager.CheckPasswordAsync(user, dto.CurrentPassword);
+                    if (!passwordValid)
+                    {
+                        return ApiResponse<ApplicationUser>.Failure("Mot de passe actuel incorrect", resultCode: 25);
+                    }
+
+                    if (dto.NewPassword != dto.ConfirmPassword)
+                    {
+                        return ApiResponse<ApplicationUser>.Failure("Les nouveaux mots de passe ne correspondent pas", resultCode: 26);
+                    }
+
+                    // ✅ Vérifier la force du nouveau mot de passe
+                    if (dto.NewPassword.Length < 6)
+                    {
+                        return ApiResponse<ApplicationUser>.Failure("Le nouveau mot de passe doit contenir au moins 6 caractères", resultCode: 27);
+                    }
+
+                    var passwordResult = await _userManager.ChangePasswordAsync(user, dto.CurrentPassword, dto.NewPassword);
+                    if (!passwordResult.Succeeded)
+                    {
+                        var errors = passwordResult.Errors.Select(e => e.Description).ToList();
+                        return ApiResponse<ApplicationUser>.Failure("Erreur lors du changement de mot de passe", errors, resultCode: 27);
+                    }
+                }
+
+                // 6. Sauvegarde
+                if (hasChanges)
+                {
+                    var result = await _userRepository.UpdateAsync(user);
+                    if (!result.Succeeded)
+                    {
+                        var errors = result.Errors.Select(e => e.Description).ToList();
+                        return ApiResponse<ApplicationUser>.Failure("Erreur lors de la mise à jour du profil", errors, resultCode: 21);
+                    }
+                }
+
+                string message = hasChanges ? "Profil mis à jour avec succès" : "Aucune modification détectée";
+
+                // Si l'email a changé, informer l'utilisateur qu'il doit reconfirmer
+                if (emailChanged)
+                {
+                    message = "Profil mis à jour. Veuillez confirmer votre nouvel email.";
+                }
+
+                return ApiResponse<ApplicationUser>.Success(user, message, 0);
+            });
+        }
+
+        // ================= EDIT COMMERCANT PROFILE =================
+        public async Task<ApiResponse<ApplicationUser>> EditCommercantProfileAsync(Guid userId, EditCommercantProfileDto dto)
+        {
+            return await MeasureAsync("EditCommercantProfile", new { userId, dto }, async () =>
+            {
+                var user = await _userRepository.GetByIdAsync(userId);
+                if (user == null)
+                {
+                    return ApiResponse<ApplicationUser>.Failure(UserMessages.UserNotFound, resultCode: 20);
+                }
+
+                // Vérifier le rôle
+                var roles = await _userManager.GetRolesAsync(user);
+                if (!roles.Contains("Commercant"))
+                {
+                    return ApiResponse<ApplicationUser>.Failure("Seul un commerçant peut modifier ce profil", resultCode: 99);
+                }
+
+                bool hasChanges = false;
+                bool emailChanged = false;
+
+                // 1. Vérifier l'unicité de l'email (si changé)
+                if (!string.IsNullOrEmpty(dto.Email) && dto.Email != user.Email)
+                {
+                    var existingUser = await _userManager.FindByEmailAsync(dto.Email);
+                    if (existingUser != null && existingUser.Id != userId)
+                    {
+                        return ApiResponse<ApplicationUser>.Failure("Cet email est déjà utilisé par un autre compte", resultCode: 10);
+                    }
+                    user.Email = dto.Email;
+                    user.EmailConfirmed = false;
+                    user.NormalizedEmail = dto.Email.ToUpper();
+                    hasChanges = true;
+                    emailChanged = true;
+                }
+
+                // 2. Vérifier l'unicité du nom du magasin (UserName)
+                if (!string.IsNullOrEmpty(dto.NomMagasin) && dto.NomMagasin != user.UserName)
+                {
+                    if (!await _userRepository.IsUserNameUniqueAsync(dto.NomMagasin, userId))
+                    {
+                        return ApiResponse<ApplicationUser>.Failure("Ce nom de magasin est déjà utilisé", resultCode: 11);
+                    }
+                    user.UserName = dto.NomMagasin;
+                    user.Nom = dto.NomMagasin;  // Synchroniser le champ Nom
+                    hasChanges = true;
+                }
+
+                // 3. Vérifier l'unicité du téléphone
+                if (!string.IsNullOrEmpty(dto.PhoneNumber) && dto.PhoneNumber != user.PhoneNumber)
+                {
+                    var existingPhone = _userManager.Users.FirstOrDefault(u => u.PhoneNumber == dto.PhoneNumber && u.Id != userId);
+                    if (existingPhone != null)
+                    {
+                        return ApiResponse<ApplicationUser>.Failure("Ce numéro de téléphone est déjà utilisé", resultCode: 12);
+                    }
+                    user.PhoneNumber = dto.PhoneNumber;
+                    hasChanges = true;
+                }
+
+                // 4. Autres champs
+                if (!string.IsNullOrEmpty(dto.Adresse) && dto.Adresse != user.Adresse)
+                {
+                    user.Adresse = dto.Adresse;
+                    hasChanges = true;
+                }
+
+                if (!string.IsNullOrEmpty(dto.Image) && dto.Image != user.Image)
+                {
+                    user.Image = dto.Image;
+                    hasChanges = true;
+                }
+
+                // 5. Gestion du mot de passe (identique)
+                if (!string.IsNullOrEmpty(dto.CurrentPassword) && !string.IsNullOrEmpty(dto.NewPassword))
+                {
+                    if (!await _userManager.CheckPasswordAsync(user, dto.CurrentPassword))
+                    {
+                        return ApiResponse<ApplicationUser>.Failure("Mot de passe actuel incorrect", resultCode: 25);
+                    }
+                    if (dto.NewPassword != dto.ConfirmPassword)
+                    {
+                        return ApiResponse<ApplicationUser>.Failure("Les mots de passe ne correspondent pas", resultCode: 26);
+                    }
+                    var passwordResult = await _userManager.ChangePasswordAsync(user, dto.CurrentPassword, dto.NewPassword);
+                    if (!passwordResult.Succeeded)
+                    {
+                        return ApiResponse<ApplicationUser>.Failure("Erreur lors du changement de mot de passe", resultCode: 27);
+                    }
+                }
+
+                // 6. Sauvegarde
+                if (hasChanges)
+                {
+                    var result = await _userRepository.UpdateAsync(user);
+                    if (!result.Succeeded)
+                    {
+                        return ApiResponse<ApplicationUser>.Failure("Erreur lors de la mise à jour", resultCode: 21);
+                    }
+                }
+
+                return ApiResponse<ApplicationUser>.Success(user, "Profil mis à jour avec succès", 0);
+            });
+        }
     }
 }
 

@@ -391,7 +391,7 @@ namespace projet0.Infrastructure.Repositories
                     {
                         foreach (var tpe in tpes)
                         {
-                            // 1.2 Supprimer les liaisons Incident-TPE pour ces TPEs
+                            // Supprimer les liaisons Incident-TPE pour ces TPEs
                             var incidentTPEs = await _context.IncidentTPEs
                                 .Where(it => it.TPEId == tpe.Id)
                                 .ToListAsync();
@@ -403,7 +403,7 @@ namespace projet0.Infrastructure.Repositories
                                     incidentTPEs.Count, tpe.Id);
                             }
 
-                            // 1.3 Le TPE reste mais on supprime son lien avec le commerçant
+                            // Le TPE reste mais on supprime son lien avec le commerçant
                             tpe.CommercantId = null;
                         }
 
@@ -411,58 +411,106 @@ namespace projet0.Infrastructure.Repositories
                         _logger.LogInformation("{Count} TPE(s) détachés du commerçant {UserId}", tpes.Count, user.Id);
                     }
 
-                    // 1.4 Récupérer tous les incidents créés par ce commerçant
-                    var incidents = await _context.Incidents
+                    // 1.2 Récupérer tous les incidents créés par ce commerçant
+                    var incidentsCommercant = await _context.Incidents
                         .Where(i => i.CreatedById == user.Id)
                         .ToListAsync();
 
-                    if (incidents.Any())
+                    // Récupérer les tickets qui seront impactés (avant suppression des incidents)
+                    var ticketsImpactes = new List<Ticket>();
+
+                    if (incidentsCommercant.Any())
                     {
-                        foreach (var incident in incidents)
+                        foreach (var incident in incidentsCommercant)
                         {
-                            // 1.5 Supprimer les liaisons Incident-TPE de ces incidents
+                            // Récupérer les tickets liés à cet incident
+                            var ticketsLies = await _context.IncidentTickets
+                                .Where(it => it.IncidentId == incident.Id)
+                                .Select(it => it.Ticket)
+                                .ToListAsync();
+
+                            ticketsImpactes.AddRange(ticketsLies);
+
+                            // Supprimer les liaisons Incident-TPE
                             var incidentTPEs = await _context.IncidentTPEs
                                 .Where(it => it.IncidentId == incident.Id)
                                 .ToListAsync();
-
                             if (incidentTPEs.Any())
                             {
                                 _context.IncidentTPEs.RemoveRange(incidentTPEs);
-                                _logger.LogInformation("Suppression de {Count} liaisons Incident-TPE pour l'incident {IncidentId}",
-                                    incidentTPEs.Count, incident.Id);
                             }
 
-                            // 1.6 Supprimer les liaisons Incident-Ticket
+                            // Supprimer les liaisons Incident-Ticket
                             var incidentTickets = await _context.IncidentTickets
                                 .Where(it => it.IncidentId == incident.Id)
                                 .ToListAsync();
-
                             if (incidentTickets.Any())
                             {
                                 _context.IncidentTickets.RemoveRange(incidentTickets);
-                                _logger.LogInformation("Suppression de {Count} liaisons Incident-Ticket pour l'incident {IncidentId}",
-                                    incidentTickets.Count, incident.Id);
                             }
 
-                            // 1.7 Supprimer les pièces jointes de l'incident
-                            var piecesJointes = await _context.PiecesJointes
+                            // Supprimer les pièces jointes de l'incident
+                            var piecesJointesIncident = await _context.PiecesJointes
                                 .Where(p => p.IncidentId == incident.Id)
                                 .ToListAsync();
 
-                            if (piecesJointes.Any())
+                            if (piecesJointesIncident.Any())
                             {
-                                _context.PiecesJointes.RemoveRange(piecesJointes);
-                                _logger.LogInformation("Suppression de {Count} pièce(s) jointe(s) pour l'incident {IncidentId}",
-                                    piecesJointes.Count, incident.Id);
+                                _context.PiecesJointes.RemoveRange(piecesJointesIncident);
                             }
                         }
 
-                        // 1.8 Supprimer les incidents
-                        _context.Incidents.RemoveRange(incidents);
+                        // Supprimer les incidents
+                        _context.Incidents.RemoveRange(incidentsCommercant);
                         _logger.LogInformation("Suppression de {Count} incident(s) du commerçant {UserId}",
-                            incidents.Count, user.Id);
+                            incidentsCommercant.Count, user.Id);
+
+                        // Vérifier et supprimer les tickets qui n'ont plus d'incidents
+                        var ticketsUniques = ticketsImpactes.Distinct().ToList();
+
+                        foreach (var ticket in ticketsUniques)
+                        {
+                            // Recharger le ticket pour vérifier s'il a encore des incidents
+                            var ticketAvecIncidents = await _context.Tickets
+                                .Include(t => t.IncidentTickets)
+                                .FirstOrDefaultAsync(t => t.Id == ticket.Id);
+
+                            if (ticketAvecIncidents != null && (ticketAvecIncidents.IncidentTickets == null || !ticketAvecIncidents.IncidentTickets.Any()))
+                            {
+                                // Plus aucun incident lié → supprimer le ticket
+                                _logger.LogInformation("Ticket {TicketId} n'a plus d'incidents, suppression automatique", ticket.Id);
+
+                                // Supprimer les commentaires et pièces jointes du ticket
+                                var commentairesTicket = await _context.CommentairesTicket
+                                    .Include(c => c.PiecesJointes)
+                                    .Where(c => c.TicketId == ticket.Id)
+                                    .ToListAsync();
+
+                                foreach (var commentaire in commentairesTicket)
+                                {
+                                    // Supprimer les fichiers physiques
+                                    if (commentaire.PiecesJointes != null)
+                                    {
+                                        foreach (var piece in commentaire.PiecesJointes)
+                                        {
+                                            var filePath = Path.Combine(_environment.ContentRootPath, "uploads", "commentaires", piece.NomFichier);
+                                            if (File.Exists(filePath))
+                                            {
+                                                try { File.Delete(filePath); } catch { }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                _context.CommentairesTicket.RemoveRange(commentairesTicket);
+                                _context.Tickets.Remove(ticketAvecIncidents);
+                            }
+                        }
+
+                        await _context.SaveChangesAsync();
                     }
                 }
+
                 // ============================================
                 // 2. POUR UN TECHNICIEN
                 // ============================================
@@ -471,13 +519,13 @@ namespace projet0.Infrastructure.Repositories
                     // Récupérer les tickets créés par cet utilisateur avec leurs commentaires et pièces jointes
                     var ticketsCrees = await _context.Tickets
                         .Include(t => t.Commentaires)
-                            .ThenInclude(c => c.PiecesJointes)  // ✅ Inclure les pièces jointes
+                            .ThenInclude(c => c.PiecesJointes)
                         .Where(t => t.CreateurId == user.Id)
                         .ToListAsync();
 
                     foreach (var ticket in ticketsCrees)
                     {
-                        // ✅ Supprimer les fichiers physiques des pièces jointes des commentaires
+                        // Supprimer les fichiers physiques des pièces jointes des commentaires
                         if (ticket.Commentaires != null && ticket.Commentaires.Any())
                         {
                             foreach (var commentaire in ticket.Commentaires)
@@ -486,7 +534,6 @@ namespace projet0.Infrastructure.Repositories
                                 {
                                     foreach (var piece in commentaire.PiecesJointes)
                                     {
-                                        // Supprimer le fichier physique
                                         var filePath = Path.Combine(_environment.ContentRootPath, "uploads", "commentaires", piece.NomFichier);
                                         if (File.Exists(filePath))
                                         {
@@ -509,7 +556,7 @@ namespace projet0.Infrastructure.Repositories
                             }
                         }
 
-                        // Supprimer les commentaires du ticket (la suppression en cascade supprimera les entités PieceJointe)
+                        // Supprimer les commentaires du ticket
                         if (ticket.Commentaires?.Any() == true)
                         {
                             _context.CommentairesTicket.RemoveRange(ticket.Commentaires);
@@ -552,16 +599,16 @@ namespace projet0.Infrastructure.Repositories
                 }
 
                 // 3.2 Supprimer les commentaires directs (et leurs pièces jointes)
-                var commentaires = await _context.CommentairesTicket
-                    .Include(c => c.PiecesJointes)  // ✅ Inclure les pièces jointes
+                var commentairesDirects = await _context.CommentairesTicket
+                    .Include(c => c.PiecesJointes)
                     .Where(c => c.AuteurId == user.Id)
                     .ToListAsync();
 
-                if (commentaires.Any())
+                if (commentairesDirects.Any())
                 {
-                    foreach (var commentaire in commentaires)
+                    foreach (var commentaire in commentairesDirects)
                     {
-                        // ✅ Supprimer les fichiers physiques des pièces jointes
+                        // Supprimer les fichiers physiques des pièces jointes
                         if (commentaire.PiecesJointes != null && commentaire.PiecesJointes.Any())
                         {
                             foreach (var piece in commentaire.PiecesJointes)
@@ -583,7 +630,7 @@ namespace projet0.Infrastructure.Repositories
                         }
                     }
 
-                    _context.CommentairesTicket.RemoveRange(commentaires);
+                    _context.CommentairesTicket.RemoveRange(commentairesDirects);
                 }
 
                 // 3.3 Supprimer les notifications
