@@ -24,7 +24,7 @@ namespace projet0.Infrastructure.Data.Configurations
             builder.HasOne(t => t.Commercant)
                 .WithMany(u => u.TPEs)
                 .HasForeignKey(t => t.CommercantId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.SetNull);
         }
     }
 }

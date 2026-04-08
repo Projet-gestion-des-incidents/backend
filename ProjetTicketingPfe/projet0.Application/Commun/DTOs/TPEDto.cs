@@ -13,7 +13,7 @@ namespace projet0.Application.Commun.DTOs
         public string NumSerieComplet { get; set; }
         public ModeleTPE Modele { get; set; }
         
-        public Guid CommercantId { get; set; }
+        public Guid? CommercantId { get; set; }
         public string CommercantNom { get; set; }
         
     }
@@ -32,6 +32,6 @@ namespace projet0.Application.Commun.DTOs
     {
      
         public ModeleTPE Modele { get; set; }
-        public Guid CommercantId { get; set; }
+        public Guid? CommercantId { get; set; }
     }
 }

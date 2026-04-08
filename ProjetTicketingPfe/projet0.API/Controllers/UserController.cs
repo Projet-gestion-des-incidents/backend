@@ -33,17 +33,7 @@ namespace projet0.API.Controllers
 
 
 
-        
-
-    
-
-        [HttpPut("{id}")]
-        [Authorize(Policy = "AdminOnly")]
-        public async Task<IActionResult> Update(Guid id, UserDto dto)
-        {
-            var result = await _userService.UpdateAsync(id, dto);
-            return Ok(result);
-        }
+       
 
         [HttpPut("{id}/activate")]
         [Authorize(Policy = "AdminOnly")]

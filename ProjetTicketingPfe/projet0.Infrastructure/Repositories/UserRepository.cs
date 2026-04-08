@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using projet0.Application.Common.Models.Pagination;
 using projet0.Application.Commun.DTOs;
 using projet0.Application.Interfaces;
@@ -17,17 +18,20 @@ namespace projet0.Infrastructure.Repositories
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly RoleManager<IdentityRole<Guid>> _roleManager;
         private readonly ApplicationDbContext _context;
+        private readonly ILogger<UserRepository> _logger;
 
 
         public UserRepository(
             ApplicationDbContext context,
             UserManager<ApplicationUser> userManager,
-            RoleManager<IdentityRole<Guid>> roleManager)
+            RoleManager<IdentityRole<Guid>> roleManager,
+            ILogger<UserRepository> logger)
             : base(context)
         {
             _userManager = userManager;
             _roleManager = roleManager;
             _context = context; // Ajouter cette ligne
+            _logger = logger; // Ajouter cette ligne
 
         }
 
@@ -362,46 +366,139 @@ namespace projet0.Infrastructure.Repositories
 
             try
             {
-                // 1. Récupérer tous les TPEs liés à cet utilisateur
-                var tpes = await _context.TPEs
-                    .Where(t => t.CommercantId == user.Id)
-                    .ToListAsync();
-                if (tpes.Any())
+                // Vérifier le rôle de l'utilisateur
+                var roles = await _userManager.GetRolesAsync(user);
+                var isCommercant = roles.Contains("Commercant");
+                var isTechnicien = roles.Contains("Technicien");
+
+                // ============================================
+                // 1. POUR UN COMMERÇANT
+                // ============================================
+                if (isCommercant)
                 {
-                    _context.TPEs.RemoveRange(tpes);
-                }
-
-                // 2. Récupérer les tickets créés par cet utilisateur (CreateurId)
-                var ticketsCrees = await _context.Tickets
-                    .Include(t => t.Commentaires)
-                    .Where(t => t.CreateurId == user.Id)
-                    .ToListAsync();
-
-                foreach (var ticket in ticketsCrees)
-                {
-                    // Supprimer les commentaires du ticket
-                    if (ticket.Commentaires?.Any() == true)
-                    {
-                        _context.CommentairesTicket.RemoveRange(ticket.Commentaires);
-                    }
-
-                    // Supprimer les incidents liés au ticket
-                    var incidentsTicket = await _context.IncidentTickets
-                        .Where(i => i.TicketId == ticket.Id)
+                    // 1.1 Récupérer tous les TPEs du commerçant
+                    var tpes = await _context.TPEs
+                        .Where(t => t.CommercantId == user.Id)
                         .ToListAsync();
-                    if (incidentsTicket.Any())
+
+                    if (tpes.Any())
                     {
-                        _context.IncidentTickets.RemoveRange(incidentsTicket);
+                        foreach (var tpe in tpes)
+                        {
+                            // 1.2 Supprimer les liaisons Incident-TPE pour ces TPEs
+                            var incidentTPEs = await _context.IncidentTPEs
+                                .Where(it => it.TPEId == tpe.Id)
+                                .ToListAsync();
+
+                            if (incidentTPEs.Any())
+                            {
+                                _context.IncidentTPEs.RemoveRange(incidentTPEs);
+                                _logger.LogInformation("Suppression de {Count} liaisons Incident-TPE pour le TPE {TPEId}",
+                                    incidentTPEs.Count, tpe.Id);
+                            }
+
+                            // 1.3 Le TPE reste mais on supprime son lien avec le commerçant
+                            tpe.CommercantId = null;
+                        }
+
+                        _context.TPEs.UpdateRange(tpes);
+                        _logger.LogInformation("{Count} TPE(s) détachés du commerçant {UserId}", tpes.Count, user.Id);
+                    }
+
+                    // 1.4 Récupérer tous les incidents créés par ce commerçant
+                    var incidents = await _context.Incidents
+                        .Where(i => i.CreatedById == user.Id)
+                        .ToListAsync();
+
+                    if (incidents.Any())
+                    {
+                        foreach (var incident in incidents)
+                        {
+                            // 1.5 Supprimer les liaisons Incident-TPE de ces incidents
+                            var incidentTPEs = await _context.IncidentTPEs
+                                .Where(it => it.IncidentId == incident.Id)
+                                .ToListAsync();
+
+                            if (incidentTPEs.Any())
+                            {
+                                _context.IncidentTPEs.RemoveRange(incidentTPEs);
+                                _logger.LogInformation("Suppression de {Count} liaisons Incident-TPE pour l'incident {IncidentId}",
+                                    incidentTPEs.Count, incident.Id);
+                            }
+
+                            // 1.6 Supprimer les liaisons Incident-Ticket
+                            var incidentTickets = await _context.IncidentTickets
+                                .Where(it => it.IncidentId == incident.Id)
+                                .ToListAsync();
+
+                            if (incidentTickets.Any())
+                            {
+                                _context.IncidentTickets.RemoveRange(incidentTickets);
+                                _logger.LogInformation("Suppression de {Count} liaisons Incident-Ticket pour l'incident {IncidentId}",
+                                    incidentTickets.Count, incident.Id);
+                            }
+
+                            // 1.7 Supprimer les pièces jointes de l'incident
+                            var piecesJointes = await _context.PiecesJointes
+                                .Where(p => p.IncidentId == incident.Id)
+                                .ToListAsync();
+
+                            if (piecesJointes.Any())
+                            {
+                                _context.PiecesJointes.RemoveRange(piecesJointes);
+                                _logger.LogInformation("Suppression de {Count} pièce(s) jointe(s) pour l'incident {IncidentId}",
+                                    piecesJointes.Count, incident.Id);
+                            }
+                        }
+
+                        // 1.8 Supprimer les incidents
+                        _context.Incidents.RemoveRange(incidents);
+                        _logger.LogInformation("Suppression de {Count} incident(s) du commerçant {UserId}",
+                            incidents.Count, user.Id);
                     }
                 }
 
-                // Supprimer les tickets créés
-                if (ticketsCrees.Any())
+                // ============================================
+                // 2. POUR UN TECHNICIEN (code existant)
+                // ============================================
+                if (isTechnicien)
                 {
-                    _context.Tickets.RemoveRange(ticketsCrees);
+                    // Récupérer les tickets créés par cet utilisateur
+                    var ticketsCrees = await _context.Tickets
+                        .Include(t => t.Commentaires)
+                        .Where(t => t.CreateurId == user.Id)
+                        .ToListAsync();
+
+                    foreach (var ticket in ticketsCrees)
+                    {
+                        // Supprimer les commentaires du ticket
+                        if (ticket.Commentaires?.Any() == true)
+                        {
+                            _context.CommentairesTicket.RemoveRange(ticket.Commentaires);
+                        }
+
+                        // Supprimer les incidents liés au ticket
+                        var incidentsTicket = await _context.IncidentTickets
+                            .Where(i => i.TicketId == ticket.Id)
+                            .ToListAsync();
+                        if (incidentsTicket.Any())
+                        {
+                            _context.IncidentTickets.RemoveRange(incidentsTicket);
+                        }
+                    }
+
+                    // Supprimer les tickets créés
+                    if (ticketsCrees.Any())
+                    {
+                        _context.Tickets.RemoveRange(ticketsCrees);
+                    }
                 }
 
-                // 3. Gérer les tickets assignés (mettre à null l'assignation) - AssigneeId
+                // ============================================
+                // 3. POUR TOUS LES UTILISATEURS (quel que soit le rôle)
+                // ============================================
+
+                // 3.1 Gérer les tickets assignés (mettre à null l'assignation)
                 var ticketsAssignes = await _context.Tickets
                     .Where(t => t.AssigneeId == user.Id)
                     .ToListAsync();
@@ -412,9 +509,11 @@ namespace projet0.Infrastructure.Repositories
                     {
                         ticket.AssigneeId = null;
                     }
+                    _logger.LogInformation("{Count} ticket(s) désassigné(s) de l'utilisateur {UserId}",
+                        ticketsAssignes.Count, user.Id);
                 }
 
-                // 4. Supprimer les commentaires directs de l'utilisateur (AuteurId)
+                // 3.2 Supprimer les commentaires directs
                 var commentaires = await _context.CommentairesTicket
                     .Where(c => c.AuteurId == user.Id)
                     .ToListAsync();
@@ -423,7 +522,7 @@ namespace projet0.Infrastructure.Repositories
                     _context.CommentairesTicket.RemoveRange(commentaires);
                 }
 
-                // 5. Supprimer les notifications de l'utilisateur (DestinataireId)
+                // 3.3 Supprimer les notifications
                 var notifications = await _context.Notifications
                     .Where(n => n.DestinataireId == user.Id)
                     .ToListAsync();
@@ -432,7 +531,7 @@ namespace projet0.Infrastructure.Repositories
                     _context.Notifications.RemoveRange(notifications);
                 }
 
-                // 6. Supprimer les historiques modifiés par l'utilisateur (ModifieParId)
+                // 3.4 Supprimer les historiques
                 var historiques = await _context.HistoriquesTicket
                     .Where(h => h.ModifieParId == user.Id)
                     .ToListAsync();
@@ -441,7 +540,7 @@ namespace projet0.Infrastructure.Repositories
                     _context.HistoriquesTicket.RemoveRange(historiques);
                 }
 
-                // 7. Supprimer les incidents créés par l'utilisateur (LieParId)
+                // 3.5 Supprimer les incidents créés par l'utilisateur (LieParId)
                 var incidentsUser = await _context.IncidentTickets
                     .Where(i => i.LieParId == user.Id)
                     .ToListAsync();
@@ -450,28 +549,25 @@ namespace projet0.Infrastructure.Repositories
                     _context.IncidentTickets.RemoveRange(incidentsUser);
                 }
 
-                // 8. Sauvegarder toutes les modifications (suppressions des entités liées)
+                // 3.6 Sauvegarder toutes les modifications
                 await _context.SaveChangesAsync();
 
-                // 9. Supprimer l'utilisateur via UserManager
+                // 3.7 Supprimer l'utilisateur
                 var result = await _userManager.DeleteAsync(user);
 
                 if (!result.Succeeded)
                 {
-                    // Si la suppression de l'utilisateur échoue, annuler la transaction
                     await transaction.RollbackAsync();
                     return result;
                 }
 
-                // 10. Valider la transaction
                 await transaction.CommitAsync();
-
                 return IdentityResult.Success;
             }
             catch (Exception ex)
             {
-                // En cas d'erreur, annuler la transaction
                 await transaction.RollbackAsync();
+                _logger.LogError(ex, "Erreur lors de la suppression en cascade de l'utilisateur {UserId}", user.Id);
                 throw;
             }
         }
