@@ -557,11 +557,14 @@ namespace projet0.Infrastructure.Repositories
                         _logger.LogInformation("SaveChanges effectué après suppression des tickets orphelins");
                     }
                 }
+
                 // ============================================
                 // 2. POUR UN TECHNICIEN
                 // ============================================
                 if (isTechnicien)
                 {
+                    _logger.LogInformation("=== DÉBUT TRAITEMENT TECHNICIEN {UserId} ===", user.Id);
+
                     // 2.1 Gérer les tickets assignés au technicien
                     var ticketsAssignes = await _context.Tickets
                         .Include(t => t.IncidentTickets)
@@ -569,14 +572,23 @@ namespace projet0.Infrastructure.Repositories
                         .Where(t => t.AssigneeId == user.Id)
                         .ToListAsync();
 
+                    _logger.LogInformation("Technicien assigné à {Count} ticket(s)", ticketsAssignes.Count);
+
                     if (ticketsAssignes.Any())
                     {
                         foreach (var ticket in ticketsAssignes)
                         {
-                            var ancienStatut = ticket.StatutTicket;
+                            var ancienStatutTicket = ticket.StatutTicket;
+                            _logger.LogInformation("Traitement ticket {TicketId} (Ref: {Reference}, AncienStatut: {Statut})",
+                                ticket.Id, ticket.ReferenceTicket, ancienStatutTicket);
 
+                            // ✅ FORCER l'état de l'entité pour éviter la concurrency
+                            _context.Entry(ticket).State = EntityState.Modified;
+
+                            // Désassigner le ticket
                             ticket.AssigneeId = null;
 
+                            // Gestion du statut du ticket selon la règle métier
                             if (ticket.StatutTicket == StatutTicket.Resolu)
                             {
                                 _logger.LogInformation("Ticket {TicketId} (Résolu) - Désassigné, statut conservé", ticket.Id);
@@ -585,16 +597,35 @@ namespace projet0.Infrastructure.Repositories
                             {
                                 ticket.StatutTicket = null;
                                 _logger.LogInformation("Ticket {TicketId} ({AncienStatut}) - Désassigné, statut → null",
-                                    ticket.Id, ancienStatut);
+                                    ticket.Id, ancienStatutTicket);
                             }
 
                             // ✅ Mettre à jour les incidents liés à ce ticket
                             if (ticket.IncidentTickets != null && ticket.IncidentTickets.Any())
                             {
+                                _logger.LogInformation("Ticket {TicketId} lié à {Count} incident(s)",
+                                    ticket.Id, ticket.IncidentTickets.Count);
+
                                 foreach (var lien in ticket.IncidentTickets)
                                 {
                                     if (lien.Incident != null)
                                     {
+                                        // ✅ FORCER l'état de l'incident
+                                        _context.Entry(lien.Incident).State = EntityState.Modified;
+
+                                        // 🔴 CORRECTION : Vérifier le statut de l'incident AVANT de le modifier
+                                        var incident = lien.Incident;
+                                        var ancienStatutIncident = incident.StatutIncident;
+
+                                        // ✅ RÈGLE : Un incident Résolu/Fermé ne change PAS
+                                        if (
+                                            ancienStatutIncident == StatutIncident.Ferme)
+                                        {
+                                            _logger.LogInformation("Incident {IncidentId} est déjà {Statut} - statut conservé (non modifié)",
+                                                incident.Id, ancienStatutIncident);
+                                            continue; // Ne pas modifier l'incident
+                                        }
+
                                         // Vérifier si l'incident a encore des tickets en cours
                                         var autresTicketsEnCours = await _context.IncidentTickets
                                             .Where(it => it.IncidentId == lien.IncidentId && it.TicketId != ticket.Id)
@@ -604,45 +635,57 @@ namespace projet0.Infrastructure.Repositories
                                         if (!autresTicketsEnCours)
                                         {
                                             // Plus aucun ticket en cours lié à cet incident
-                                            var incident = lien.Incident;
-                                            var ancienStatutIncident = incident.StatutIncident;
-
                                             incident.StatutIncident = null;
                                             incident.DateResolution = null;
 
-                                            _logger.LogInformation("Incident {IncidentId} n'a plus de tickets en cours, statut → null",
-                                                incident.Id);
+                                            _logger.LogInformation("Incident {IncidentId} n'a plus de tickets en cours, statut → null (était: {AncienStatut})",
+                                                incident.Id, ancienStatutIncident);
+                                        }
+                                        else
+                                        {
+                                            _logger.LogInformation("Incident {IncidentId} a encore d'autres tickets en cours, statut conservé ({AncienStatut})",
+                                                incident.Id, ancienStatutIncident);
                                         }
                                     }
                                 }
                             }
 
-                            // Ajouter un historique
+                            // Ajouter un historique de désassignation
                             ticket.Historiques ??= new List<HistoriqueTicket>();
-                            ticket.Historiques.Add(new HistoriqueTicket
+                            var historique = new HistoriqueTicket
                             {
                                 Id = Guid.NewGuid(),
                                 TicketId = ticket.Id,
-                                AncienStatut = ancienStatut,
+                                AncienStatut = ancienStatutTicket,
                                 DateChangement = DateTime.UtcNow,
                                 ModifieParId = user.Id
-                            });
+                            };
+                            ticket.Historiques.Add(historique);
+
+                            // ✅ FORCER l'état de l'historique
+                            _context.Entry(historique).State = EntityState.Added;
                         }
 
-                        await _context.SaveChangesAsync();
-                        _logger.LogInformation("{Count} ticket(s) désassigné(s) du technicien {UserId}",
-                            ticketsAssignes.Count, user.Id);
+                        // ✅ Sauvegarder les modifications
+                        var saveResult = await _context.SaveChangesAsync();
+                        _logger.LogInformation("{Count} ticket(s) désassigné(s) du technicien {UserId}, SaveChanges retourne: {SaveResult}",
+                            ticketsAssignes.Count, user.Id, saveResult);
                     }
 
-                    // 2.2 Tickets créés par le technicien (inchangé)
+                    // 2.2 Tickets créés par le technicien (suppression complète)
                     var ticketsCrees = await _context.Tickets
                         .Include(t => t.Commentaires)
                             .ThenInclude(c => c.PiecesJointes)
                         .Where(t => t.CreateurId == user.Id)
                         .ToListAsync();
 
+                    _logger.LogInformation("Technicien a créé {Count} ticket(s) qui vont être supprimés", ticketsCrees.Count);
+
                     foreach (var ticket in ticketsCrees)
                     {
+                        _logger.LogInformation("Suppression du ticket {TicketId} (Ref: {Reference}) créé par le technicien",
+                            ticket.Id, ticket.ReferenceTicket);
+
                         if (ticket.Commentaires != null && ticket.Commentaires.Any())
                         {
                             foreach (var commentaire in ticket.Commentaires)
@@ -654,7 +697,12 @@ namespace projet0.Infrastructure.Repositories
                                         var filePath = Path.Combine(_environment.ContentRootPath, "uploads", "commentaires", piece.NomFichier);
                                         if (File.Exists(filePath))
                                         {
-                                            try { File.Delete(filePath); } catch { }
+                                            try
+                                            {
+                                                File.Delete(filePath);
+                                                _logger.LogInformation("Fichier commentaire supprimé: {FilePath}", filePath);
+                                            }
+                                            catch { }
                                         }
                                     }
                                 }
@@ -672,35 +720,28 @@ namespace projet0.Infrastructure.Repositories
                         if (incidentsTicket.Any())
                         {
                             _context.IncidentTickets.RemoveRange(incidentsTicket);
+                            _logger.LogInformation("Suppression de {Count} liaison(s) Incident-Ticket pour le ticket {TicketId}",
+                                incidentsTicket.Count, ticket.Id);
                         }
                     }
 
                     if (ticketsCrees.Any())
                     {
                         _context.Tickets.RemoveRange(ticketsCrees);
+                        _logger.LogInformation("{Count} ticket(s) supprimés (créés par le technicien)", ticketsCrees.Count);
+
+                        // ✅ Sauvegarder la suppression des tickets
+                        await _context.SaveChangesAsync();
                     }
+
+                    _logger.LogInformation("=== FIN TRAITEMENT TECHNICIEN {UserId} ===", user.Id);
                 }
 
                 // ============================================
-                // 3. POUR TOUS LES UTILISATEURS (quel que soit le rôle)
+                // 3. POUR TOUS LES UTILISATEURS
                 // ============================================
 
-                // 3.1 Gérer les tickets assignés (mettre à null l'assignation)
-                // ✅ Remplacer "ticketsAssignes" par "ticketsAssignesGeneraux"
-                var ticketsAssignesGeneraux = await _context.Tickets
-                    .Where(t => t.AssigneeId == user.Id)
-                    .ToListAsync();
-
-                if (ticketsAssignesGeneraux.Any())
-                {
-                    foreach (var ticket in ticketsAssignesGeneraux)
-                    {
-                        ticket.AssigneeId = null;
-                    }
-                    _logger.LogInformation("{Count} ticket(s) désassigné(s) de l'utilisateur {UserId}",
-                        ticketsAssignesGeneraux.Count, user.Id);
-                }
-                // 3.2 Supprimer les commentaires directs (et leurs pièces jointes)
+                // 3.1 Supprimer les commentaires directs
                 var commentairesDirects = await _context.CommentairesTicket
                     .Include(c => c.PiecesJointes)
                     .Where(c => c.AuteurId == user.Id)
@@ -710,7 +751,6 @@ namespace projet0.Infrastructure.Repositories
                 {
                     foreach (var commentaire in commentairesDirects)
                     {
-                        // Supprimer les fichiers physiques des pièces jointes
                         if (commentaire.PiecesJointes != null && commentaire.PiecesJointes.Any())
                         {
                             foreach (var piece in commentaire.PiecesJointes)
@@ -718,24 +758,15 @@ namespace projet0.Infrastructure.Repositories
                                 var filePath = Path.Combine(_environment.ContentRootPath, "uploads", "commentaires", piece.NomFichier);
                                 if (File.Exists(filePath))
                                 {
-                                    try
-                                    {
-                                        File.Delete(filePath);
-                                        _logger.LogInformation("Fichier physique supprimé: {FilePath}", filePath);
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        _logger.LogWarning(ex, "Erreur lors de la suppression du fichier {FilePath}", filePath);
-                                    }
+                                    try { File.Delete(filePath); } catch { }
                                 }
                             }
                         }
                     }
-
                     _context.CommentairesTicket.RemoveRange(commentairesDirects);
                 }
 
-                // 3.3 Supprimer les notifications
+                // 3.2 Supprimer les notifications
                 var notifications = await _context.Notifications
                     .Where(n => n.DestinataireId == user.Id)
                     .ToListAsync();
@@ -744,7 +775,7 @@ namespace projet0.Infrastructure.Repositories
                     _context.Notifications.RemoveRange(notifications);
                 }
 
-                // 3.4 Supprimer les historiques
+                // 3.3 Supprimer les historiques
                 var historiques = await _context.HistoriquesTicket
                     .Where(h => h.ModifieParId == user.Id)
                     .ToListAsync();
@@ -753,7 +784,7 @@ namespace projet0.Infrastructure.Repositories
                     _context.HistoriquesTicket.RemoveRange(historiques);
                 }
 
-                // 3.5 Supprimer les incidents créés par l'utilisateur (LieParId)
+                // 3.4 Supprimer les liaisons IncidentTickets créées par l'utilisateur
                 var incidentsUser = await _context.IncidentTickets
                     .Where(i => i.LieParId == user.Id)
                     .ToListAsync();
@@ -762,10 +793,10 @@ namespace projet0.Infrastructure.Repositories
                     _context.IncidentTickets.RemoveRange(incidentsUser);
                 }
 
-                // 3.6 Sauvegarder toutes les modifications
+                // 3.5 Sauvegarder toutes les modifications
                 await _context.SaveChangesAsync();
 
-                // 3.7 Supprimer l'utilisateur
+                // 3.6 Supprimer l'utilisateur
                 var result = await _userManager.DeleteAsync(user);
 
                 if (!result.Succeeded)
@@ -783,6 +814,7 @@ namespace projet0.Infrastructure.Repositories
                 _logger.LogError(ex, "Erreur lors de la suppression en cascade de l'utilisateur {UserId}", user.Id);
                 throw;
             }
-        }
+        
+    }
     } 
 }
