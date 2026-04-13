@@ -106,6 +106,23 @@ namespace projet0.Application.Services.Incident
 
             dto.TypeProbleme = incident.TypeProbleme;
 
+            // ✅ AJOUTER LE MAPPAGE DES ENTITÉS IMPACTÉES
+            if (incident.EntitesImpactees != null && incident.EntitesImpactees.Any())
+            {
+                dto.EntitesImpactees = incident.EntitesImpactees
+                    .Select(e => new EntiteImpacteeDTO
+                    {
+                        Id = e.Id,
+                        TypeEntiteImpactee = e.TypeEntiteImpactee,
+                        // Ajoutez d'autres propriétés si nécessaire
+                    })
+                    .ToList();
+            }
+            else
+            {
+                dto.EntitesImpactees = new List<EntiteImpacteeDTO>();
+            }
+
             return dto;
         }
 

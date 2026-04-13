@@ -21,6 +21,7 @@ namespace projet0.Application.Commun.DTOs.Incident
         public string CreatedByName { get; set; }
         public TypeProbleme TypeProbleme { get; set; }
         public string Emplacement { get; set; }
+        public List<EntiteImpacteeDTO> EntitesImpactees { get; set; } = new();
 
     }
 }
