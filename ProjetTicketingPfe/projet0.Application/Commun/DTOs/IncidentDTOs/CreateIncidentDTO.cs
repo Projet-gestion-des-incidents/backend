@@ -11,7 +11,7 @@ namespace projet0.Application.Commun.DTOs.Incident
     {
         public string? DescriptionIncident { get; set; }
         public TypeProbleme TypeProbleme { get; set; }
-        public string Emplacement { get; set; }
+        public string? Emplacement { get; set; }
         public List<Guid> TPEIds { get; set; }
         public IFormFileCollection? PiecesJointes { get; set; }
 

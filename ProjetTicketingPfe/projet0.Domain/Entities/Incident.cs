@@ -27,7 +27,7 @@ namespace projet0.Domain.Entities
 
         // Audit
         public DateTime? UpdatedAt { get; set; }
-        public string Emplacement { get; set; }
+        public string? Emplacement { get; set; }
         public TypeProbleme TypeProbleme { get; set; }
 
         // Relation avec les TPEs
