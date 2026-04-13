@@ -25,6 +25,32 @@ namespace projet0.Infrastructure.Data.Configurations
                 .WithMany(u => u.TPEs)
                 .HasForeignKey(t => t.CommercantId)
                 .OnDelete(DeleteBehavior.SetNull);
-        }
+
+            // ✅ CONFIGURATION DES CHAMPS D'AUDIT
+            builder.Property(t => t.CreatedAt)
+                .IsRequired()
+                .HasDefaultValueSql("GETUTCDATE()");
+
+            builder.Property(t => t.CreatedById)
+                .IsRequired(false);
+
+            builder.Property(t => t.UpdatedAt)
+                .IsRequired(false);
+
+            builder.Property(t => t.UpdatedById)
+                .IsRequired(false);
+
+            // Relations avec les utilisateurs pour l'audit
+            builder.HasOne(t => t.CreatedBy)
+                .WithMany()
+                .HasForeignKey(t => t.CreatedById)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasOne(t => t.UpdatedBy)
+                .WithMany()
+                .HasForeignKey(t => t.UpdatedById)
+                .OnDelete(DeleteBehavior.Restrict);
+        
+    }
     }
 }

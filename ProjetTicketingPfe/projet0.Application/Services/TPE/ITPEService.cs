@@ -9,8 +9,8 @@ namespace projet0.Application.Services.TPE
 {
     public interface ITPEService
     {
-        Task<ApiResponse<TPEDto>> CreateAsync(CreateTPEDto dto);
-        Task<ApiResponse<TPEDto>> UpdateAsync(Guid id, UpdateTPEDto dto);
+        Task<ApiResponse<TPEDto>> CreateAsync(CreateTPEDto dto, Guid userId);
+        Task<ApiResponse<TPEDto>> UpdateAsync(Guid id, UpdateTPEDto dto, Guid userId);
         Task<ApiResponse<string>> DeleteAsync(Guid id);
         Task<ApiResponse<TPEDto>> GetByIdAsync(Guid id);
         Task<ApiResponse<IEnumerable<TPEDto>>> GetByCommercantIdAsync(Guid commercantId);

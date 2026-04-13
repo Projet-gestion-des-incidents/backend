@@ -1,12 +1,13 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;  
 using projet0.Application.Common.Models.Pagination;
 using projet0.Application.Commun.DTOs;
 using projet0.Application.Commun.Ressources;
 using projet0.Application.Services.TPE;
 using System;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;  
+using System.Security.Claims;
 
 
 namespace projet0.API.Controllers
@@ -25,11 +26,22 @@ namespace projet0.API.Controllers
             _logger = logger;
         }
 
+        // ✅ AJOUTER CETTE MÉTHODE
+        private Guid GetCurrentUserId()
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim != null && Guid.TryParse(userIdClaim.Value, out var userId))
+                return userId;
+
+            throw new UnauthorizedAccessException("Utilisateur non authentifié");
+        }
+
         [HttpPost]
         [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> Create(CreateTPEDto dto)
         {
-            var result = await _tpeService.CreateAsync(dto);
+            var userId = GetCurrentUserId(); // Récupérer l'ID de l'admin connecté
+            var result = await _tpeService.CreateAsync(dto, userId);
             return result.ResultCode == 0 ? Ok(result) : BadRequest(result);
         }
 
@@ -37,7 +49,8 @@ namespace projet0.API.Controllers
         [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> Update(Guid id, UpdateTPEDto dto)
         {
-            var result = await _tpeService.UpdateAsync(id, dto);
+            var userId = GetCurrentUserId(); // Récupérer l'ID de l'admin connecté
+            var result = await _tpeService.UpdateAsync(id, dto, userId);
             return result.ResultCode == 0 ? Ok(result) : BadRequest(result);
         }
 

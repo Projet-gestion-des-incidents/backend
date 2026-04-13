@@ -15,7 +15,13 @@ namespace projet0.Application.Commun.DTOs
         
         public Guid? CommercantId { get; set; }
         public string CommercantNom { get; set; }
-        
+
+        // ✅ CHAMPS D'AUDIT
+        public DateTime CreatedAt { get; set; }
+        public string CreatedByNom { get; set; }
+        public DateTime? UpdatedAt { get; set; }
+        public string UpdatedByNom { get; set; }
+
     }
 
     public class CreateTPEDto
@@ -33,5 +39,6 @@ namespace projet0.Application.Commun.DTOs
      
         public ModeleTPE Modele { get; set; }
         public Guid? CommercantId { get; set; }
+
     }
 }

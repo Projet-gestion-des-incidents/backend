@@ -12,6 +12,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
+
 using TpeEntity = projet0.Domain.Entities.TPE;
 
 namespace projet0.Application.Services.TPEService
@@ -31,6 +32,8 @@ namespace projet0.Application.Services.TPEService
             _userRepository = userRepository;
             _logger = logger;
         }
+
+        
 
         private async Task<T> MeasureAsync<T>(string actionName, object input, Func<Task<T>> action)
         {
@@ -53,7 +56,7 @@ namespace projet0.Application.Services.TPEService
             }
         }
 
-        public async Task<ApiResponse<TPEDto>> CreateAsync(CreateTPEDto dto)
+        public async Task<ApiResponse<TPEDto>> CreateAsync(CreateTPEDto dto, Guid userId)
         {
             return await MeasureAsync("CreateTPE", dto, async () =>
             {
@@ -90,7 +93,10 @@ namespace projet0.Application.Services.TPEService
                 var abbreviation = ModeleTPEHelper.GetAbbreviation(dto.Modele);
                 var numSerieComplet = $"{abbreviation}-{numSerie}";
 
-                // 5. Créer le TPE
+                // 5. Récupérer l'utilisateur connecté (admin)
+                var admin = await _userRepository.GetByIdAsync(userId);
+
+                // 6. Créer le TPE
                 var tpe = new TpeEntity
                 {
                     Id = Guid.NewGuid(),
@@ -98,12 +104,16 @@ namespace projet0.Application.Services.TPEService
                     NumSerieComplet = numSerieComplet,
                     Modele = dto.Modele,
                     CommercantId = dto.CommercantId,
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedById = userId,
+                    UpdatedAt = null,
+                    UpdatedById = null
                 };
 
                 await _tpeRepository.AddAsync(tpe);
                 await _tpeRepository.SaveChangesAsync();
 
-                // 6. Mapper vers DTO
+                // 7. Mapper vers DTO
                 var tpeDto = new TPEDto
                 {
                     Id = tpe.Id,
@@ -112,6 +122,10 @@ namespace projet0.Application.Services.TPEService
                     Modele = tpe.Modele,
                     CommercantId = tpe.CommercantId,
                     CommercantNom = $"{commercant.Nom} {commercant.Prenom}",
+                    CreatedAt = tpe.CreatedAt,
+                    CreatedByNom = admin != null ? $"{admin.Nom} {admin.Prenom}" : "Inconnu",
+                    UpdatedAt = null,
+                    UpdatedByNom = null
                 };
 
                 _logger.LogInformation(
@@ -127,7 +141,8 @@ namespace projet0.Application.Services.TPEService
             });
         }
 
-        public async Task<ApiResponse<TPEDto>> UpdateAsync(Guid id, UpdateTPEDto dto)
+
+        public async Task<ApiResponse<TPEDto>> UpdateAsync(Guid id, UpdateTPEDto dto, Guid userId)
         {
             return await MeasureAsync("UpdateTPE", new { id, dto }, async () =>
             {
@@ -136,6 +151,10 @@ namespace projet0.Application.Services.TPEService
                 {
                     return ApiResponse<TPEDto>.Failure("TPE non trouvé", resultCode: 42);
                 }
+
+                // Récupérer les informations de l'admin pour l'audit
+                var admin = await _userRepository.GetByIdAsync(userId);
+                var createdByUser = tpe.CreatedById.HasValue ? await _userRepository.GetByIdAsync(tpe.CreatedById.Value) : null;
 
                 // Gérer le changement de modèle
                 bool modeleChanged = tpe.Modele != dto.Modele;
@@ -153,7 +172,6 @@ namespace projet0.Application.Services.TPEService
                 // Gérer le changement de commerçant (peut être null)
                 if (dto.CommercantId.HasValue)
                 {
-                    // Vérifier que le nouveau commerçant existe
                     var nouveauCommercant = await _userRepository.GetByIdAsync(dto.CommercantId.Value);
                     if (nouveauCommercant == null)
                     {
@@ -170,9 +188,12 @@ namespace projet0.Application.Services.TPEService
                 }
                 else
                 {
-                    // Si null, on détache le TPE du commerçant
                     tpe.CommercantId = null;
                 }
+
+                // Mettre à jour les champs d'audit
+                tpe.UpdatedAt = DateTime.UtcNow;
+                tpe.UpdatedById = userId;
 
                 await _tpeRepository.UpdateAsync(tpe);
                 await _tpeRepository.SaveChangesAsync();
@@ -192,6 +213,10 @@ namespace projet0.Application.Services.TPEService
                     Modele = tpe.Modele,
                     CommercantId = tpe.CommercantId,
                     CommercantNom = commercant != null ? $"{commercant.Nom} {commercant.Prenom}" : "Non assigné",
+                    CreatedAt = tpe.CreatedAt,
+                    CreatedByNom = createdByUser != null ? $"{createdByUser.Nom} {createdByUser.Prenom}" : "Inconnu",
+                    UpdatedAt = tpe.UpdatedAt,
+                    UpdatedByNom = admin != null ? $"{admin.Nom} {admin.Prenom}" : null
                 };
 
                 // Construire le message de succès
@@ -210,6 +235,7 @@ namespace projet0.Application.Services.TPEService
                     resultCode: 0
                 );
             });
+        
         }
 
         public async Task<ApiResponse<string>> DeleteAsync(Guid id)
@@ -257,6 +283,18 @@ namespace projet0.Application.Services.TPEService
                     commercant = await _userRepository.GetByIdAsync(tpe.CommercantId.Value);
                 }
 
+                ApplicationUser createdBy = null;
+                if (tpe.CreatedById.HasValue)
+                {
+                    createdBy = await _userRepository.GetByIdAsync(tpe.CreatedById.Value);
+                }
+
+                ApplicationUser updatedBy = null;
+                if (tpe.UpdatedById.HasValue)
+                {
+                    updatedBy = await _userRepository.GetByIdAsync(tpe.UpdatedById.Value);
+                }
+
                 var tpeDto = new TPEDto
                 {
                     Id = tpe.Id,
@@ -265,6 +303,10 @@ namespace projet0.Application.Services.TPEService
                     Modele = tpe.Modele,
                     CommercantId = tpe.CommercantId,
                     CommercantNom = commercant != null ? $"{commercant.Nom} {commercant.Prenom}" : "Non assigné",
+                    CreatedAt = tpe.CreatedAt,
+                    CreatedByNom = createdBy != null ? $"{createdBy.Nom} {createdBy.Prenom}" : "Inconnu",
+                    UpdatedAt = tpe.UpdatedAt,
+                    UpdatedByNom = updatedBy != null ? $"{updatedBy.Nom} {updatedBy.Prenom}" : null
                 };
 
                 return ApiResponse<TPEDto>.Success(
@@ -451,7 +493,7 @@ namespace projet0.Application.Services.TPEService
                 _ => query.OrderBy(t => t.NumSerieComplet)
             };
         }
-    }
+    } 
 
     // ModeleTPEHelper - CLASSE STATIQUE SÉPARÉE
     public static class ModeleTPEHelper

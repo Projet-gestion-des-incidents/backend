@@ -15,10 +15,20 @@ namespace projet0.Domain.Entities
         // Foreign Key - Relation Many-to-One avec User (Commercant)
         public Guid? CommercantId { get; set; }
 
+        // ✅ CHAMPS D'AUDIT
+        public DateTime CreatedAt { get; set; }
+        public Guid? CreatedById { get; set; }
+        public DateTime? UpdatedAt { get; set; }
+        public Guid? UpdatedById { get; set; }
+
         // Navigation Properties
         public virtual ApplicationUser? Commercant { get; set; }  // Un TPE appartient à un commerçant
 
         // Relation Many-to-Many avec Incident
         public virtual ICollection<IncidentTPE> IncidentTPEs { get; set; }
+        // Navigation properties pour les utilisateurs
+        public virtual ApplicationUser? CreatedBy { get; set; }
+        public virtual ApplicationUser? UpdatedBy { get; set; }
+
     }
 }
