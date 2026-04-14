@@ -1,4 +1,5 @@
-﻿using projet0.Application.Commun.Ressources;
+﻿using Microsoft.Extensions.Logging;
+using projet0.Application.Commun.Ressources;
 using projet0.Application.Interfaces;
 using projet0.Application.Services.Email;
 using projet0.Domain.Entities;
@@ -14,14 +15,18 @@ namespace projet0.Application.Services.Otp
         private readonly IOtpRepository _otpRepository;
         private readonly IEmailService _emailService;
         private readonly IUserRepository _userRepository;
+        private readonly ILogger<OtpService> _logger;
+
         public OtpService(
             IOtpRepository otpRepository,
             IEmailService emailService,
-            IUserRepository userRepository)
+            IUserRepository userRepository,
+            ILogger<OtpService> logger)
         {
             _otpRepository = otpRepository;
             _emailService = emailService;
             _userRepository = userRepository;
+            _logger = logger;
         }
         public async Task<ApiResponse<string>> GenerateAndSendOtpAsync(
     ApplicationUser user,
@@ -30,6 +35,9 @@ namespace projet0.Application.Services.Otp
             try
             {
                 var code = new Random().Next(100000, 999999).ToString();
+
+                _logger.LogInformation("🔐 Génération OTP pour {Email} - Code: {Code} - Purpose: {Purpose}",
+                    user.Email, code, purpose);
 
                 var otp = new OtpCode
                 {
@@ -44,53 +52,75 @@ namespace projet0.Application.Services.Otp
 
                 await _otpRepository.AddAsync(otp);
 
-                // Logique d'envoi d'email
-              
-                    // COMMENTÉ POUR TEST - À décommenter en production
-                    // emailSent = await _emailService.SendAsync(
-                    //     user.Email,
-                    //     "Votre code OTP",
-                    //     $"Votre code est : {code} (valide 5 minutes)"
-                    // );
+                _logger.LogInformation("✅ OTP sauvegardé en base pour {Email} (ID: {OtpId})", user.Email, otp.Id);
 
-                    try
-                    {
-                        // Simulation en dev
-                        bool emailSent = true;
-                        // PROD :
-                        // bool emailSent = await _emailService.SendAsync(...);
+                // 3. Envoyer l'email RÉELLEMENT
+                bool emailSent = false;
+                string emailErrorMessage = null;
 
-                        return emailSent
-                            ? ApiResponse<string>.Success(
-                                data: code, //  uniquement en DEV
-                                message: "Code OTP généré et envoyé avec succès",
-                                resultCode: 0
-                            )
-                            : ApiResponse<string>.Success(
-                                data: code,
-                                message: "Code OTP généré mais email non envoyé",
-                                resultCode: 1
-                            );
-                    }
-                    catch (Exception emailEx)
-                    {
-                        return ApiResponse<string>.Failure(
-                            message: "Code OTP généré mais erreur lors de l'envoi de l'email",
-                            errors: new List<string> { emailEx.Message },
-                            resultCode: 2
-                        );
-                    }
-                }
-                catch (Exception ex)
+                try
                 {
-                    return ApiResponse<string>.Failure(
-                        message: "Erreur lors de la génération de l'OTP",
-                        errors: new List<string> { ex.Message },
-                        resultCode: 99
+                    // Préparer le sujet et le corps selon le purpose
+                    string subject = purpose == OtpPurpose.EmailConfirmation
+                        ? "🔐 Confirmation de votre inscription - Code OTP"
+                        : "🔐 Réinitialisation de votre mot de passe - Code OTP";
+
+                    string body = $@"
+Bonjour {user.Prenom} {user.Nom},
+
+Votre code de vérification est : {code}
+
+⏰ Ce code est valable pendant 5 minutes.
+
+🔒 Pour des raisons de sécurité, ne partagez ce code avec personne.
+
+Si vous n'avez pas demandé cette vérification, ignorez cet email.
+
+Cordialement,
+L'équipe technique
+";
+
+                    // ✅ ENVOI RÉEL DE L'EMAIL
+                    await _emailService.SendAsync(user.Email, subject, body);
+                    emailSent = true;
+                    _logger.LogInformation("📧 Email OTP envoyé avec succès à {Email}", user.Email);
+                }
+                catch (Exception emailEx)
+                {
+                    emailErrorMessage = emailEx.Message;
+                    _logger.LogError(emailEx, "❌ Échec envoi email OTP à {Email}", user.Email);
+                }
+
+                // 4. Retourner la réponse (AVEC le code pour vos tests)
+                if (emailSent)
+                {
+                    return ApiResponse<string>.Success(
+                        data: code,  // ⚠️ Gardé pour les tests (à supprimer en production)
+                        message: "Code OTP généré et envoyé avec succès par email",
+                        resultCode: 0
+                    );
+                }
+                else
+                {
+                    // Email non envoyé mais code généré - utile pour les tests
+                    return ApiResponse<string>.Success(
+                        data: code,
+                        message: $"⚠️ Code OTP généré mais email non envoyé. Code: {code} (valide 5 min). Erreur: {emailErrorMessage}",
+                        resultCode: 1
                     );
                 }
             }
-            
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ Erreur lors de la génération de l'OTP pour {Email}", user?.Email);
+                return ApiResponse<string>.Failure(
+                    message: "Erreur lors de la génération du code OTP",
+                    errors: new List<string> { ex.Message },
+                    resultCode: 99
+                );
+            }
+        }
+
         public async Task<ApiResponse<bool>> ValidateOtpAsync(
             Guid userId,
             string code,
@@ -98,11 +128,15 @@ namespace projet0.Application.Services.Otp
         {
             try
             {
+                _logger.LogInformation("🔐 Validation OTP pour UserId: {UserId}, Code: {Code}, Purpose: {Purpose}",
+                    userId, code, purpose);
+
                 var otp = await _otpRepository
                     .GetValidOtpAsync(userId, code, purpose);
 
                 if (otp == null)
                 {
+                    _logger.LogWarning("❌ OTP invalide ou inexistant pour UserId: {UserId}, Code: {Code}", userId, code);
                     return ApiResponse<bool>.Failure(
                message: "OTP invalide, expiré ou déjà utilisé",
                resultCode: 30);
@@ -111,6 +145,7 @@ namespace projet0.Application.Services.Otp
                 // Vérifier si le code a expiré
                 if (otp.ExpireAt < DateTime.UtcNow)
                 {
+                    _logger.LogWarning("⏰ OTP expiré pour UserId: {UserId}, ExpireAt: {ExpireAt}", userId, otp.ExpireAt);
                     return ApiResponse<bool>.Failure(
                message: "Le code OTP a expiré",
                resultCode: 31
@@ -120,6 +155,7 @@ namespace projet0.Application.Services.Otp
                 // Vérifier si le code a déjà été utilisé
                 if (otp.Status == OtpStatus.Consumed)
                 {
+                    _logger.LogWarning("🔄 OTP déjà utilisé pour UserId: {UserId}", userId);
                     return ApiResponse<bool>.Failure(
                  message: "Ce code OTP a déjà été utilisé",
                  resultCode: 32 // Code d'erreur pour OTP déjà utilisé
@@ -129,15 +165,23 @@ namespace projet0.Application.Services.Otp
                 // Marquer le code comme consommé
                 otp.Status = OtpStatus.Consumed;
                 await _otpRepository.UpdateAsync(otp);
-
+                _logger.LogInformation("✅ OTP marqué comme consommé pour UserId: {UserId}", userId);
                 // SI C'EST POUR LA CONFIRMATION D'EMAIL, METTRE EmailConfirmed = true
                 if (purpose == OtpPurpose.EmailConfirmation)
                 {
                     var user = await _userRepository.GetByIdAsync(userId);
                     if (user != null)
                     {
-                        user.EmailConfirmed = true;
-                        await _userRepository.UpdateAsync(user);
+                        if (!user.EmailConfirmed)
+                        {
+                            user.EmailConfirmed = true;
+                            await _userRepository.UpdateAsync(user);
+                            _logger.LogInformation("✅ Email confirmé pour l'utilisateur {UserId} ({Email})", userId, user.Email);
+                        }
+                        else
+                        {
+                            _logger.LogInformation("ℹ️ Email déjà confirmé pour l'utilisateur {UserId}", userId);
+                        }
                     }
                 }
 
@@ -149,6 +193,7 @@ namespace projet0.Application.Services.Otp
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "❌ Erreur lors de la validation OTP pour UserId: {UserId}", userId);
                 return ApiResponse<bool>.Failure(
                     message: "Erreur lors de la validation de l'OTP",
                     errors: new List<string> { ex.Message },
