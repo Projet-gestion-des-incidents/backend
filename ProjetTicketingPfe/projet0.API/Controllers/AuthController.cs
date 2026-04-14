@@ -214,19 +214,45 @@ namespace projet0.API.Controllers
                    : BadRequest(result);
         }
 
+        // Dans AuthController.cs - ResetPassword
         [HttpPost("reset-password")]
         [AllowAnonymous]
-        public async Task<IActionResult> ResetPassword(ResetPasswordDTO dto)
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDTO dto)
         {
+            // ✅ 1. Valider le modèle
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ApiResponse<string>.Failure(
+                    message: "Données invalides",
+                    errors: ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList(),
+                    resultCode: 99));
+            }
+
+            // ✅ 2. Vérifier que les mots de passe correspondent
+            if (dto.NewPassword != dto.ConfirmPassword)
+            {
+                return BadRequest(ApiResponse<string>.Failure(
+                    message: "Les mots de passe ne correspondent pas",
+                    resultCode: 42));
+            }
+
+            // ✅ 3. Vérifier la force du mot de passe
+            if (dto.NewPassword.Length < 6)
+            {
+                return BadRequest(ApiResponse<string>.Failure(
+                    message: "Le mot de passe doit contenir au moins 6 caractères",
+                    resultCode: 43));
+            }
+
             var user = await _userManager.FindByEmailAsync(dto.Email);
             if (user == null)
             {
                 return NotFound(ApiResponse<string>.Failure(
-                     message: "Utilisateur introuvable",
-                     resultCode: 40
-                 ));
+                    message: "Utilisateur introuvable",
+                    resultCode: 40));
             }
 
+            // ✅ 4. Valider l'OTP
             var otpValid = await _otpService.ValidateOtpAsync(
                 user.Id,
                 dto.OtpCode,
@@ -236,34 +262,29 @@ namespace projet0.API.Controllers
             if (otpValid.ResultCode != 0)
             {
                 return BadRequest(ApiResponse<string>.Failure(
-                     message: otpValid.Message!,
-                     resultCode: otpValid.ResultCode
-                 ));
+                    message: otpValid.Message!,
+                    resultCode: otpValid.ResultCode));
             }
 
-            // Générer token Identity
+            // ✅ 5. Réinitialiser le mot de passe
             var resetToken = await _userManager.GeneratePasswordResetTokenAsync(user);
-
-            var result = await _userManager.ResetPasswordAsync(
-                user,
-                resetToken,
-                dto.NewPassword
-            );
+            var result = await _userManager.ResetPasswordAsync(user, resetToken, dto.NewPassword);
 
             if (!result.Succeeded)
             {
                 return BadRequest(ApiResponse<string>.Failure(
-                    message: "Erreur lors de la réinitialisation du mot de passe",
+                    message: "Erreur lors de la réinitialisation",
                     errors: result.Errors.Select(e => e.Description).ToList(),
-                    resultCode: 41
-                ));
+                    resultCode: 41));
             }
 
+            // ✅ 6. Optionnel : Déconnecter toutes les sessions actives
+            await _userManager.UpdateSecurityStampAsync(user);
+
             return Ok(ApiResponse<string>.Success(
-                data: "Mot de passe réinitialisé avec succès",
-                message: "Mot de passe réinitialisé avec succès",
-                resultCode: 0
-            ));
+                data: null,
+                message: "Mot de passe réinitialisé avec succès. Vous pouvez maintenant vous connecter.",
+                resultCode: 0));
         }
     }
 }

@@ -65,20 +65,37 @@ namespace projet0.Application.Services.Otp
                         ? "🔐 Confirmation de votre inscription - Code OTP"
                         : "🔐 Réinitialisation de votre mot de passe - Code OTP";
 
-                    string body = $@"
+                    // Dans GenerateAndSendOtpAsync - Améliorez le body pour ResetPassword
+                    string body;
+                    if (purpose == OtpPurpose.EmailConfirmation)
+                    {
+                        body = $@"
 Bonjour {user.Prenom} {user.Nom},
 
-Votre code de vérification est : {code}
+Votre code de vérification pour confirmer votre inscription est : {code}
+
+⏰ Ce code est valable pendant 5 minutes.
+🔒 Ne partagez ce code avec personne.
+
+Cordialement,
+L'équipe technique";
+                    }
+                    else // ResetPassword
+                    {
+                        body = $@"
+Bonjour {user.Prenom} {user.Nom},
+
+Nous avons reçu une demande de réinitialisation de votre mot de passe.
+
+🔐 Votre code de vérification est : {code}
 
 ⏰ Ce code est valable pendant 5 minutes.
 
-🔒 Pour des raisons de sécurité, ne partagez ce code avec personne.
-
-Si vous n'avez pas demandé cette vérification, ignorez cet email.
+Si vous n'avez pas demandé cette réinitialisation, ignorez cet email. Votre mot de passe restera inchangé.
 
 Cordialement,
-L'équipe technique
-";
+L'équipe technique";
+                    }
 
                     // ✅ ENVOI RÉEL DE L'EMAIL
                     await _emailService.SendAsync(user.Email, subject, body);
