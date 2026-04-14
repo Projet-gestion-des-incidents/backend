@@ -894,7 +894,7 @@ namespace projet0.Application.Services.User
                     Nom = dto.Nom,
                     Prenom = dto.Prenom,
                     
-                    EmailConfirmed = false,
+                    EmailConfirmed = true,
                     Statut = UserStatut.Actif
                 };
 
@@ -1037,7 +1037,7 @@ namespace projet0.Application.Services.User
                     Prenom = "Magasin",                           // Valeur par défaut
                     PhoneNumber = dto.PhoneNumber,
                     Adresse = dto.Adresse,
-                    EmailConfirmed = false,
+                    EmailConfirmed = true,
                     Statut = UserStatut.Actif
                 };
 
