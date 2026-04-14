@@ -331,19 +331,42 @@ namespace projet0.Application.Services.TPEService
                 }
 
                 var tpes = await _tpeRepository.GetByCommercantIdAsync(commercantId);
-                var tpeDtos = tpes.Select(t => new TPEDto
+                var tpeDtos = new List<TPEDto>();
+
+                foreach (var tpe in tpes)
                 {
-                    Id = t.Id,
-                    NumSerie = t.NumSerie,
-                    NumSerieComplet = t.NumSerieComplet,
-                    Modele = t.Modele,
-                    CommercantId = t.CommercantId,
-                    CommercantNom = $"{commercant.Nom} {commercant.Prenom}",
-                });
+                    // ✅ Récupérer les infos de création et modification
+                    ApplicationUser createdBy = null;
+                    if (tpe.CreatedById.HasValue)
+                    {
+                        createdBy = await _userRepository.GetByIdAsync(tpe.CreatedById.Value);
+                    }
+
+                    ApplicationUser updatedBy = null;
+                    if (tpe.UpdatedById.HasValue)
+                    {
+                        updatedBy = await _userRepository.GetByIdAsync(tpe.UpdatedById.Value);
+                    }
+
+                    tpeDtos.Add(new TPEDto
+                    {
+                        Id = tpe.Id,
+                        NumSerie = tpe.NumSerie,
+                        NumSerieComplet = tpe.NumSerieComplet,
+                        Modele = tpe.Modele,
+                        CommercantId = tpe.CommercantId,
+                        CommercantNom = $"{commercant.Nom} {commercant.Prenom}",
+                        // ✅ AJOUTER LES CHAMPS D'AUDIT
+                        CreatedAt = tpe.CreatedAt,
+                        CreatedByNom = createdBy != null ? $"{createdBy.Nom} {createdBy.Prenom}" : "Inconnu",
+                        UpdatedAt = tpe.UpdatedAt,
+                        UpdatedByNom = updatedBy != null ? $"{updatedBy.Nom} {updatedBy.Prenom}" : null
+                    });
+                }
 
                 return ApiResponse<IEnumerable<TPEDto>>.Success(
                     data: tpeDtos,
-                    message: $"{tpeDtos.Count()} TPE(s) trouvé(s)",
+                    message: $"{tpeDtos.Count} TPE(s) trouvé(s)",
                     resultCode: 0
                 );
             });
@@ -364,6 +387,19 @@ namespace projet0.Application.Services.TPEService
                         commercant = await _userRepository.GetByIdAsync(tpe.CommercantId.Value);
                     }
 
+                    // ✅ Récupérer les infos de création et modification
+                    ApplicationUser createdBy = null;
+                    if (tpe.CreatedById.HasValue)
+                    {
+                        createdBy = await _userRepository.GetByIdAsync(tpe.CreatedById.Value);
+                    }
+
+                    ApplicationUser updatedBy = null;
+                    if (tpe.UpdatedById.HasValue)
+                    {
+                        updatedBy = await _userRepository.GetByIdAsync(tpe.UpdatedById.Value);
+                    }
+
                     tpeDtos.Add(new TPEDto
                     {
                         Id = tpe.Id,
@@ -372,6 +408,11 @@ namespace projet0.Application.Services.TPEService
                         Modele = tpe.Modele,
                         CommercantId = tpe.CommercantId,
                         CommercantNom = commercant != null ? $"{commercant.Nom} {commercant.Prenom}" : "Non assigné",
+                        // ✅ AJOUTER LES CHAMPS D'AUDIT
+                        CreatedAt = tpe.CreatedAt,
+                        CreatedByNom = createdBy != null ? $"{createdBy.Nom} {createdBy.Prenom}" : "Inconnu",
+                        UpdatedAt = tpe.UpdatedAt,
+                        UpdatedByNom = updatedBy != null ? $"{updatedBy.Nom} {updatedBy.Prenom}" : null
                     });
                 }
 
@@ -438,16 +479,38 @@ namespace projet0.Application.Services.TPEService
 
                     _logger.LogInformation("{Count} TPEs récupérés pour la page {Page}", items.Count, request.Page);
 
-                    // 6. Mapper vers DTO
-                    var dtos = items.Select(t => new TPEDto
+                    // 6. Mapper vers DTO avec les champs d'audit
+                    var dtos = new List<TPEDto>();
+                    foreach (var tpe in items)
                     {
-                        Id = t.Id,
-                        NumSerie = t.NumSerie,
-                        NumSerieComplet = t.NumSerieComplet,
-                        Modele = t.Modele,
-                        CommercantId = t.CommercantId,
-                        CommercantNom = t.Commercant != null ? $"{t.Commercant.Nom} {t.Commercant.Prenom}" : "Non assigné"
-                    }).ToList();
+                        // Récupérer les infos de création et modification
+                        ApplicationUser createdBy = null;
+                        if (tpe.CreatedById.HasValue)
+                        {
+                            createdBy = await _userRepository.GetByIdAsync(tpe.CreatedById.Value);
+                        }
+
+                        ApplicationUser updatedBy = null;
+                        if (tpe.UpdatedById.HasValue)
+                        {
+                            updatedBy = await _userRepository.GetByIdAsync(tpe.UpdatedById.Value);
+                        }
+
+                        dtos.Add(new TPEDto
+                        {
+                            Id = tpe.Id,
+                            NumSerie = tpe.NumSerie,
+                            NumSerieComplet = tpe.NumSerieComplet,
+                            Modele = tpe.Modele,
+                            CommercantId = tpe.CommercantId,
+                            CommercantNom = tpe.Commercant != null ? $"{tpe.Commercant.Nom} {tpe.Commercant.Prenom}" : "Non assigné",
+                            // ✅ AJOUTER LES CHAMPS D'AUDIT
+                            CreatedAt = tpe.CreatedAt,
+                            CreatedByNom = createdBy != null ? $"{createdBy.Nom} {createdBy.Prenom}" : "Inconnu",
+                            UpdatedAt = tpe.UpdatedAt,
+                            UpdatedByNom = updatedBy != null ? $"{updatedBy.Nom} {updatedBy.Prenom}" : null
+                        });
+                    }
 
                     // 7. Créer le résultat paginé
                     var pagedResult = new PagedResult<TPEDto>
