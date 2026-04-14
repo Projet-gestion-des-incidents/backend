@@ -55,5 +55,46 @@ namespace projet0.Application.Services.Email
                 throw;
             }
         }
+
+        // ✅ Méthode d'envoi d'email de bienvenue avec mot de passe
+        public async Task SendWelcomeEmailAsync(string to, string nom, string prenom, string defaultPassword)
+        {
+            try
+            {
+                var subject = "🎉 Bienvenue sur notre plateforme - Vos identifiants de connexion";
+
+                var body = $@"
+Bonjour {prenom} {nom},
+
+Votre compte a été créé avec succès par l'administrateur.
+
+🔐 **Vos identifiants de connexion :**
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📧 Email : {to}
+🔑 Mot de passe temporaire : {defaultPassword}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⚠️ **Important :**
+• Ce mot de passe est temporaire
+• Veuillez le changer dès votre première connexion
+• Ne partagez jamais votre mot de passe
+
+🔗 **Lien de connexion :** [URL de votre application]
+
+Pour des raisons de sécurité, ce lien expirera dans 24 heures.
+
+Cordialement,
+L'équipe d'administration
+";
+
+                await SendAsync(to, subject, body);
+                _logger.LogInformation("Email de bienvenue envoyé à {Email} avec mot de passe temporaire", to);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erreur lors de l'envoi de l'email de bienvenue à {Email}", to);
+                throw;
+            }
+        }
     }
 }

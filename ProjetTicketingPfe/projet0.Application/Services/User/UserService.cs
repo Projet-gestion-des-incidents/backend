@@ -6,6 +6,7 @@ using projet0.Application.Common.Models.Pagination;
 using projet0.Application.Commun.DTOs;
 using projet0.Application.Commun.Ressources;
 using projet0.Application.Interfaces;
+using projet0.Application.Services.Email;
 using projet0.Domain.Entities;
 using System.Data;
 using System.Diagnostics;
@@ -20,14 +21,17 @@ namespace projet0.Application.Services.User
         private readonly RoleManager<IdentityRole<Guid>> _roleManager;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IHostEnvironment _webHostEnvironment;
-        
-        public UserService(IUserRepository userRepository, ILogger<UserService> logger,UserManager<ApplicationUser> userManager, RoleManager<IdentityRole<Guid>> roleManager, IHostEnvironment webHostEnvironment)
+        private readonly IEmailService _emailService;
+        public UserService(IUserRepository userRepository, ILogger<UserService> logger,UserManager<ApplicationUser> userManager, RoleManager<IdentityRole<Guid>> roleManager, IHostEnvironment webHostEnvironment, IEmailService emailService)
         {
             _userRepository = userRepository;
             _logger = logger;
             _roleManager = roleManager;
             _userManager = userManager;
             _webHostEnvironment = webHostEnvironment;
+            _emailService = emailService;
+
+
         }
 
         // ================= HELPER STOPWATCH =================
@@ -881,7 +885,7 @@ namespace projet0.Application.Services.User
                         message: "Le rôle Technicien n'existe pas",
                         resultCode: 13);
                 }
-
+                string defaultPassword = GenerateRandomPassword();
                 // 4. Créer l'utilisateur
                 var user = new ApplicationUser
                 {
@@ -890,11 +894,12 @@ namespace projet0.Application.Services.User
                     Nom = dto.Nom,
                     Prenom = dto.Prenom,
                     
-                    EmailConfirmed = true,
+                    EmailConfirmed = false,
                     Statut = UserStatut.Actif
                 };
 
-                string defaultPassword = "Azerty123";
+                // 4. Générer un mot de passe temporaire sécurisé
+                
                 var result = await _userRepository.CreateAsync(user, defaultPassword);
 
                 if (!result.Succeeded)
@@ -908,14 +913,62 @@ namespace projet0.Application.Services.User
                 // 5. Assigner le rôle
                 await _userManager.AddToRoleAsync(user, role.Name);
 
+                // ✅ 7. ENVOYER L'EMAIL AVEC LE MOT DE PASSE
+                try
+                {
+                    await _emailService.SendWelcomeEmailAsync(
+                        user.Email,
+                        user.Nom,
+                        user.Prenom,
+                        defaultPassword
+                    );
+
+                    _logger.LogInformation("✅ Email de bienvenue envoyé à {Email}", user.Email);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "❌ Échec envoi email de bienvenue à {Email}", user.Email);
+                    // On continue même si l'email échoue - on retourne quand même le mot de passe dans la réponse
+                }
+
                 _logger.LogInformation("Technicien créé avec succès | Email: {Email} | Mot de passe: {Password}",
                     user.Email, defaultPassword);
 
                 return ApiResponse<ApplicationUser>.Success(
-                    data: user,
-                    message: $"Technicien créé avec succès. Mot de passe par défaut: {defaultPassword}",
-                    resultCode: 0);
+    data: user,
+    message: $"Technicien '{dto.UserName}' créé avec succès. Un email a été envoyé à {user.Email} avec ses identifiants.",
+    resultCode: 0);
             });
+        }
+
+        // ✅ Méthode pour générer un mot de passe temporaire sécurisé
+        private string GenerateRandomPassword(int length = 10)
+        {
+            const string upperCase = "ABCDEFGHJKLMNOPQRSTUVWXYZ";
+            const string lowerCase = "abcdefghijkmnopqrstuvwxyz";
+            const string digits = "0123456789";
+            const string special = "!@#$%^&*";
+
+            var random = new Random();
+
+            // S'assurer d'avoir au moins un de chaque type
+            var passwordChars = new List<char>
+        {
+            upperCase[random.Next(upperCase.Length)],
+            lowerCase[random.Next(lowerCase.Length)],
+            digits[random.Next(digits.Length)],
+            special[random.Next(special.Length)]
+        };
+
+            // Remplir le reste
+            var allChars = upperCase + lowerCase + digits + special;
+            for (int i = passwordChars.Count; i < length; i++)
+            {
+                passwordChars.Add(allChars[random.Next(allChars.Length)]);
+            }
+
+            // Mélanger
+            return new string(passwordChars.OrderBy(x => random.Next()).ToArray());
         }
 
         // ================= CREATE COMMERCANT (MAGASIN) =================
@@ -973,6 +1026,7 @@ namespace projet0.Application.Services.User
                     userName = $"{baseUserName}_{counter}";
                     counter++;
                 }
+                string defaultPassword = GenerateRandomPassword();
 
                 // 5. Créer l'utilisateur
                 var user = new ApplicationUser
@@ -983,11 +1037,11 @@ namespace projet0.Application.Services.User
                     Prenom = "Magasin",                           // Valeur par défaut
                     PhoneNumber = dto.PhoneNumber,
                     Adresse = dto.Adresse,
-                    EmailConfirmed = true,
+                    EmailConfirmed = false,
                     Statut = UserStatut.Actif
                 };
 
-                string defaultPassword = "Azerty123";
+                
                 var result = await _userRepository.CreateAsync(user, defaultPassword);
 
                 if (!result.Succeeded)
@@ -1000,14 +1054,28 @@ namespace projet0.Application.Services.User
 
                 // 6. Assigner le rôle
                 await _userManager.AddToRoleAsync(user, role.Name);
+                // ✅ Envoyer l'email
+                try
+                {
+                    await _emailService.SendWelcomeEmailAsync(
+                        user.Email,
+                        user.Nom,
+                        "Magasin",
+                        defaultPassword
+                    );
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Erreur envoi email à {Email}", user.Email);
+                }
 
                 _logger.LogInformation("Commerçant (magasin) créé avec succès | Nom magasin: {NomMagasin} | UserName technique: {UserName} | Email: {Email}",
                     dto.NomMagasin, user.UserName, user.Email);
 
                 return ApiResponse<ApplicationUser>.Success(
-                    data: user,
-                    message: $"Magasin '{dto.NomMagasin}' créé avec succès. Mot de passe par défaut: {defaultPassword}",
-                    resultCode: 0);
+            data: user,
+            message: $"Magasin '{dto.NomMagasin}' créé avec succès. Un email a été envoyé à {user.Email} avec ses identifiants.",
+            resultCode: 0);
             });
         }
         // Dans UserService.cs
