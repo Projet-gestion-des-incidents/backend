@@ -952,6 +952,154 @@ namespace projet0.Application.Services.Incident
             }
         }
 
+        // Dans IncidentService.cs - Ajouter cette méthode
+
+        public async Task<ApiResponse<IncidentDashboardDTO>> GetIncidentDashboardAsync()
+        {
+            return await MeasureAsync(nameof(GetIncidentDashboardAsync), null, async () =>
+            {
+                try
+                {
+                    _logger.LogInformation("Récupération du dashboard incidents");
+
+                    // Récupérer tous les incidents
+                    var incidents = await _incidentRepository.GetAllAsync();
+                    var incidentsList = incidents.ToList();
+
+                    // ============================================
+                    // 1. STATISTIQUES GLOBALES
+                    // ============================================
+                    var total = incidentsList.Count;
+                    var nonTraite = incidentsList.Count(i => i.StatutIncident == null || i.StatutIncident == StatutIncident.NonTraite);
+                    var enCours = incidentsList.Count(i => i.StatutIncident == StatutIncident.EnCours);
+                    var ferme = incidentsList.Count(i => i.StatutIncident == StatutIncident.Ferme);
+
+                    var overview = new IncidentDashboardOverviewDTO
+                    {
+                        TotalIncidents = total,
+                        IncidentsNonTraite = nonTraite,
+                        IncidentsEnCours = enCours,
+                        IncidentsFerme = ferme,
+                        TauxNonTraite = total > 0 ? Math.Round((double)nonTraite / total * 100, 1) : 0,
+                        TauxEnCours = total > 0 ? Math.Round((double)enCours / total * 100, 1) : 0,
+                        TauxFerme = total > 0 ? Math.Round((double)ferme / total * 100, 1) : 0
+                    };
+
+                    // ============================================
+                    // 2. STATISTIQUES PAR STATUT (pour graphique)
+                    // ============================================
+                    var statsParStatut = new List<IncidentStatutStatDTO>
+            {
+                new IncidentStatutStatDTO
+                {
+                    Statut = "Non traité",
+                    Count = nonTraite,
+                    Color = "#ffc107",  // Jaune
+                    Pourcentage = total > 0 ? Math.Round((double)nonTraite / total * 100, 1) : 0
+                },
+                new IncidentStatutStatDTO
+                {
+                    Statut = "En cours",
+                    Count = enCours,
+                    Color = "#17a2b8",  // Bleu
+                    Pourcentage = total > 0 ? Math.Round((double)enCours / total * 100, 1) : 0
+                },
+                new IncidentStatutStatDTO
+                {
+                    Statut = "Fermé",
+                    Count = ferme,
+                    Color = "#28a745",  // Vert
+                    Pourcentage = total > 0 ? Math.Round((double)ferme / total * 100, 1) : 0
+                }
+            };
+
+                    // ============================================
+                    // 3. STATISTIQUES PAR JOUR (7 derniers jours)
+                    // ============================================
+                    var statsParJour = new List<IncidentJournalierDTO>();
+                    var today = DateTime.Today;
+
+                    for (int i = 6; i >= 0; i--)
+                    {
+                        var date = today.AddDays(-i);
+                        var incidentsDuJour = incidentsList.Where(i => i.DateDetection.Date == date).ToList();
+
+                        statsParJour.Add(new IncidentJournalierDTO
+                        {
+                            Date = date,
+                            Crees = incidentsDuJour.Count,
+                            NonTraite = incidentsDuJour.Count(i => i.StatutIncident == null || i.StatutIncident == StatutIncident.NonTraite),
+                            EnCours = incidentsDuJour.Count(i => i.StatutIncident == StatutIncident.EnCours),
+                            Ferme = incidentsDuJour.Count(i => i.StatutIncident == StatutIncident.Ferme)
+                        });
+                    }
+
+                    // ============================================
+                    // 4. STATISTIQUES PAR SEMAINE (4 dernières semaines)
+                    // ============================================
+                    var statsParSemaine = new List<IncidentJournalierDTO>();
+                    var todayWeek = DateTime.Today;
+
+                    for (int i = 3; i >= 0; i--)
+                    {
+                        var debutSemaine = todayWeek.AddDays(-(int)todayWeek.DayOfWeek - (i * 7));
+                        var finSemaine = debutSemaine.AddDays(6);
+                        var incidentsSemaine = incidentsList.Where(i => i.DateDetection.Date >= debutSemaine && i.DateDetection.Date <= finSemaine).ToList();
+
+                        statsParSemaine.Add(new IncidentJournalierDTO
+                        {
+                            Date = debutSemaine,
+                            Crees = incidentsSemaine.Count,
+                            NonTraite = incidentsSemaine.Count(i => i.StatutIncident == null || i.StatutIncident == StatutIncident.NonTraite),
+                            EnCours = incidentsSemaine.Count(i => i.StatutIncident == StatutIncident.EnCours),
+                            Ferme = incidentsSemaine.Count(i => i.StatutIncident == StatutIncident.Ferme)
+                        });
+                    }
+
+                    // ============================================
+                    // 5. STATISTIQUES PAR MOIS (6 derniers mois)
+                    // ============================================
+                    var statsParMois = new List<IncidentJournalierDTO>();
+                    var todayMonth = DateTime.Today;
+
+                    for (int i = 5; i >= 0; i--)
+                    {
+                        var dateMois = todayMonth.AddMonths(-i);
+                        var debutMois = new DateTime(dateMois.Year, dateMois.Month, 1);
+                        var finMois = debutMois.AddMonths(1).AddDays(-1);
+                        var incidentsMois = incidentsList.Where(i => i.DateDetection.Date >= debutMois && i.DateDetection.Date <= finMois).ToList();
+
+                        statsParMois.Add(new IncidentJournalierDTO
+                        {
+                            Date = debutMois,
+                            Crees = incidentsMois.Count,
+                            NonTraite = incidentsMois.Count(i => i.StatutIncident == null || i.StatutIncident == StatutIncident.NonTraite),
+                            EnCours = incidentsMois.Count(i => i.StatutIncident == StatutIncident.EnCours),
+                            Ferme = incidentsMois.Count(i => i.StatutIncident == StatutIncident.Ferme)
+                        });
+                    }
+
+                    var dashboard = new IncidentDashboardDTO
+                    {
+                        Overview = overview,
+                        StatsParStatut = statsParStatut,
+                        StatsParJour = statsParJour,
+                        StatsParSemaine = statsParSemaine,
+                        StatsParMois = statsParMois
+                    };
+
+                    _logger.LogInformation("Dashboard incidents généré avec succès - Total: {Total}, Non traité: {NonTraite}, En cours: {EnCours}, Fermé: {Ferme}",
+                        total, nonTraite, enCours, ferme);
+
+                    return ApiResponse<IncidentDashboardDTO>.Success(dashboard);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Erreur lors de la génération du dashboard incidents");
+                    return ApiResponse<IncidentDashboardDTO>.Failure("Erreur interne du serveur");
+                }
+            });
+        }
         #endregion
 
         #region Specific Methods

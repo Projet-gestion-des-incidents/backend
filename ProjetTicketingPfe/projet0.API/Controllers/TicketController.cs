@@ -394,6 +394,33 @@ namespace projet0.API.Controllers
                 return StatusCode(500, ApiResponse<bool>.Failure("Erreur interne"));
             }
         }
+
+        // Dans TicketController.cs
+
+        /// <summary>
+        /// Récupère les statistiques du dashboard tickets
+        /// </summary>
+        [HttpGet("dashboard")]
+        [Authorize(Policy = "AdminOnly")]
+        public async Task<ActionResult<ApiResponse<TicketDashboardDTO>>> GetTicketDashboard()
+        {
+            try
+            {
+                _logger.LogInformation("Récupération du dashboard tickets");
+
+                var result = await _ticketService.GetTicketDashboardAsync();
+
+                if (!result.IsSuccess)
+                    return BadRequest(result);
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erreur lors de la récupération du dashboard tickets");
+                return StatusCode(500, ApiResponse<TicketDashboardDTO>.Failure("Erreur interne du serveur"));
+            }
+        }
         #endregion
     }
 }

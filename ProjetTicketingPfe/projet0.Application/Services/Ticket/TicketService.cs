@@ -1634,6 +1634,198 @@ namespace projet0.Application.Services.Ticket
             });
         }
 
+        // Dans TicketService.cs - Ajouter cette méthode
+
+        public async Task<ApiResponse<TicketDashboardDTO>> GetTicketDashboardAsync()
+        {
+            return await MeasureAsync(nameof(GetTicketDashboardAsync), null, async () =>
+            {
+                try
+                {
+                    _logger.LogInformation("Récupération du dashboard tickets");
+
+                    // Récupérer tous les tickets
+                    var tickets = await _ticketRepository.GetAllAsync();
+                    var ticketsList = tickets.ToList();
+
+                    // Récupérer tous les techniciens
+                    var techniciens = await _userRepository.GetUsersByRoleAsync("Technicien");
+                    var techniciensList = techniciens.ToList();
+
+                    // ============================================
+                    // 1. STATISTIQUES GLOBALES
+                    // ============================================
+                    var total = ticketsList.Count;
+                    var nonAssigne = ticketsList.Count(t => t.StatutTicket == null);
+                    var assignes = ticketsList.Count(t => t.StatutTicket == StatutTicket.Assigne);
+                    var enCours = ticketsList.Count(t => t.StatutTicket == StatutTicket.EnCours);
+                    var resolus = ticketsList.Count(t => t.StatutTicket == StatutTicket.Resolu);
+
+                    var overview = new TicketDashboardOverviewDTO
+                    {
+                        TotalTickets = total,
+                        TicketsNonAssigne = nonAssigne,
+                        TicketsAssignes = assignes,
+                        TicketsEnCours = enCours,
+                        TicketsResolus = resolus,
+                        TauxNonAssigne = total > 0 ? Math.Round((double)nonAssigne / total * 100, 1) : 0,
+                        TauxAssignes = total > 0 ? Math.Round((double)assignes / total * 100, 1) : 0,
+                        TauxEnCours = total > 0 ? Math.Round((double)enCours / total * 100, 1) : 0,
+                        TauxResolus = total > 0 ? Math.Round((double)resolus / total * 100, 1) : 0,
+                        TauxResolutionGlobal = total > 0 ? Math.Round((double)resolus / total * 100, 1) : 0
+                    };
+
+                    // ============================================
+                    // 2. STATISTIQUES PAR STATUT (pour graphique)
+                    // ============================================
+                    var statsParStatut = new List<TicketStatutStatDTO>
+            {
+                new TicketStatutStatDTO
+                {
+                    Statut = "Non assigné",
+                    Count = nonAssigne,
+                    Color = "#6c757d",  // Gris
+                    Pourcentage = total > 0 ? Math.Round((double)nonAssigne / total * 100, 1) : 0
+                },
+                new TicketStatutStatDTO
+                {
+                    Statut = "Assigné",
+                    Count = assignes,
+                    Color = "#17a2b8",  // Bleu
+                    Pourcentage = total > 0 ? Math.Round((double)assignes / total * 100, 1) : 0
+                },
+                new TicketStatutStatDTO
+                {
+                    Statut = "En cours",
+                    Count = enCours,
+                    Color = "#ffc107",  // Jaune
+                    Pourcentage = total > 0 ? Math.Round((double)enCours / total * 100, 1) : 0
+                },
+                new TicketStatutStatDTO
+                {
+                    Statut = "Résolu",
+                    Count = resolus,
+                    Color = "#28a745",  // Vert
+                    Pourcentage = total > 0 ? Math.Round((double)resolus / total * 100, 1) : 0
+                }
+            };
+
+                    // ============================================
+                    // 3. STATISTIQUES PAR JOUR (7 derniers jours)
+                    // ============================================
+                    var statsParJour = new List<TicketJournalierDTO>();
+                    var today = DateTime.Today;
+
+                    for (int i = 6; i >= 0; i--)
+                    {
+                        var date = today.AddDays(-i);
+                        var ticketsDuJour = ticketsList.Where(t => t.DateCreation.Date == date).ToList();
+
+                        statsParJour.Add(new TicketJournalierDTO
+                        {
+                            Date = date,
+                            Crees = ticketsDuJour.Count,
+                            NonAssigne = ticketsDuJour.Count(t => t.StatutTicket == null),
+                            Assignes = ticketsDuJour.Count(t => t.StatutTicket == StatutTicket.Assigne),
+                            EnCours = ticketsDuJour.Count(t => t.StatutTicket == StatutTicket.EnCours),
+                            Resolus = ticketsDuJour.Count(t => t.StatutTicket == StatutTicket.Resolu)
+                        });
+                    }
+
+                    // ============================================
+                    // 4. STATISTIQUES PAR SEMAINE (4 dernières semaines)
+                    // ============================================
+                    var statsParSemaine = new List<TicketJournalierDTO>();
+
+                    for (int i = 3; i >= 0; i--)
+                    {
+                        var debutSemaine = today.AddDays(-(int)today.DayOfWeek - (i * 7));
+                        var finSemaine = debutSemaine.AddDays(6);
+                        var ticketsSemaine = ticketsList.Where(t => t.DateCreation.Date >= debutSemaine && t.DateCreation.Date <= finSemaine).ToList();
+
+                        statsParSemaine.Add(new TicketJournalierDTO
+                        {
+                            Date = debutSemaine,
+                            Crees = ticketsSemaine.Count,
+                            NonAssigne = ticketsSemaine.Count(t => t.StatutTicket == null),
+                            Assignes = ticketsSemaine.Count(t => t.StatutTicket == StatutTicket.Assigne),
+                            EnCours = ticketsSemaine.Count(t => t.StatutTicket == StatutTicket.EnCours),
+                            Resolus = ticketsSemaine.Count(t => t.StatutTicket == StatutTicket.Resolu)
+                        });
+                    }
+
+                    // ============================================
+                    // 5. STATISTIQUES PAR MOIS (6 derniers mois)
+                    // ============================================
+                    var statsParMois = new List<TicketJournalierDTO>();
+
+                    for (int i = 5; i >= 0; i--)
+                    {
+                        var dateMois = today.AddMonths(-i);
+                        var debutMois = new DateTime(dateMois.Year, dateMois.Month, 1);
+                        var finMois = debutMois.AddMonths(1).AddDays(-1);
+                        var ticketsMois = ticketsList.Where(t => t.DateCreation.Date >= debutMois && t.DateCreation.Date <= finMois).ToList();
+
+                        statsParMois.Add(new TicketJournalierDTO
+                        {
+                            Date = debutMois,
+                            Crees = ticketsMois.Count,
+                            NonAssigne = ticketsMois.Count(t => t.StatutTicket == null),
+                            Assignes = ticketsMois.Count(t => t.StatutTicket == StatutTicket.Assigne),
+                            EnCours = ticketsMois.Count(t => t.StatutTicket == StatutTicket.EnCours),
+                            Resolus = ticketsMois.Count(t => t.StatutTicket == StatutTicket.Resolu)
+                        });
+                    }
+
+                    // ============================================
+                    // 6. TOP TECHNICIENS
+                    // ============================================
+                    var topTechniciens = new List<TopTechnicienDTO>();
+
+                    foreach (var technicien in techniciensList)
+                    {
+                        var ticketsTechnicien = ticketsList.Where(t => t.AssigneeId == technicien.Id).ToList();
+                        var ticketsResolusParTechnicien = ticketsTechnicien.Count(t => t.StatutTicket == StatutTicket.Resolu);
+                        var ticketsEnCoursParTechnicien = ticketsTechnicien.Count(t => t.StatutTicket == StatutTicket.EnCours);
+                        var totalAssignes = ticketsTechnicien.Count;
+
+                        topTechniciens.Add(new TopTechnicienDTO
+                        {
+                            TechnicienId = technicien.Id,
+                            Nom = technicien.Nom,
+                            Prenom = technicien.Prenom,
+                            TicketsResolus = ticketsResolusParTechnicien,
+                            TicketsEnCours = ticketsEnCoursParTechnicien,
+                            TauxResolution = totalAssignes > 0 ? Math.Round((double)ticketsResolusParTechnicien / totalAssignes * 100, 1) : 0
+                        });
+                    }
+
+                    // Trier par nombre de tickets résolus (décroissant)
+                    topTechniciens = topTechniciens.OrderByDescending(t => t.TicketsResolus).Take(5).ToList();
+
+                    var dashboard = new TicketDashboardDTO
+                    {
+                        Overview = overview,
+                        StatsParStatut = statsParStatut,
+                        StatsParJour = statsParJour,
+                        StatsParSemaine = statsParSemaine,
+                        StatsParMois = statsParMois,
+                        TopTechniciens = topTechniciens
+                    };
+
+                    _logger.LogInformation("Dashboard tickets généré avec succès - Total: {Total}, Résolus: {Resolus}, Taux: {Taux}%",
+                        total, resolus, overview.TauxResolutionGlobal);
+
+                    return ApiResponse<TicketDashboardDTO>.Success(dashboard);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Erreur lors de la génération du dashboard tickets");
+                    return ApiResponse<TicketDashboardDTO>.Failure("Erreur interne du serveur");
+                }
+            });
+        }
+
         #endregion
     }
 }

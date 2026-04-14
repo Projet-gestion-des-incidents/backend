@@ -37,5 +37,6 @@ namespace projet0.Application.Services.Incident
         Task<ApiResponse<List<IncidentTPEDTO>>> LierTPEsAsync(Guid incidentId, List<Guid> tpeIds, Guid userId);
         // Dans IIncidentService.cs
         Task<ApiResponse<PagedResult<IncidentDTO>>> GetMyIncidentsPagedAsync(IncidentSearchRequest request, Guid userId);
+        Task<ApiResponse<IncidentDashboardDTO>> GetIncidentDashboardAsync();
     }
 }

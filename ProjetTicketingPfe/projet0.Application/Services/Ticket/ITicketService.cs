@@ -41,6 +41,7 @@ namespace projet0.Application.Services.Ticket
         Task<ApiResponse<bool>> DelierIncidentDuTicket(Guid ticketId, Guid incidentId, Guid userId);
 
         Task<ApiResponse<PagedResult<TicketDTO>>> GetMesTicketsPagedAsync(TicketPagedRequest request, Guid technicienId);
-
+        // Dans ITicketService.cs
+        Task<ApiResponse<TicketDashboardDTO>> GetTicketDashboardAsync();
     }
 }

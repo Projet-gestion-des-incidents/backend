@@ -555,6 +555,33 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
             }
         }
 
+        // Dans IncidentController.cs
+
+        /// <summary>
+        /// Récupère les statistiques du dashboard incidents
+        /// </summary>
+        [HttpGet("dashboard")]
+        [Authorize(Policy = "AdminOnly")]
+        public async Task<ActionResult<ApiResponse<IncidentDashboardDTO>>> GetIncidentDashboard()
+        {
+            try
+            {
+                _logger.LogInformation("Récupération du dashboard incidents");
+
+                var result = await _incidentService.GetIncidentDashboardAsync();
+
+                if (!result.IsSuccess)
+                    return BadRequest(result);
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erreur lors de la récupération du dashboard incidents");
+                return StatusCode(500, ApiResponse<IncidentDashboardDTO>.Failure("Erreur interne du serveur"));
+            }
+        }
+
         #endregion
 
     }
