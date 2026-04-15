@@ -33,6 +33,9 @@ namespace projet0.Application.Services.User
         // Dans IUserService.cs
         Task<ApiResponse<ApplicationUser>> EditTechnicienProfileAsync(Guid userId, EditTechnicienProfileDto dto);
         Task<ApiResponse<ApplicationUser>> EditCommercantProfileAsync(Guid userId, EditCommercantProfileDto dto);
+        // Dans IUserService.cs
+        Task<ApiResponse<ApplicationUser>> AdminUpdateTechnicienAsync(Guid userId, AdminUpdateTechnicienDto dto);
+        Task<ApiResponse<ApplicationUser>> AdminUpdateCommercantAsync(Guid userId, AdminUpdateCommercantDto dto);
     }
 
 }

@@ -369,7 +369,55 @@ public async Task<IActionResult> EditTechnicienProfile([FromBody] EditTechnicien
             var result = await _userService.EditCommercantProfileAsync(userId, dto);
             return result.ResultCode == 0 ? Ok(result) : BadRequest(result);
         }
-      
+
+        // Dans UserController.cs
+
+        /// <summary>
+        /// Admin - Modifier un technicien
+        /// </summary>
+        [HttpPut("technicien/{id}")]
+        [Authorize(Policy = "AdminOnly")]
+        public async Task<IActionResult> AdminUpdateTechnicien(Guid id, [FromBody] AdminUpdateTechnicienDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage)
+                    .ToList();
+                return BadRequest(ApiResponse<ApplicationUser>.Failure(
+                    message: "Données invalides",
+                    errors: errors,
+                    resultCode: 99));
+            }
+
+            var result = await _userService.AdminUpdateTechnicienAsync(id, dto);
+            return result.ResultCode == 0 ? Ok(result) : BadRequest(result);
+        }
+
+        /// <summary>
+        /// Admin - Modifier un commerçant (magasin)
+        /// </summary>
+        [HttpPut("commercant/{id}")]
+        [Authorize(Policy = "AdminOnly")]
+        public async Task<IActionResult> AdminUpdateCommercant(Guid id, [FromBody] AdminUpdateCommercantDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage)
+                    .ToList();
+                return BadRequest(ApiResponse<ApplicationUser>.Failure(
+                    message: "Données invalides",
+                    errors: errors,
+                    resultCode: 99));
+            }
+
+            var result = await _userService.AdminUpdateCommercantAsync(id, dto);
+            return result.ResultCode == 0 ? Ok(result) : BadRequest(result);
+        }
+
     }
 
 }

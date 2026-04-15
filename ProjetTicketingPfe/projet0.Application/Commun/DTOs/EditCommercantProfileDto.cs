@@ -8,8 +8,8 @@ namespace projet0.Application.Commun.DTOs
     public class EditCommercantProfileDto
     {
         [Required(ErrorMessage = "Le nom du magasin est requis")]
-        [MinLength(3, ErrorMessage = "Le nom du magasin doit contenir au moins 3 caractères")]
-        [MaxLength(50, ErrorMessage = "Le nom du magasin ne peut pas dépasser 50 caractères")]
+        [MinLength(2, ErrorMessage = "Le nom du magasin doit contenir au moins 2 caractères")]
+        [MaxLength(20, ErrorMessage = "Le nom du magasin ne peut pas dépasser 20 caractères")]
         public string NomMagasin { get; set; }  // Correspond à UserName
 
         [Required(ErrorMessage = "L'email est requis")]

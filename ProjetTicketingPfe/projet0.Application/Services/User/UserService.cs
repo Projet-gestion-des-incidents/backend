@@ -1595,6 +1595,429 @@ namespace projet0.Application.Services.User
                 return ApiResponse<ApplicationUser>.Success(user, "Profil mis à jour avec succès", 0);
             });
         }
+
+        // ================= ADMIN UPDATE TECHNICIEN =================
+        // ================= ADMIN UPDATE TECHNICIEN =================
+        // ================= ADMIN UPDATE TECHNICIEN =================
+        public async Task<ApiResponse<ApplicationUser>> AdminUpdateTechnicienAsync(Guid userId, AdminUpdateTechnicienDto dto)
+        {
+            return await MeasureAsync("AdminUpdateTechnicien", new { userId, dto }, async () =>
+            {
+                var user = await _userRepository.GetByIdAsync(userId);
+                if (user == null)
+                {
+                    return ApiResponse<ApplicationUser>.Failure(UserMessages.UserNotFound, resultCode: 20);
+                }
+
+                // Vérifier le rôle
+                var roles = await _userManager.GetRolesAsync(user);
+                if (!roles.Contains("Technicien"))
+                {
+                    return ApiResponse<ApplicationUser>.Failure("Cet utilisateur n'est pas un technicien", resultCode: 99);
+                }
+
+                bool hasChanges = false;
+                bool emailChanged = false;
+                bool userNameChanged = false;
+
+                // ✅ 1. VALIDATION DU NOM D'UTILISATEUR (si fourni)
+                if (!string.IsNullOrEmpty(dto.UserName))
+                {
+                    // Vérifier la longueur minimale
+                    if (dto.UserName.Length < 4)
+                    {
+                        return ApiResponse<ApplicationUser>.Failure(
+                            "Le nom d'utilisateur doit contenir au moins 4 caractères",
+                            resultCode: 40);
+                    }
+
+                    // Vérifier la longueur maximale
+                    if (dto.UserName.Length > 30)
+                    {
+                        return ApiResponse<ApplicationUser>.Failure(
+                            "Le nom d'utilisateur ne peut pas dépasser 30 caractères",
+                            resultCode: 40);
+                    }
+
+                    // Vérifier l'unicité
+                    if (dto.UserName != user.UserName)
+                    {
+                        if (!await _userRepository.IsUserNameUniqueAsync(dto.UserName, userId))
+                        {
+                            return ApiResponse<ApplicationUser>.Failure(
+                                "Ce nom d'utilisateur est déjà pris",
+                                resultCode: 11);
+                        }
+                    }
+                }
+
+                // ✅ 2. VALIDATION DE L'EMAIL (si fourni)
+                if (!string.IsNullOrEmpty(dto.Email))
+                {
+                    // Vérifier le format de l'email
+                    if (!IsValidEmail(dto.Email))
+                    {
+                        return ApiResponse<ApplicationUser>.Failure(
+                            "Format d'email invalide",
+                            resultCode: 40);
+                    }
+
+                    // Vérifier l'unicité
+                    if (dto.Email != user.Email)
+                    {
+                        if (!await _userRepository.IsEmailUniqueAsync(dto.Email, userId))
+                        {
+                            return ApiResponse<ApplicationUser>.Failure(
+                                "Cet email est déjà utilisé",
+                                resultCode: 10);
+                        }
+                    }
+                }
+
+                // ✅ 3. VALIDATION DU TÉLÉPHONE (si fourni)
+                if (!string.IsNullOrEmpty(dto.PhoneNumber))
+                {
+                    // Vérifier le format (8 chiffres)
+                    if (!System.Text.RegularExpressions.Regex.IsMatch(dto.PhoneNumber, @"^[0-9]{8}$"))
+                    {
+                        return ApiResponse<ApplicationUser>.Failure(
+                            "Le numéro de téléphone doit contenir exactement 8 chiffres",
+                            resultCode: 40);
+                    }
+
+                    // Vérifier l'unicité
+                    if (dto.PhoneNumber != user.PhoneNumber)
+                    {
+                        var existingPhone = await _userManager.Users
+                            .FirstOrDefaultAsync(u => u.PhoneNumber == dto.PhoneNumber && u.Id != userId);
+                        if (existingPhone != null)
+                        {
+                            return ApiResponse<ApplicationUser>.Failure(
+                                "Ce numéro de téléphone est déjà utilisé",
+                                resultCode: 12);
+                        }
+                    }
+                }
+
+                // ✅ 4. VALIDATION DE LA DATE DE NAISSANCE (si fournie)
+                if (dto.BirthDate.HasValue)
+                {
+                    var birthDate = dto.BirthDate.Value;
+                    var today = DateTime.Today;
+                    var age = today.Year - birthDate.Year;
+                    if (birthDate.Date > today.AddYears(-age)) age--;
+
+                    // Vérifier l'âge minimum (18 ans)
+                    if (age < 18)
+                    {
+                        return ApiResponse<ApplicationUser>.Failure(
+                            "L'utilisateur doit avoir au moins 18 ans",
+                            resultCode: 40);
+                    }
+
+                    // Vérifier l'âge maximum (120 ans)
+                    if (age > 120)
+                    {
+                        return ApiResponse<ApplicationUser>.Failure(
+                            "Date de naissance invalide",
+                            resultCode: 40);
+                    }
+
+                    // Vérifier que la date n'est pas dans le futur
+                    if (birthDate.Date > today)
+                    {
+                        return ApiResponse<ApplicationUser>.Failure(
+                            "La date de naissance ne peut pas être dans le futur",
+                            resultCode: 40);
+                    }
+                }
+
+                // ✅ 5. VALIDATION DES CHAMPS TEXTE (longueur)
+                if (!string.IsNullOrEmpty(dto.Nom) && (dto.Nom.Length < 4 || dto.Nom.Length > 30))
+                {
+                    return ApiResponse<ApplicationUser>.Failure(
+                        "Le nom doit contenir entre 4 et 30 caractères",
+                        resultCode: 40);
+                }
+
+                if (!string.IsNullOrEmpty(dto.Prenom) && (dto.Prenom.Length < 4 || dto.Prenom.Length > 30))
+                {
+                    return ApiResponse<ApplicationUser>.Failure(
+                        "Le prénom doit contenir entre 4 et 30 caractères",
+                        resultCode: 40);
+                }
+
+                // ✅ 6. APPLIQUER LES MODIFICATIONS
+                // Nom d'utilisateur
+                if (!string.IsNullOrEmpty(dto.UserName) && dto.UserName != user.UserName)
+                {
+                    user.UserName = dto.UserName;
+                    user.NormalizedUserName = dto.UserName.ToUpper();
+                    hasChanges = true;
+                    userNameChanged = true;
+                }
+
+                // Email
+                if (!string.IsNullOrEmpty(dto.Email) && dto.Email != user.Email)
+                {
+                    user.Email = dto.Email;
+                    user.NormalizedEmail = dto.Email.ToUpper();
+                    user.EmailConfirmed = false;  // ✅ Forcer reconfirmation
+                    hasChanges = true;
+                    emailChanged = true;
+                }
+
+                // Téléphone
+                if (!string.IsNullOrEmpty(dto.PhoneNumber) && dto.PhoneNumber != user.PhoneNumber)
+                {
+                    user.PhoneNumber = dto.PhoneNumber;
+                    hasChanges = true;
+                }
+
+                // Nom
+                if (!string.IsNullOrEmpty(dto.Nom) && dto.Nom != user.Nom)
+                {
+                    user.Nom = dto.Nom;
+                    hasChanges = true;
+                }
+
+                // Prénom
+                if (!string.IsNullOrEmpty(dto.Prenom) && dto.Prenom != user.Prenom)
+                {
+                    user.Prenom = dto.Prenom;
+                    hasChanges = true;
+                }
+
+                // Date de naissance
+                if (dto.BirthDate.HasValue && dto.BirthDate != user.BirthDate)
+                {
+                    user.BirthDate = dto.BirthDate;
+                    hasChanges = true;
+                }
+
+                // Image
+                if (!string.IsNullOrEmpty(dto.Image) && dto.Image != user.Image)
+                {
+                    user.Image = dto.Image;
+                    hasChanges = true;
+                }
+
+                // ✅ 7. SAUVEGARDE
+                if (hasChanges)
+                {
+                    var result = await _userRepository.UpdateAsync(user);
+                    if (!result.Succeeded)
+                    {
+                        var errors = result.Errors.Select(e => e.Description).ToList();
+                        return ApiResponse<ApplicationUser>.Failure(
+                            "Erreur lors de la mise à jour",
+                            errors,
+                            resultCode: 21);
+                    }
+                }
+
+                // ✅ 8. MESSAGE DE RETOUR
+                string message = hasChanges ? "Technicien mis à jour avec succès" : "Aucune modification détectée";
+
+                if (emailChanged)
+                {
+                    message = "Technicien mis à jour. Un email de confirmation a été envoyé au nouvel email.";
+                }
+
+                if (userNameChanged)
+                {
+                    message += " Le nom d'utilisateur a été modifié.";
+                }
+
+                return ApiResponse<ApplicationUser>.Success(user, message, 0);
+            });
+        }
+
+        // ✅ Méthode utilitaire pour valider l'email
+        private bool IsValidEmail(string email)
+        {
+            try
+            {
+                var addr = new System.Net.Mail.MailAddress(email);
+                return addr.Address == email;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        // ================= ADMIN UPDATE COMMERCANT =================
+        // ================= ADMIN UPDATE COMMERCANT =================
+        // ================= ADMIN UPDATE COMMERCANT =================
+        public async Task<ApiResponse<ApplicationUser>> AdminUpdateCommercantAsync(Guid userId, AdminUpdateCommercantDto dto)
+        {
+            return await MeasureAsync("AdminUpdateCommercant", new { userId, dto }, async () =>
+            {
+                var user = await _userRepository.GetByIdAsync(userId);
+                if (user == null)
+                {
+                    return ApiResponse<ApplicationUser>.Failure(UserMessages.UserNotFound, resultCode: 20);
+                }
+
+                // Vérifier le rôle
+                var roles = await _userManager.GetRolesAsync(user);
+                if (!roles.Contains("Commercant"))
+                {
+                    return ApiResponse<ApplicationUser>.Failure("Cet utilisateur n'est pas un commerçant", resultCode: 99);
+                }
+
+                bool hasChanges = false;
+                bool emailChanged = false;
+
+                // ✅ 1. VALIDATION DU NOM MAGASIN (si fourni)
+                if (!string.IsNullOrEmpty(dto.NomMagasin))
+                {
+                    // Vérifier la longueur (2-20 caractères comme dans CreateCommercantDto)
+                    if (dto.NomMagasin.Length < 2)
+                    {
+                        return ApiResponse<ApplicationUser>.Failure(
+                            "Le nom du magasin doit contenir au moins 2 caractères",
+                            resultCode: 40);
+                    }
+
+                    if (dto.NomMagasin.Length > 20)
+                    {
+                        return ApiResponse<ApplicationUser>.Failure(
+                            "Le nom du magasin ne peut pas dépasser 20 caractères",
+                            resultCode: 40);
+                    }
+
+                    // Vérifier l'unicité
+                    if (dto.NomMagasin != user.UserName)
+                    {
+                        if (!await _userRepository.IsUserNameUniqueAsync(dto.NomMagasin, userId))
+                        {
+                            return ApiResponse<ApplicationUser>.Failure(
+                                "Ce nom de magasin est déjà utilisé",
+                                resultCode: 11);
+                        }
+                    }
+                }
+
+                // ✅ 2. VALIDATION DE L'EMAIL (si fourni)
+                if (!string.IsNullOrEmpty(dto.Email))
+                {
+                    if (!IsValidEmail(dto.Email))
+                    {
+                        return ApiResponse<ApplicationUser>.Failure(
+                            "Format d'email invalide",
+                            resultCode: 40);
+                    }
+
+                    if (dto.Email != user.Email)
+                    {
+                        if (!await _userRepository.IsEmailUniqueAsync(dto.Email, userId))
+                        {
+                            return ApiResponse<ApplicationUser>.Failure(
+                                "Cet email est déjà utilisé",
+                                resultCode: 10);
+                        }
+                    }
+                }
+
+                // ✅ 3. VALIDATION DU TÉLÉPHONE (si fourni)
+                if (!string.IsNullOrEmpty(dto.PhoneNumber))
+                {
+                    if (!System.Text.RegularExpressions.Regex.IsMatch(dto.PhoneNumber, @"^[0-9]{8}$"))
+                    {
+                        return ApiResponse<ApplicationUser>.Failure(
+                            "Le numéro de téléphone doit contenir exactement 8 chiffres",
+                            resultCode: 40);
+                    }
+
+                    if (dto.PhoneNumber != user.PhoneNumber)
+                    {
+                        var existingPhone = await _userManager.Users
+                            .FirstOrDefaultAsync(u => u.PhoneNumber == dto.PhoneNumber && u.Id != userId);
+                        if (existingPhone != null)
+                        {
+                            return ApiResponse<ApplicationUser>.Failure(
+                                "Ce numéro de téléphone est déjà utilisé",
+                                resultCode: 12);
+                        }
+                    }
+                }
+
+                // ✅ 4. VALIDATION DE L'ADRESSE (si fournie)
+                if (!string.IsNullOrEmpty(dto.Adresse) && dto.Adresse.Length > 200)
+                {
+                    return ApiResponse<ApplicationUser>.Failure(
+                        "L'adresse ne peut pas dépasser 200 caractères",
+                        resultCode: 40);
+                }
+
+                // ✅ 5. APPLIQUER LES MODIFICATIONS
+                // Nom du magasin (UserName et Nom)
+                if (!string.IsNullOrEmpty(dto.NomMagasin) && dto.NomMagasin != user.UserName)
+                {
+                    user.UserName = dto.NomMagasin;
+                    user.NormalizedUserName = dto.NomMagasin.ToUpper();
+                    user.Nom = dto.NomMagasin;  // Synchroniser
+                    hasChanges = true;
+                }
+
+                // Email
+                if (!string.IsNullOrEmpty(dto.Email) && dto.Email != user.Email)
+                {
+                    user.Email = dto.Email;
+                    user.NormalizedEmail = dto.Email.ToUpper();
+                    user.EmailConfirmed = false;  // ✅ Forcer reconfirmation
+                    hasChanges = true;
+                    emailChanged = true;
+                }
+
+                // Téléphone
+                if (!string.IsNullOrEmpty(dto.PhoneNumber) && dto.PhoneNumber != user.PhoneNumber)
+                {
+                    user.PhoneNumber = dto.PhoneNumber;
+                    hasChanges = true;
+                }
+
+                // Adresse
+                if (!string.IsNullOrEmpty(dto.Adresse) && dto.Adresse != user.Adresse)
+                {
+                    user.Adresse = dto.Adresse;
+                    hasChanges = true;
+                }
+
+                // Image
+                if (!string.IsNullOrEmpty(dto.Image) && dto.Image != user.Image)
+                {
+                    user.Image = dto.Image;
+                    hasChanges = true;
+                }
+
+                // ✅ 6. SAUVEGARDE
+                if (hasChanges)
+                {
+                    var result = await _userRepository.UpdateAsync(user);
+                    if (!result.Succeeded)
+                    {
+                        var errors = result.Errors.Select(e => e.Description).ToList();
+                        return ApiResponse<ApplicationUser>.Failure(
+                            "Erreur lors de la mise à jour",
+                            errors,
+                            resultCode: 21);
+                    }
+                }
+
+                // ✅ 7. MESSAGE DE RETOUR
+                string message = hasChanges ? "Commerçant mis à jour avec succès" : "Aucune modification détectée";
+
+                if (emailChanged)
+                {
+                    message = "Commerçant mis à jour. Un email de confirmation a été envoyé au nouvel email.";
+                }
+
+                return ApiResponse<ApplicationUser>.Success(user, message, 0);
+            });
+        }
     }
 }
 
