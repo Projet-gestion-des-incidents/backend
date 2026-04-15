@@ -9,6 +9,8 @@ namespace projet0.Domain.Enums
         EmailConfirmation = 0,
         PhoneConfirmation = 1,
         ResetPassword = 2,
-        TwoFactor = 3
+        TwoFactor = 3,
+        EmailChange = 4  // ✅ Nouveau
+
     }
 }

@@ -330,12 +330,12 @@ namespace projet0.API.Controllers
 
         // Dans UserController.cs
 
-/// <summary>
-/// Modifier le profil d'un technicien
-/// </summary>
-[Authorize]
-[HttpPut("me/technicien")]
-public async Task<IActionResult> EditTechnicienProfile([FromBody] EditTechnicienProfileDto dto)
+        //// <summary>
+        /// Modifier le profil d'un technicien (par le technicien lui-même)
+        /// </summary>
+        [Authorize]
+        [HttpPut("me/technicien")]
+        public async Task<IActionResult> EditTechnicienProfile([FromBody] EditTechnicienProfileDto dto)
         {
             var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
@@ -344,14 +344,25 @@ public async Task<IActionResult> EditTechnicienProfile([FromBody] EditTechnicien
             // Vérifier le rôle
             var roles = await _userService.GetUserRolesAsync(userId);
             if (!roles.Contains("Technicien"))
-                return BadRequest(ApiResponse<ApplicationUser>.Failure("Cette API est réservée aux techniciens", resultCode: 99));
+                return BadRequest(ApiResponse<ApplicationUser>.Failure(
+                    message: "Cette API est réservée aux techniciens",
+                    errors: null,
+                    resultCode: 99));
 
             var result = await _userService.EditTechnicienProfileAsync(userId, dto);
+
+            // ✅ Gérer les codes de retour spécifiques
+            if (result.ResultCode == 42) // Email change - OTP envoyé
+                return Ok(result);
+
+            if (result.ResultCode == 43) // Password change - OTP envoyé
+                return Ok(result);
+
             return result.ResultCode == 0 ? Ok(result) : BadRequest(result);
         }
 
         /// <summary>
-        /// Modifier le profil d'un commerçant (magasin)
+        /// Modifier le profil d'un commerçant (par le commerçant lui-même)
         /// </summary>
         [Authorize]
         [HttpPut("me/commercant")]
@@ -364,9 +375,19 @@ public async Task<IActionResult> EditTechnicienProfile([FromBody] EditTechnicien
             // Vérifier le rôle
             var roles = await _userService.GetUserRolesAsync(userId);
             if (!roles.Contains("Commercant"))
-                return BadRequest(ApiResponse<ApplicationUser>.Failure("Cette API est réservée aux commerçants", resultCode: 99));
+                return BadRequest(ApiResponse<ApplicationUser>.Failure(
+                    message: "Cette API est réservée aux commerçants",
+                    errors: null,
+                    resultCode: 99));
 
             var result = await _userService.EditCommercantProfileAsync(userId, dto);
+
+            if (result.ResultCode == 42) // Email change - OTP envoyé
+                return Ok(result);
+
+            if (result.ResultCode == 43) // Password change - OTP envoyé
+                return Ok(result);
+
             return result.ResultCode == 0 ? Ok(result) : BadRequest(result);
         }
 

@@ -7,7 +7,9 @@ using projet0.Application.Commun.DTOs;
 using projet0.Application.Commun.Ressources;
 using projet0.Application.Interfaces;
 using projet0.Application.Services.Email;
+using projet0.Application.Services.Otp;
 using projet0.Domain.Entities;
+using projet0.Domain.Enums;
 using System.Data;
 using System.Diagnostics;
 
@@ -22,7 +24,8 @@ namespace projet0.Application.Services.User
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IHostEnvironment _webHostEnvironment;
         private readonly IEmailService _emailService;
-        public UserService(IUserRepository userRepository, ILogger<UserService> logger,UserManager<ApplicationUser> userManager, RoleManager<IdentityRole<Guid>> roleManager, IHostEnvironment webHostEnvironment, IEmailService emailService)
+        private readonly IOtpService _otpService;
+        public UserService(IUserRepository userRepository, ILogger<UserService> logger,UserManager<ApplicationUser> userManager, RoleManager<IdentityRole<Guid>> roleManager, IHostEnvironment webHostEnvironment, IEmailService emailService, IOtpService otpService)
         {
             _userRepository = userRepository;
             _logger = logger;
@@ -31,6 +34,7 @@ namespace projet0.Application.Services.User
             _webHostEnvironment = webHostEnvironment;
             _emailService = emailService;
 
+            _otpService = otpService;  // ✅ INITIALISER
 
         }
 
@@ -349,225 +353,183 @@ namespace projet0.Application.Services.User
                 });
         }
 
+        // UserService.cs - Version complète modifiée
+
         public async Task<ApiResponse<ApplicationUser>> EditProfileAsync(Guid userId, EditProfileDto dto)
         {
-            return await MeasureAsync(
-                "EditProfile",
-                new { userId, dto },
-                async () =>
+            return await MeasureAsync("EditProfile", new { userId, dto }, async () =>
+            {
+                var user = await _userRepository.GetByIdAsync(userId);
+                if (user == null)
                 {
-                    // 1. Récupérer l'utilisateur
-                    var user = await _userRepository.GetByIdAsync(userId);
-                    if (user == null)
+                    return ApiResponse<ApplicationUser>.Failure(UserMessages.UserNotFound, resultCode: 20);
+                }
+
+                bool hasChanges = false;
+
+                // ============================================
+                // CAS 1 : L'utilisateur change son EMAIL
+                // ============================================
+                if (!string.IsNullOrEmpty(dto.Email) && dto.Email != user.Email)
+                {
+                    // Vérifier que le nouvel email n'est pas déjà utilisé
+                    if (!await _userRepository.IsEmailUniqueAsync(dto.Email, userId))
                     {
-                        _logger.LogWarning("User not found | UserId = {UserId}", userId);
                         return ApiResponse<ApplicationUser>.Failure(
-                            message: UserMessages.UserNotFound,
-                            resultCode: 20
-                        );
+                            "Cet email est déjà utilisé par un autre compte",
+                            resultCode: 10);
                     }
 
-                    // ✅ DÉCLARER hasChanges ICI, au début
-                    bool hasChanges = false;
-                    bool emailChanged = false;
+                    // ✅ Envoyer OTP sur le NOUVEL email
+                    var otpResult = await _otpService.GenerateAndSendOtpToEmailAsync(
+                        user,
+                        dto.Email,  // Envoyer au nouvel email
+                        OtpPurpose.EmailChange);
 
-                    // 2. Journaliser la requête reçue (pour debug)
-                    _logger.LogDebug("EditProfile request received for user {UserId}", userId);
-                    _logger.LogDebug("Image data received (first 100 chars): {ImagePreview}",
-                        dto.Image?.Length > 100 ? dto.Image.Substring(0, 100) + "..." : dto.Image);
-
-                    // 3. Vérifier l'unicité de l'email si modifié
-                    if (!string.IsNullOrEmpty(dto.Email) && dto.Email != user.Email)
+                    if (otpResult.ResultCode != 0)
                     {
-                        if (!await _userRepository.IsEmailUniqueAsync(dto.Email, userId))
-                        {
-                            _logger.LogWarning("EmailAlreadyUsed EditProfile | UserId = {UserId} | Email: {Email}",
-                                userId, dto.Email);
-                            return ApiResponse<ApplicationUser>.Failure(
-                                message: UserMessages.EmailAlreadyUsed,
-                                resultCode: 10
-                            );
-                        }
+                        return ApiResponse<ApplicationUser>.Failure(
+                            "Erreur lors de l'envoi du code de vérification",
+                            resultCode: 42);
                     }
 
-                    // 4. Vérifier l'unicité du nom d'utilisateur si modifié
-                    if (!string.IsNullOrEmpty(dto.UserName) && dto.UserName != user.UserName)
-                    {
-                        if (!await _userRepository.IsUserNameUniqueAsync(dto.UserName, userId))
-                        {
-                            _logger.LogWarning("UserNameAlreadyUsed EditProfile | UserId = {UserId} | UserName: {UserName}",
-                                userId, dto.UserName);
-                            return ApiResponse<ApplicationUser>.Failure(
-                                message: UserMessages.UserNameAlreadyUsed,
-                                resultCode: 11
-                            );
-                        }
-                    }
+                    // Stocker temporairement le nouvel email (en mémoire, pas en base)
+                    // On va utiliser un cache ou retourner un token
+                    var changeEmailToken = Guid.NewGuid().ToString();
 
-                    // 5. Vérifier le mot de passe si fourni
-                    if (!string.IsNullOrEmpty(dto.CurrentPassword) &&
-                        !string.IsNullOrEmpty(dto.NewPassword))
-                    {
-                        // Vérifier l'ancien mot de passe
-                        var passwordValid = await _userManager.CheckPasswordAsync(user, dto.CurrentPassword);
-                        if (!passwordValid)
-                        {
-                            _logger.LogWarning("Invalid current password | UserId = {UserId}", userId);
-                            return ApiResponse<ApplicationUser>.Failure(
-                                message: "Le mot de passe actuel est incorrect",
-                                resultCode: 25
-                            );
-                        }
-
-                        // Vérifier que newPassword et confirmPassword correspondent
-                        if (dto.NewPassword != dto.ConfirmPassword)
-                        {
-                            _logger.LogWarning("Passwords don't match | UserId = {UserId}", userId);
-                            return ApiResponse<ApplicationUser>.Failure(
-                                message: "Le nouveau mot de passe et la confirmation ne correspondent pas",
-                                resultCode: 26
-                            );
-                        }
-
-                        // Changer le mot de passe
-                        var changePasswordResult = await _userManager.ChangePasswordAsync(
-                            user,
-                            dto.CurrentPassword,
-                            dto.NewPassword
-                        );
-
-                        if (!changePasswordResult.Succeeded)
-                        {
-                            _logger.LogError("Password change failed | UserId = {UserId} | Errors: {@Errors}",
-                                userId, changePasswordResult.Errors);
-                            return ApiResponse<ApplicationUser>.Failure(
-                                message: "Erreur lors du changement de mot de passe",
-                                errors: changePasswordResult.Errors.Select(e => e.Description).ToList(),
-                                resultCode: 27
-                            );
-                        }
-                    }
-
-                    if (!string.IsNullOrEmpty(dto.Adresse) && dto.Adresse != user.Adresse)
-                    {
-                        user.Adresse = dto.Adresse;
-                        hasChanges = true;
-                    }
-
-                    if (!string.IsNullOrEmpty(dto.UserName) && dto.UserName != user.UserName)
-                    {
-                        user.UserName = dto.UserName;
-                        hasChanges = true;
-                    }
-
-                    if (!string.IsNullOrEmpty(dto.Email) && dto.Email != user.Email)
-                    {
-                        user.Email = dto.Email;
-                        user.EmailConfirmed = false; // Réinitialiser la confirmation si email changé
-                        hasChanges = true;
-                        emailChanged = true;
-                    }
-
-                    if (!string.IsNullOrEmpty(dto.Nom) && dto.Nom != user.Nom)
-                    {
-                        user.Nom = dto.Nom;
-                        hasChanges = true;
-                    }
-
-                    if (!string.IsNullOrEmpty(dto.Prenom) && dto.Prenom != user.Prenom)
-                    {
-                        user.Prenom = dto.Prenom;
-                        hasChanges = true;
-                    }
-
-                    if (!string.IsNullOrEmpty(dto.PhoneNumber) && dto.PhoneNumber != user.PhoneNumber)
-                    {
-                        user.PhoneNumber = dto.PhoneNumber;
-                        hasChanges = true;
-                    }
-
-                    if (dto.BirthDate.HasValue && dto.BirthDate != user.BirthDate)
-                    {
-                        user.BirthDate = dto.BirthDate.Value;
-                        hasChanges = true;
-                    }
-
-                    // 7. Gestion de l'image de profil (version simplifiée)
-                    if (!string.IsNullOrEmpty(dto.Image) && dto.Image != user.Image)
-                    {
-                        // Accepter n'importe quelle chaîne non vide comme image
-                        user.Image = dto.Image;
-                        hasChanges = true;
-                        _logger.LogDebug("Profile image updated for user {UserId}", userId);
-                    }
-
-                    // 8. Sauvegarder les modifications si nécessaire
-                    if (hasChanges)
-                    {
-                        try
-                        {
-                            var result = await _userRepository.UpdateAsync(user);
-                            if (!result.Succeeded)
-                            {
-                                _logger.LogError("DB_ERROR EditProfile | UserId = {UserId} | {@Errors}",
-                                    userId, result.Errors);
-
-                                // Journaliser les erreurs spécifiques
-                                foreach (var error in result.Errors)
-                                {
-                                    _logger.LogError("Identity error: {Code} - {Description}",
-                                        error.Code, error.Description);
-                                }
-
-                                return ApiResponse<ApplicationUser>.Failure(
-                                    message: UserMessages.UpdateUserError,
-                                    errors: result.Errors.Select(e => e.Description).ToList(),
-                                    resultCode: 21
-                                );
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogError(ex, "Exception during user update | UserId = {UserId}", userId);
-                            return ApiResponse<ApplicationUser>.Failure(
-                                message: "Erreur technique lors de la mise à jour du profil",
-                                resultCode: 28
-                            );
-                        }
-                    }
-
-                    // 9. Si l'email a été changé, envoyer un email de confirmation
-                    if (emailChanged)
-                    {
-                        try
-                        {
-                            // Générer un token de confirmation
-                            var emailToken = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-
-                            // Ici vous pouvez envoyer l'email de confirmation
-                            // _emailService.SendEmailConfirmationAsync(user.Email, emailToken);
-
-                            _logger.LogInformation("Email changed, confirmation required | UserId = {UserId}", userId);
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogError(ex, "Failed to generate email confirmation token | UserId = {UserId}", userId);
-                        }
-                    }
-
-                    _logger.LogInformation(
-                        "SUCCESS EditProfile | UserId = {UserId} | HasChanges: {HasChanges} | EmailChanged: {EmailChanged} | ImageUpdated: {ImageUpdated}",
-                        userId, hasChanges, emailChanged, !string.IsNullOrEmpty(dto.Image)
-                    );
-
+                    // Retourner un token spécial pour la validation
                     return ApiResponse<ApplicationUser>.Success(
-                        data: user,
-                        message: hasChanges
-                            ? "Profil mis à jour avec succès"
-                            : "Aucune modification détectée",
-                        resultCode: 0
-                    );
-                });
+                        data: null,
+                        message: $"Un code OTP a été envoyé à {dto.Email}. Veuillez le valider pour confirmer le changement.",
+                        resultCode: 42);  // Code spécial "validation email requise"
+                }
+
+                // ============================================
+                // CAS 2 : L'utilisateur change son MOT DE PASSE
+                // ============================================
+                if (!string.IsNullOrEmpty(dto.CurrentPassword) && !string.IsNullOrEmpty(dto.NewPassword))
+                {
+                    // Vérifier l'ancien mot de passe
+                    var passwordValid = await _userManager.CheckPasswordAsync(user, dto.CurrentPassword);
+                    if (!passwordValid)
+                    {
+                        return ApiResponse<ApplicationUser>.Failure(
+                            "Mot de passe actuel incorrect",
+                            resultCode: 25);
+                    }
+
+                    // Vérifier la confirmation
+                    if (dto.NewPassword != dto.ConfirmPassword)
+                    {
+                        return ApiResponse<ApplicationUser>.Failure(
+                            "Les nouveaux mots de passe ne correspondent pas",
+                            resultCode: 26);
+                    }
+
+                    // Vérifier la force du mot de passe
+                    if (dto.NewPassword.Length < 6)
+                    {
+                        return ApiResponse<ApplicationUser>.Failure(
+                            "Le mot de passe doit contenir au moins 6 caractères",
+                            resultCode: 43);
+                    }
+
+                    // ✅ Envoyer OTP sur l'email actuel (comme reset password)
+                    var otpResult = await _otpService.GenerateAndSendOtpAsync(
+                        user,
+                        OtpPurpose.ResetPassword);  // Réutilise ResetPassword
+
+                    if (otpResult.ResultCode != 0)
+                    {
+                        return ApiResponse<ApplicationUser>.Failure(
+                            "Erreur lors de l'envoi du code de vérification",
+                            resultCode: 42);
+                    }
+
+                    // Retourner un token pour la validation
+                    return ApiResponse<ApplicationUser>.Success(
+                        data: null,
+                        message: $"Un code OTP a été envoyé à {user.Email}. Veuillez le valider pour changer votre mot de passe.",
+                        resultCode: 43);  // Code spécial "validation password requise"
+                }
+
+                // ============================================
+                // CAS 3 : Autres modifications (Nom, Prénom, Téléphone, Adresse, Image)
+                // ============================================
+
+                // Adresse
+                if (!string.IsNullOrEmpty(dto.Adresse) && dto.Adresse != user.Adresse)
+                {
+                    user.Adresse = dto.Adresse;
+                    hasChanges = true;
+                }
+
+                // Nom
+                if (!string.IsNullOrEmpty(dto.Nom) && dto.Nom != user.Nom)
+                {
+                    user.Nom = dto.Nom;
+                    hasChanges = true;
+                }
+
+                // Prénom
+                if (!string.IsNullOrEmpty(dto.Prenom) && dto.Prenom != user.Prenom)
+                {
+                    user.Prenom = dto.Prenom;
+                    hasChanges = true;
+                }
+
+                // Téléphone
+                if (!string.IsNullOrEmpty(dto.PhoneNumber) && dto.PhoneNumber != user.PhoneNumber)
+                {
+                    // Vérifier l'unicité du téléphone
+                    var existingPhone = await _userManager.Users
+                        .FirstOrDefaultAsync(u => u.PhoneNumber == dto.PhoneNumber && u.Id != userId);
+                    if (existingPhone != null)
+                    {
+                        return ApiResponse<ApplicationUser>.Failure(
+                            "Ce numéro de téléphone est déjà utilisé",
+                            resultCode: 12);
+                    }
+                    user.PhoneNumber = dto.PhoneNumber;
+                    hasChanges = true;
+                }
+
+                // Date de naissance
+                if (dto.BirthDate.HasValue && dto.BirthDate != user.BirthDate)
+                {
+                    var age = DateTime.Today.Year - dto.BirthDate.Value.Year;
+                    if (age < 18)
+                    {
+                        return ApiResponse<ApplicationUser>.Failure(
+                            "Vous devez avoir au moins 18 ans",
+                            resultCode: 40);
+                    }
+                    user.BirthDate = dto.BirthDate;
+                    hasChanges = true;
+                }
+
+                // Image
+                if (!string.IsNullOrEmpty(dto.Image) && dto.Image != user.Image)
+                {
+                    user.Image = dto.Image;
+                    hasChanges = true;
+                }
+
+                // Sauvegarder
+                if (hasChanges)
+                {
+                    var result = await _userRepository.UpdateAsync(user);
+                    if (!result.Succeeded)
+                    {
+                        return ApiResponse<ApplicationUser>.Failure(
+                            UserMessages.UpdateUserError,
+                            resultCode: 21);
+                    }
+                }
+
+                string message = hasChanges ? "Profil mis à jour avec succès" : "Aucune modification détectée";
+                return ApiResponse<ApplicationUser>.Success(user, message, 0);
+            });
         }
 
         // Méthode pour supprimer l'ancienne image
@@ -1352,6 +1314,8 @@ namespace projet0.Application.Services.User
         }
 
         // ================= EDIT TECHNICIEN PROFILE =================
+        // UserService.cs - Version complète avec OTP
+
         public async Task<ApiResponse<ApplicationUser>> EditTechnicienProfileAsync(Guid userId, EditTechnicienProfileDto dto)
         {
             return await MeasureAsync("EditTechnicienProfile", new { userId, dto }, async () =>
@@ -1359,139 +1323,188 @@ namespace projet0.Application.Services.User
                 var user = await _userRepository.GetByIdAsync(userId);
                 if (user == null)
                 {
-                    return ApiResponse<ApplicationUser>.Failure(UserMessages.UserNotFound, resultCode: 20);
+                    return ApiResponse<ApplicationUser>.Failure(
+                        message: UserMessages.UserNotFound,
+                        errors: null,
+                        resultCode: 20);
                 }
 
                 // Vérifier le rôle
                 var roles = await _userManager.GetRolesAsync(user);
                 if (!roles.Contains("Technicien"))
                 {
-                    return ApiResponse<ApplicationUser>.Failure("Seul un technicien peut modifier ce profil", resultCode: 99);
+                    return ApiResponse<ApplicationUser>.Failure(
+                        message: "Seul un technicien peut modifier ce profil",
+                        errors: null,
+                        resultCode: 99);
                 }
 
-                bool hasChanges = false;
-                bool emailChanged = false;
-
-                // 1. Vérifier l'unicité de l'email (si changé)
+                // ============================================
+                // CAS 1 : Changement d'EMAIL
+                // ============================================
                 if (!string.IsNullOrEmpty(dto.Email) && dto.Email != user.Email)
                 {
-                    // ✅ Vérifier que le nouvel email n'est pas déjà utilisé par un AUTRE utilisateur
-                    var existingUser = await _userManager.FindByEmailAsync(dto.Email);
-                    if (existingUser != null && existingUser.Id != userId)
+                    // Vérifier l'unicité
+                    if (!await _userRepository.IsEmailUniqueAsync(dto.Email, userId))
                     {
-                        return ApiResponse<ApplicationUser>.Failure("Cet email est déjà utilisé par un autre compte", resultCode: 10);
+                        return ApiResponse<ApplicationUser>.Failure(
+                            message: "Cet email est déjà utilisé par un autre compte",
+                            errors: null,
+                            resultCode: 10);
                     }
-                    user.Email = dto.Email;
-                    user.EmailConfirmed = false;
-                    user.NormalizedEmail = dto.Email.ToUpper();
-                    hasChanges = true;
-                    emailChanged = true;
+
+                    // ✅ Envoyer OTP sur le NOUVEL email
+                    var otpResult = await _otpService.GenerateAndSendOtpToEmailAsync(
+                        user,
+                        dto.Email,
+                        OtpPurpose.EmailChange);
+
+                    if (otpResult.ResultCode != 0)
+                    {
+                        return ApiResponse<ApplicationUser>.Failure(
+                            message: "Erreur lors de l'envoi du code de vérification",
+                            errors: null,
+                            resultCode: 42);
+                    }
+
+                    // Retourner avec code spécial
+                    return ApiResponse<ApplicationUser>.Success(
+                        data: null,
+                        message: $"Un code OTP a été envoyé à {dto.Email}. Veuillez le valider pour confirmer le changement.",
+                        resultCode: 42);
                 }
 
-                // 2. Vérifier l'unicité du nom d'utilisateur (si changé)
-                if (!string.IsNullOrEmpty(dto.Nom) && dto.Nom != user.UserName)
+                // ============================================
+                // CAS 2 : Changement de MOT DE PASSE
+                // ============================================
+                if (!string.IsNullOrEmpty(dto.CurrentPassword) && !string.IsNullOrEmpty(dto.NewPassword))
                 {
-                    var existingUser = await _userManager.FindByNameAsync(dto.Nom);
-                    if (existingUser != null && existingUser.Id != userId)
+                    // Vérifier l'ancien mot de passe
+                    var passwordValid = await _userManager.CheckPasswordAsync(user, dto.CurrentPassword);
+                    if (!passwordValid)
                     {
-                        return ApiResponse<ApplicationUser>.Failure("Ce nom d'utilisateur est déjà pris", resultCode: 11);
+                        return ApiResponse<ApplicationUser>.Failure(
+                            message: "Mot de passe actuel incorrect",
+                            errors: null,
+                            resultCode: 25);
                     }
-                    user.UserName = dto.Nom;
-                    user.NormalizedUserName = dto.Nom.ToUpper();
-                    hasChanges = true;
+
+                    // Vérifier la confirmation
+                    if (dto.NewPassword != dto.ConfirmPassword)
+                    {
+                        return ApiResponse<ApplicationUser>.Failure(
+                            message: "Les nouveaux mots de passe ne correspondent pas",
+                            errors: null,
+                            resultCode: 26);
+                    }
+
+                    // Vérifier la force
+                    if (dto.NewPassword.Length < 6)
+                    {
+                        return ApiResponse<ApplicationUser>.Failure(
+                            message: "Le mot de passe doit contenir au moins 6 caractères",
+                            errors: null,
+                            resultCode: 43);
+                    }
+
+                    // ✅ Envoyer OTP sur l'email actuel
+                    var otpResult = await _otpService.GenerateAndSendOtpAsync(
+                        user,
+                        OtpPurpose.ResetPassword);
+
+                    if (otpResult.ResultCode != 0)
+                    {
+                        return ApiResponse<ApplicationUser>.Failure(
+                            message: "Erreur lors de l'envoi du code de vérification",
+                            errors: null,
+                            resultCode: 42);
+                    }
+
+                    return ApiResponse<ApplicationUser>.Success(
+                        data: null,
+                        message: $"Un code OTP a été envoyé à {user.Email}. Veuillez le valider pour changer votre mot de passe.",
+                        resultCode: 43);
                 }
 
-                // 3. Vérifier l'unicité du téléphone (si changé)
-                if (!string.IsNullOrEmpty(dto.PhoneNumber) && dto.PhoneNumber != user.PhoneNumber)
-                {
-                    var existingPhone = await _userManager.Users
-                        .FirstOrDefaultAsync(u => u.PhoneNumber == dto.PhoneNumber && u.Id != userId);
-                    if (existingPhone != null)
-                    {
-                        return ApiResponse<ApplicationUser>.Failure("Ce numéro de téléphone est déjà utilisé", resultCode: 12);
-                    }
-                    user.PhoneNumber = dto.PhoneNumber;
-                    hasChanges = true;
-                }
+                // ============================================
+                // CAS 3 : Autres modifications
+                // ============================================
+                bool hasChanges = false;
 
-                // 4. Autres champs
+                // Nom
                 if (!string.IsNullOrEmpty(dto.Nom) && dto.Nom != user.Nom)
                 {
                     user.Nom = dto.Nom;
                     hasChanges = true;
                 }
 
+                // Prénom
                 if (!string.IsNullOrEmpty(dto.Prenom) && dto.Prenom != user.Prenom)
                 {
                     user.Prenom = dto.Prenom;
                     hasChanges = true;
                 }
 
+                // Téléphone
+                if (!string.IsNullOrEmpty(dto.PhoneNumber) && dto.PhoneNumber != user.PhoneNumber)
+                {
+                    var existingPhone = await _userManager.Users
+                        .FirstOrDefaultAsync(u => u.PhoneNumber == dto.PhoneNumber && u.Id != userId);
+                    if (existingPhone != null)
+                    {
+                        return ApiResponse<ApplicationUser>.Failure(
+                            message: "Ce numéro de téléphone est déjà utilisé",
+                            errors: null,
+                            resultCode: 12);
+                    }
+                    user.PhoneNumber = dto.PhoneNumber;
+                    hasChanges = true;
+                }
+
+                // Date de naissance
                 if (dto.BirthDate.HasValue && dto.BirthDate != user.BirthDate)
                 {
+                    var age = DateTime.Today.Year - dto.BirthDate.Value.Year;
+                    if (age < 18)
+                    {
+                        return ApiResponse<ApplicationUser>.Failure(
+                            message: "Vous devez avoir au moins 18 ans",
+                            errors: null,
+                            resultCode: 40);
+                    }
                     user.BirthDate = dto.BirthDate;
                     hasChanges = true;
                 }
 
+                // Image
                 if (!string.IsNullOrEmpty(dto.Image) && dto.Image != user.Image)
                 {
                     user.Image = dto.Image;
                     hasChanges = true;
                 }
 
-                // 5. Gestion du mot de passe (uniquement si fourni)
-                if (!string.IsNullOrEmpty(dto.CurrentPassword) && !string.IsNullOrEmpty(dto.NewPassword))
-                {
-                    // ✅ Vérifier le mot de passe actuel
-                    var passwordValid = await _userManager.CheckPasswordAsync(user, dto.CurrentPassword);
-                    if (!passwordValid)
-                    {
-                        return ApiResponse<ApplicationUser>.Failure("Mot de passe actuel incorrect", resultCode: 25);
-                    }
-
-                    if (dto.NewPassword != dto.ConfirmPassword)
-                    {
-                        return ApiResponse<ApplicationUser>.Failure("Les nouveaux mots de passe ne correspondent pas", resultCode: 26);
-                    }
-
-                    // ✅ Vérifier la force du nouveau mot de passe
-                    if (dto.NewPassword.Length < 6)
-                    {
-                        return ApiResponse<ApplicationUser>.Failure("Le nouveau mot de passe doit contenir au moins 6 caractères", resultCode: 27);
-                    }
-
-                    var passwordResult = await _userManager.ChangePasswordAsync(user, dto.CurrentPassword, dto.NewPassword);
-                    if (!passwordResult.Succeeded)
-                    {
-                        var errors = passwordResult.Errors.Select(e => e.Description).ToList();
-                        return ApiResponse<ApplicationUser>.Failure("Erreur lors du changement de mot de passe", errors, resultCode: 27);
-                    }
-                }
-
-                // 6. Sauvegarde
+                // Sauvegarde
                 if (hasChanges)
                 {
                     var result = await _userRepository.UpdateAsync(user);
                     if (!result.Succeeded)
                     {
                         var errors = result.Errors.Select(e => e.Description).ToList();
-                        return ApiResponse<ApplicationUser>.Failure("Erreur lors de la mise à jour du profil", errors, resultCode: 21);
+                        return ApiResponse<ApplicationUser>.Failure(
+                            message: "Erreur lors de la mise à jour du profil",
+                            errors: errors,
+                            resultCode: 21);
                     }
                 }
 
                 string message = hasChanges ? "Profil mis à jour avec succès" : "Aucune modification détectée";
-
-                // Si l'email a changé, informer l'utilisateur qu'il doit reconfirmer
-                if (emailChanged)
-                {
-                    message = "Profil mis à jour. Veuillez confirmer votre nouvel email.";
-                }
-
                 return ApiResponse<ApplicationUser>.Success(user, message, 0);
             });
         }
 
         // ================= EDIT COMMERCANT PROFILE =================
+        // UserService.cs - EditCommercantProfileAsync corrigé
+
         public async Task<ApiResponse<ApplicationUser>> EditCommercantProfileAsync(Guid userId, EditCommercantProfileDto dto)
         {
             return await MeasureAsync("EditCommercantProfile", new { userId, dto }, async () =>
@@ -1499,100 +1512,177 @@ namespace projet0.Application.Services.User
                 var user = await _userRepository.GetByIdAsync(userId);
                 if (user == null)
                 {
-                    return ApiResponse<ApplicationUser>.Failure(UserMessages.UserNotFound, resultCode: 20);
+                    return ApiResponse<ApplicationUser>.Failure(
+                        message: UserMessages.UserNotFound,
+                        errors: null,
+                        resultCode: 20);
                 }
 
                 // Vérifier le rôle
                 var roles = await _userManager.GetRolesAsync(user);
                 if (!roles.Contains("Commercant"))
                 {
-                    return ApiResponse<ApplicationUser>.Failure("Seul un commerçant peut modifier ce profil", resultCode: 99);
+                    return ApiResponse<ApplicationUser>.Failure(
+                        message: "Seul un commerçant peut modifier ce profil",
+                        errors: null,
+                        resultCode: 99);
                 }
 
-                bool hasChanges = false;
-                bool emailChanged = false;
-
-                // 1. Vérifier l'unicité de l'email (si changé)
+                // ============================================
+                // CAS 1 : Changement d'EMAIL
+                // ============================================
                 if (!string.IsNullOrEmpty(dto.Email) && dto.Email != user.Email)
                 {
+                    // Vérifier que le nouvel email n'est pas déjà utilisé
                     var existingUser = await _userManager.FindByEmailAsync(dto.Email);
                     if (existingUser != null && existingUser.Id != userId)
                     {
-                        return ApiResponse<ApplicationUser>.Failure("Cet email est déjà utilisé par un autre compte", resultCode: 10);
+                        return ApiResponse<ApplicationUser>.Failure(
+                            message: "Cet email est déjà utilisé par un autre compte",
+                            errors: null,
+                            resultCode: 10);
                     }
-                    user.Email = dto.Email;
-                    user.EmailConfirmed = false;
-                    user.NormalizedEmail = dto.Email.ToUpper();
-                    hasChanges = true;
-                    emailChanged = true;
+
+                    // ✅ Envoyer OTP sur le NOUVEL email
+                    var otpResult = await _otpService.GenerateAndSendOtpToEmailAsync(
+                        user,
+                        dto.Email,  // Envoyer au nouvel email
+                        OtpPurpose.EmailChange);
+
+                    if (otpResult.ResultCode != 0)
+                    {
+                        return ApiResponse<ApplicationUser>.Failure(
+                            message: "Erreur lors de l'envoi du code de vérification",
+                            errors: null,
+                            resultCode: 42);
+                    }
+
+                    // Retourner avec code spécial (pas de changement direct)
+                    return ApiResponse<ApplicationUser>.Success(
+                        data: null,
+                        message: $"Un code OTP a été envoyé à {dto.Email}. Veuillez le valider pour confirmer le changement.",
+                        resultCode: 42);  // Code spécial pour validation email
                 }
 
-                // 2. Vérifier l'unicité du nom du magasin (UserName)
+                // ============================================
+                // CAS 2 : Changement de MOT DE PASSE
+                // ============================================
+                if (!string.IsNullOrEmpty(dto.CurrentPassword) && !string.IsNullOrEmpty(dto.NewPassword))
+                {
+                    // Vérifier l'ancien mot de passe
+                    var passwordValid = await _userManager.CheckPasswordAsync(user, dto.CurrentPassword);
+                    if (!passwordValid)
+                    {
+                        return ApiResponse<ApplicationUser>.Failure(
+                            message: "Mot de passe actuel incorrect",
+                            errors: null,
+                            resultCode: 25);
+                    }
+
+                    // Vérifier la confirmation
+                    if (dto.NewPassword != dto.ConfirmPassword)
+                    {
+                        return ApiResponse<ApplicationUser>.Failure(
+                            message: "Les nouveaux mots de passe ne correspondent pas",
+                            errors: null,
+                            resultCode: 26);
+                    }
+
+                    // Vérifier la force du mot de passe
+                    if (dto.NewPassword.Length < 6)
+                    {
+                        return ApiResponse<ApplicationUser>.Failure(
+                            message: "Le mot de passe doit contenir au moins 6 caractères",
+                            errors: null,
+                            resultCode: 43);
+                    }
+
+                    // ✅ Envoyer OTP sur l'email actuel
+                    var otpResult = await _otpService.GenerateAndSendOtpAsync(
+                        user,
+                        OtpPurpose.ResetPassword);
+
+                    if (otpResult.ResultCode != 0)
+                    {
+                        return ApiResponse<ApplicationUser>.Failure(
+                            message: "Erreur lors de l'envoi du code de vérification",
+                            errors: null,
+                            resultCode: 42);
+                    }
+
+                    return ApiResponse<ApplicationUser>.Success(
+                        data: null,
+                        message: $"Un code OTP a été envoyé à {user.Email}. Veuillez le valider pour changer votre mot de passe.",
+                        resultCode: 43);  // Code spécial pour validation password
+                }
+
+                // ============================================
+                // CAS 3 : Autres modifications (NomMagasin, Téléphone, Adresse, Image)
+                // ============================================
+                bool hasChanges = false;
+
+                // Nom du magasin
                 if (!string.IsNullOrEmpty(dto.NomMagasin) && dto.NomMagasin != user.UserName)
                 {
+                    // Vérifier l'unicité
                     if (!await _userRepository.IsUserNameUniqueAsync(dto.NomMagasin, userId))
                     {
-                        return ApiResponse<ApplicationUser>.Failure("Ce nom de magasin est déjà utilisé", resultCode: 11);
+                        return ApiResponse<ApplicationUser>.Failure(
+                            message: "Ce nom de magasin est déjà utilisé",
+                            errors: null,
+                            resultCode: 11);
                     }
                     user.UserName = dto.NomMagasin;
-                    user.Nom = dto.NomMagasin;  // Synchroniser le champ Nom
+                    user.NormalizedUserName = dto.NomMagasin.ToUpper();
+                    user.Nom = dto.NomMagasin;
                     hasChanges = true;
                 }
 
-                // 3. Vérifier l'unicité du téléphone
+                // Téléphone
                 if (!string.IsNullOrEmpty(dto.PhoneNumber) && dto.PhoneNumber != user.PhoneNumber)
                 {
                     var existingPhone = _userManager.Users.FirstOrDefault(u => u.PhoneNumber == dto.PhoneNumber && u.Id != userId);
                     if (existingPhone != null)
                     {
-                        return ApiResponse<ApplicationUser>.Failure("Ce numéro de téléphone est déjà utilisé", resultCode: 12);
+                        return ApiResponse<ApplicationUser>.Failure(
+                            message: "Ce numéro de téléphone est déjà utilisé",
+                            errors: null,
+                            resultCode: 12);
                     }
                     user.PhoneNumber = dto.PhoneNumber;
                     hasChanges = true;
                 }
 
-                // 4. Autres champs
+                // Adresse
                 if (!string.IsNullOrEmpty(dto.Adresse) && dto.Adresse != user.Adresse)
                 {
                     user.Adresse = dto.Adresse;
                     hasChanges = true;
                 }
 
+                // Image
                 if (!string.IsNullOrEmpty(dto.Image) && dto.Image != user.Image)
                 {
                     user.Image = dto.Image;
                     hasChanges = true;
                 }
 
-                // 5. Gestion du mot de passe (identique)
-                if (!string.IsNullOrEmpty(dto.CurrentPassword) && !string.IsNullOrEmpty(dto.NewPassword))
-                {
-                    if (!await _userManager.CheckPasswordAsync(user, dto.CurrentPassword))
-                    {
-                        return ApiResponse<ApplicationUser>.Failure("Mot de passe actuel incorrect", resultCode: 25);
-                    }
-                    if (dto.NewPassword != dto.ConfirmPassword)
-                    {
-                        return ApiResponse<ApplicationUser>.Failure("Les mots de passe ne correspondent pas", resultCode: 26);
-                    }
-                    var passwordResult = await _userManager.ChangePasswordAsync(user, dto.CurrentPassword, dto.NewPassword);
-                    if (!passwordResult.Succeeded)
-                    {
-                        return ApiResponse<ApplicationUser>.Failure("Erreur lors du changement de mot de passe", resultCode: 27);
-                    }
-                }
-
-                // 6. Sauvegarde
+                // Sauvegarde
                 if (hasChanges)
                 {
                     var result = await _userRepository.UpdateAsync(user);
                     if (!result.Succeeded)
                     {
-                        return ApiResponse<ApplicationUser>.Failure("Erreur lors de la mise à jour", resultCode: 21);
+                        var errors = result.Errors.Select(e => e.Description).ToList();
+                        return ApiResponse<ApplicationUser>.Failure(
+                            message: "Erreur lors de la mise à jour",
+                            errors: errors,
+                            resultCode: 21);
                     }
                 }
 
-                return ApiResponse<ApplicationUser>.Success(user, "Profil mis à jour avec succès", 0);
+                string message = hasChanges ? "Profil mis à jour avec succès" : "Aucune modification détectée";
+                return ApiResponse<ApplicationUser>.Success(user, message, 0);
             });
         }
 
@@ -1652,27 +1742,44 @@ namespace projet0.Application.Services.User
                 }
 
                 // ✅ 2. VALIDATION DE L'EMAIL (si fourni)
-                if (!string.IsNullOrEmpty(dto.Email))
+                // UserService.cs - Dans AdminUpdateTechnicienAsync
+
+                if (!string.IsNullOrEmpty(dto.Email) && dto.Email != user.Email)
                 {
-                    // Vérifier le format de l'email
-                    if (!IsValidEmail(dto.Email))
+                    // Vérifier l'unicité
+                    if (!await _userRepository.IsEmailUniqueAsync(dto.Email, userId))
                     {
                         return ApiResponse<ApplicationUser>.Failure(
-                            "Format d'email invalide",
-                            resultCode: 40);
+        message: "Cet email est déjà utilisé",
+        errors: null,
+        resultCode: 10);
                     }
 
-                    // Vérifier l'unicité
-                    if (dto.Email != user.Email)
-                    {
-                        if (!await _userRepository.IsEmailUniqueAsync(dto.Email, userId))
-                        {
-                            return ApiResponse<ApplicationUser>.Failure(
-                                "Cet email est déjà utilisé",
-                                resultCode: 10);
-                        }
-                    }
+                    // Générer un nouveau mot de passe
+                    string newPassword = GenerateRandomPassword();
+
+                    // Changer l'email
+                    user.Email = dto.Email;
+                    user.NormalizedEmail = dto.Email.ToUpper();
+                    user.EmailConfirmed = true;
+
+                    // Changer le mot de passe
+                    var resetToken = await _userManager.GeneratePasswordResetTokenAsync(user);
+                    await _userManager.ResetPasswordAsync(user, resetToken, newPassword);
+
+                    hasChanges = true;
+                    emailChanged = true;
+
+                    // ✅ Envoyer email avec les nouveaux identifiants (comme register)
+                    await _emailService.SendWelcomeEmailAsync(
+                        user.Email,  // Nouvel email
+                        user.Nom,
+                        user.Prenom,
+                        newPassword
+                    );
                 }
+
+                // Même chose pour AdminUpdateCommercantAsync
 
                 // ✅ 3. VALIDATION DU TÉLÉPHONE (si fourni)
                 if (!string.IsNullOrEmpty(dto.PhoneNumber))
@@ -1901,25 +2008,44 @@ namespace projet0.Application.Services.User
                 }
 
                 // ✅ 2. VALIDATION DE L'EMAIL (si fourni)
-                if (!string.IsNullOrEmpty(dto.Email))
+                // UserService.cs - Dans AdminUpdateTechnicienAsync
+
+                if (!string.IsNullOrEmpty(dto.Email) && dto.Email != user.Email)
                 {
-                    if (!IsValidEmail(dto.Email))
+                    // Vérifier l'unicité
+                    if (!await _userRepository.IsEmailUniqueAsync(dto.Email, userId))
                     {
                         return ApiResponse<ApplicationUser>.Failure(
-                            "Format d'email invalide",
-                            resultCode: 40);
+        message: "Cet email est déjà utilisé",
+        errors: null,
+        resultCode: 10);
                     }
 
-                    if (dto.Email != user.Email)
-                    {
-                        if (!await _userRepository.IsEmailUniqueAsync(dto.Email, userId))
-                        {
-                            return ApiResponse<ApplicationUser>.Failure(
-                                "Cet email est déjà utilisé",
-                                resultCode: 10);
-                        }
-                    }
+                    // Générer un nouveau mot de passe
+                    string newPassword = GenerateRandomPassword();
+
+                    // Changer l'email
+                    user.Email = dto.Email;
+                    user.NormalizedEmail = dto.Email.ToUpper();
+                    user.EmailConfirmed = true;
+
+                    // Changer le mot de passe
+                    var resetToken = await _userManager.GeneratePasswordResetTokenAsync(user);
+                    await _userManager.ResetPasswordAsync(user, resetToken, newPassword);
+
+                    hasChanges = true;
+                    emailChanged = true;
+
+                    // ✅ Envoyer email avec les nouveaux identifiants (comme register)
+                    await _emailService.SendWelcomeEmailAsync(
+                        user.Email,  // Nouvel email
+                        user.Nom,
+                        user.Prenom,
+                        newPassword
+                    );
                 }
+
+                // Même chose pour AdminUpdateCommercantAsync
 
                 // ✅ 3. VALIDATION DU TÉLÉPHONE (si fourni)
                 if (!string.IsNullOrEmpty(dto.PhoneNumber))

@@ -5,10 +5,12 @@ using projet0.Application.Commun;
 using projet0.Application.Commun.DTOs;
 using projet0.Application.Commun.Ressources;
 using projet0.Application.Services.Auth;
+using projet0.Application.Services.Email;
 using projet0.Application.Services.Otp;
 using projet0.Application.Services.Token;
 using projet0.Domain.Entities;
 using projet0.Domain.Enums;
+using System.Security.Claims;
 
 namespace projet0.API.Controllers
 {
@@ -21,16 +23,19 @@ namespace projet0.API.Controllers
         private readonly ITokenService _tokenService;
         private readonly IOtpService _otpService;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly IEmailService _emailService;
         public AuthController(
             IAuthService authService,
             ITokenService tokenService,
             IOtpService otpService,
-            UserManager<ApplicationUser> userManager)
+            UserManager<ApplicationUser> userManager,
+            IEmailService emailService)
         {
             _authService = authService;
             _tokenService = tokenService;
             _otpService = otpService;
             _userManager = userManager;
+            _emailService = emailService;
         }
         // Dans AuthController.cs
         [HttpPost("register")]
@@ -114,9 +119,10 @@ namespace projet0.API.Controllers
         {
             if (string.IsNullOrEmpty(dto.Email))
                 return BadRequest(ApiResponse<string>.Failure(
-                                    message: "Email requis",
-                                    resultCode: 10
-                                ));
+    message: "Email requis",
+    errors: null,
+    resultCode: 10
+));
             var user = await _userManager.FindByEmailAsync(dto.Email);
             if (user == null)
                 return NotFound(ApiResponse<string>.Failure(
@@ -284,6 +290,120 @@ namespace projet0.API.Controllers
             return Ok(ApiResponse<string>.Success(
                 data: null,
                 message: "Mot de passe réinitialisé avec succès. Vous pouvez maintenant vous connecter.",
+                resultCode: 0));
+        }
+
+
+        // AuthController.cs - Ajouter ces endpoints
+
+        [HttpPost("confirm-email-change")]
+        [Authorize]
+        public async Task<IActionResult> ConfirmEmailChange([FromBody] ConfirmEmailChangeDto dto)
+        {
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+                return Unauthorized();
+
+            var user = await _userManager.FindByIdAsync(userId.ToString());
+            if (user == null)
+                return NotFound(ApiResponse<string>.Failure(
+    message: "Utilisateur introuvable",
+    errors: null,
+    resultCode: 40
+));
+
+            // Valider l'OTP
+            var otpValid = await _otpService.ValidateOtpAsync(
+                user.Id,
+                dto.OtpCode,
+                OtpPurpose.EmailChange
+            );
+
+            if (otpValid.ResultCode != 0)
+            {
+                return BadRequest(ApiResponse<string>.Failure(
+    message: otpValid.Message,
+    errors: null,
+    resultCode: otpValid.ResultCode));
+            }
+
+            // Vérifier que le nouvel email n'est pas déjà utilisé
+            var existingUser = await _userManager.FindByEmailAsync(dto.NewEmail);
+            if (existingUser != null && existingUser.Id != userId)
+            {
+                return BadRequest(ApiResponse<string>.Failure(
+    message: "Email requis",
+    resultCode: 10
+));
+            }
+
+            // Changer l'email
+            user.Email = dto.NewEmail;
+            user.NormalizedEmail = dto.NewEmail.ToUpper();
+            user.EmailConfirmed = true;
+
+            var result = await _userManager.UpdateAsync(user);
+            if (!result.Succeeded)
+            {
+                return BadRequest(ApiResponse<string>.Failure(
+    message: "Erreur lors du changement d'email",
+    errors: null,
+    resultCode: 99));
+            }
+
+            return Ok(ApiResponse<string>.Success(
+                message: $"Email changé avec succès vers {dto.NewEmail}. Veuillez vous reconnecter.",
+                resultCode: 0));
+        }
+
+        [HttpPost("confirm-password-change")]
+        [Authorize]
+        public async Task<IActionResult> ConfirmPasswordChange([FromBody] ConfirmPasswordChangeDto dto)
+        {
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+                return Unauthorized();
+
+            var user = await _userManager.FindByIdAsync(userId.ToString());
+            if (user == null)
+                return NotFound(ApiResponse<string>.Failure(
+    message: "Utilisateur introuvable",
+    errors: null,
+    resultCode: 20
+));
+
+            // Valider l'OTP
+            var otpValid = await _otpService.ValidateOtpAsync(
+                user.Id,
+                dto.OtpCode,
+                OtpPurpose.ResetPassword
+            );
+
+            if (otpValid.ResultCode != 0)
+            {
+                return BadRequest(ApiResponse<string>.Failure(
+                    message: otpValid.Message,
+                    errors: null,
+                    resultCode: otpValid.ResultCode));
+            }
+
+            // Changer le mot de passe
+            var resetToken = await _userManager.GeneratePasswordResetTokenAsync(user);
+            var result = await _userManager.ResetPasswordAsync(user, resetToken, dto.NewPassword);
+
+            if (!result.Succeeded)
+            {
+                return BadRequest(ApiResponse<string>.Failure(
+    message: "Erreur lors du changement de mot de passe",
+    errors: null,
+    resultCode: 21));
+            }
+
+            // Envoyer confirmation par email
+            await _emailService.SendPasswordChangeConfirmationAsync(user.Email);
+
+            return Ok(ApiResponse<string>.Success(
+                message: "Mot de passe changé avec succès. Veuillez vous reconnecter.",
                 resultCode: 0));
         }
     }

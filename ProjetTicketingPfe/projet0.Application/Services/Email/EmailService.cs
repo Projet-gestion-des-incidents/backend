@@ -96,5 +96,21 @@ L'équipe d'administration
                 throw;
             }
         }
+
+        public async Task SendPasswordChangeConfirmationAsync(string email)
+        {
+            var subject = "🔐 Votre mot de passe a été modifié";
+            var body = $@"
+Bonjour,
+
+Votre mot de passe a été changé avec succès.
+
+Si vous n'êtes pas à l'origine de ce changement, contactez immédiatement l'administrateur.
+
+Cordialement,
+L'équipe technique";
+
+            await SendAsync(email, subject, body);
+        }
     }
 }
