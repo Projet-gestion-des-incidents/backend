@@ -8,7 +8,8 @@ namespace projet0.Domain.Entities
     public class PieceJointe
     {
         public Guid Id { get; set; }
-        public string NomFichier { get; set; }      
+        public string NomFichier { get; set; }
+        public string ContentType { get; set; }
         public DateTime DateAjout { get; set; }
 
         // Foreign Keys

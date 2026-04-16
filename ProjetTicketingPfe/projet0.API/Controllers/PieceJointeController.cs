@@ -6,6 +6,8 @@ using projet0.Application.Interfaces;
 using projet0.Application.Services.Incident;
 using projet0.Application.Services.User;
 using System.Security.Claims;
+using Microsoft.AspNetCore.Hosting;  // ✅ AJOUTER CET USING
+using System.IO;  // ✅ AJOUTER CET USING
 
 namespace projet0.API.Controllers
 {
@@ -18,40 +20,58 @@ namespace projet0.API.Controllers
         private readonly ILogger<PieceJointeController> _logger;
         private readonly IUserService _userService;
         private readonly IIncidentService _incidentService;
+        private readonly IWebHostEnvironment _environment;  // ✅ AJOUTER CETTE LIGNE
 
         public PieceJointeController(
             IPieceJointeService pieceJointeService,
             ILogger<PieceJointeController> logger,
             IUserService userService,
-            IIncidentService incidentService)
+            IIncidentService incidentService,
+            IWebHostEnvironment environment)  // ✅ AJOUTER CE PARAMÈTRE
         {
             _pieceJointeService = pieceJointeService;
             _logger = logger;
             _userService = userService;
             _incidentService = incidentService;
+            _environment = environment;  // ✅ INITIALISER
         }
 
         [HttpGet("{id}")]
-        [AllowAnonymous] // Permet l'accès direct aux fichiers sans auth (optionnel)
+        [AllowAnonymous]
         public async Task<IActionResult> Telecharger(Guid id)
         {
             try
             {
-                var url = await _pieceJointeService.GetUrlFichierAsync(id);
-                if (string.IsNullOrEmpty(url))
+                var pieceJointe = await _pieceJointeService.GetMetadataAsync(id);
+                if (pieceJointe == null)
                     return NotFound();
 
-                return Redirect(url);
+                // Construire le chemin du fichier
+                var filePath = Path.Combine(_environment.ContentRootPath, "uploads",
+                    pieceJointe.IncidentId.HasValue ? "incidents" : "commentaires",
+                    pieceJointe.NomFichier);
+
+                if (!System.IO.File.Exists(filePath))
+                    return NotFound();
+
+                // Lire le fichier
+                var fileBytes = await System.IO.File.ReadAllBytesAsync(filePath);
+
+                // Déterminer le content type
+                var contentType = pieceJointe.ContentType ?? "application/octet-stream";
+
+                // Retourner le fichier directement
+                return File(fileBytes, contentType, pieceJointe.NomFichier);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Erreur lors du téléchargement du fichier {Id}", id);
-                return StatusCode(500, ApiResponse<bool>.Failure("Erreur interne"));
+                return StatusCode(500);
             }
         }
 
         [HttpDelete("{id}")]
-        [Authorize]  // ✅ Changez de [Authorize(Policy = "TicketDelete")] à [Authorize] seulement
+        [Authorize]
         public async Task<ActionResult<ApiResponse<bool>>> Supprimer(Guid id)
         {
             try
@@ -126,7 +146,7 @@ namespace projet0.API.Controllers
         {
             try
             {
-                var userId = GetCurrentUserId(); // À ajouter
+                var userId = GetCurrentUserId();
                 var piecesAjoutees = new List<PieceJointeDTO>();
 
                 foreach (var fichier in fichiers)
@@ -144,6 +164,8 @@ namespace projet0.API.Controllers
                     {
                         Id = pieceJointe.Id,
                         NomFichier = pieceJointe.NomFichier,
+                        ContentType = pieceJointe.ContentType,  // ✅ AJOUTER
+                         // ✅ AJOUTER
                         DateAjout = pieceJointe.DateAjout,
                         Url = $"{Request.Scheme}://{Request.Host}/api/pieces-jointes/{pieceJointe.Id}"
                     });
@@ -171,6 +193,12 @@ namespace projet0.API.Controllers
             try
             {
                 var pieces = await _pieceJointeService.GetPiecesJointesByIncidentIdAsync(incidentId);
+
+                // ✅ Ajouter les URLs complètes
+                foreach (var piece in pieces)
+                {
+                    piece.Url = $"{Request.Scheme}://{Request.Host}/api/pieces-jointes/{piece.Id}";
+                }
 
                 return Ok(ApiResponse<List<PieceJointeDTO>>.Success(pieces));
             }
@@ -242,6 +270,7 @@ namespace projet0.API.Controllers
                 return StatusCode(500, ApiResponse<bool>.Failure("Erreur interne"));
             }
         }
+
         private Guid GetCurrentUserId()
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
