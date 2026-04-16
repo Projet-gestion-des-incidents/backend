@@ -2144,6 +2144,129 @@ namespace projet0.Application.Services.User
                 return ApiResponse<ApplicationUser>.Success(user, message, 0);
             });
         }
+
+
+        // Application/Services/User/UserService.cs
+
+        // ================= GET TECHNICIEN BY ID =================
+        // Application/Services/User/UserService.cs
+
+        // ================= GET TECHNICIEN BY ID =================
+        public async Task<ApiResponse<TechnicienDto>> GetTechnicienByIdAsync(Guid id)
+        {
+            return await MeasureAsync("GetTechnicienById", new { UserId = id }, async () =>
+            {
+                try
+                {
+                    var user = await _userRepository.GetByIdAsync(id);
+                    if (user == null)
+                    {
+                        return ApiResponse<TechnicienDto>.Failure(
+                            message: "Technicien non trouvé",
+                            errors: null,
+                            resultCode: 20);
+                    }
+
+                    // Vérifier que l'utilisateur a bien le rôle Technicien
+                    var roles = await _userManager.GetRolesAsync(user);
+                    if (!roles.Contains("Technicien"))
+                    {
+                        return ApiResponse<TechnicienDto>.Failure(
+                            message: "Cet utilisateur n'est pas un technicien",
+                            errors: null,
+                            resultCode: 99);
+                    }
+
+                    var technicienDto = new TechnicienDto
+                    {
+                        Id = user.Id,
+                        Nom = user.Nom,
+                        Prenom = user.Prenom,
+                        Email = user.Email,
+                        UserName = user.UserName,
+                        PhoneNumber = user.PhoneNumber,
+                        Image = user.Image,
+                        BirthDate = user.BirthDate,
+                        Statut = user.Statut,
+                        EmailConfirmed = user.EmailConfirmed
+                    };
+
+                    _logger.LogInformation("Technicien trouvé: {Id} - {Nom} {Prenom}", id, user.Nom, user.Prenom);
+
+                    return ApiResponse<TechnicienDto>.Success(
+                        data: technicienDto,
+                        message: "Technicien récupéré avec succès",
+                        resultCode: 0);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Erreur lors de la récupération du technicien {UserId}", id);
+                    return ApiResponse<TechnicienDto>.Failure(
+                        message: "Erreur interne du serveur",
+                        errors: null,
+                        resultCode: 99);
+                }
+            });
+        }
+
+        // ================= GET COMMERCANT BY ID =================
+        // Application/Services/User/UserService.cs
+
+        // ================= GET COMMERCANT BY ID =================
+        public async Task<ApiResponse<CommercantDto>> GetCommercantByIdAsync(Guid id)
+        {
+            return await MeasureAsync("GetCommercantById", new { UserId = id }, async () =>
+            {
+                try
+                {
+                    var user = await _userRepository.GetByIdAsync(id);
+                    if (user == null)
+                    {
+                        return ApiResponse<CommercantDto>.Failure(
+                            message: "Commerçant non trouvé",
+                            errors: null,
+                            resultCode: 20);
+                    }
+
+                    // Vérifier que l'utilisateur a bien le rôle Commercant
+                    var roles = await _userManager.GetRolesAsync(user);
+                    if (!roles.Contains("Commercant"))
+                    {
+                        return ApiResponse<CommercantDto>.Failure(
+                            message: "Cet utilisateur n'est pas un commerçant",
+                            errors: null,
+                            resultCode: 99);
+                    }
+
+                    var commercantDto = new CommercantDto
+                    {
+                        Id = user.Id,
+                        NomMagasin = user.UserName,
+                        Email = user.Email,
+                        PhoneNumber = user.PhoneNumber,
+                        Adresse = user.Adresse,
+                        Image = user.Image,
+                        Statut = user.Statut,
+                        EmailConfirmed = user.EmailConfirmed
+                    };
+
+                    _logger.LogInformation("Commerçant trouvé: {Id} - {NomMagasin}", id, user.UserName);
+
+                    return ApiResponse<CommercantDto>.Success(
+                        data: commercantDto,
+                        message: "Commerçant récupéré avec succès",
+                        resultCode: 0);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Erreur lors de la récupération du commerçant {UserId}", id);
+                    return ApiResponse<CommercantDto>.Failure(
+                        message: "Erreur interne du serveur",
+                        errors: null,
+                        resultCode: 99);
+                }
+            });
+        }
     }
 }
 

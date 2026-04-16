@@ -36,6 +36,9 @@ namespace projet0.Application.Services.User
         // Dans IUserService.cs
         Task<ApiResponse<ApplicationUser>> AdminUpdateTechnicienAsync(Guid userId, AdminUpdateTechnicienDto dto);
         Task<ApiResponse<ApplicationUser>> AdminUpdateCommercantAsync(Guid userId, AdminUpdateCommercantDto dto);
+        // ✅ Ajouter ces 2 méthodes
+        Task<ApiResponse<TechnicienDto>> GetTechnicienByIdAsync(Guid id);
+        Task<ApiResponse<CommercantDto>> GetCommercantByIdAsync(Guid id);
     }
 
 }

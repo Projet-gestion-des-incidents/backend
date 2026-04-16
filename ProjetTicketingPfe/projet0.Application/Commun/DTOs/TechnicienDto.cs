@@ -1,4 +1,5 @@
-﻿using System;
+﻿using projet0.Domain.Entities;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -10,6 +11,12 @@ namespace projet0.Application.Commun.DTOs
         public string Nom { get; set; }
         public string Prenom { get; set; }
         public string Email { get; set; }
+        public string? UserName { get; set; }
+        public string? PhoneNumber { get; set; }
+        public string? Image { get; set; }
+        public DateTime? BirthDate { get; set; }
+        public UserStatut Statut { get; set; }
+        public bool EmailConfirmed { get; set; }
         public string NomComplet => $"{Nom} {Prenom}";
     }
 }

@@ -439,6 +439,72 @@ namespace projet0.API.Controllers
             return result.ResultCode == 0 ? Ok(result) : BadRequest(result);
         }
 
+        // API/Controllers/UserController.cs
+
+        /// <summary>
+        /// Récupère un technicien par son ID
+        /// </summary>
+        [HttpGet("technicien/{id}")]
+        [Authorize(Policy = "UserRead")]
+        public async Task<IActionResult> GetTechnicienById(Guid id)
+        {
+            try
+            {
+                // Vérifier les droits d'accès
+                var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var currentUserId))
+                {
+                    return Unauthorized(ApiResponse<TechnicienDto>.Failure(
+                        message: "Utilisateur non authentifié",
+                        errors: null,
+                        resultCode: 401));
+                }
+
+                var userRoles = await _userService.GetUserRolesAsync(currentUserId);
+                var isAdmin = userRoles.Contains("Admin");
+                var isTechnicien = userRoles.Contains("Technicien");
+
+                // Un technicien ne peut voir que son propre profil
+                if (!isAdmin && isTechnicien && currentUserId != id)
+                {
+                    return Forbid();
+                }
+
+                var result = await _userService.GetTechnicienByIdAsync(id);
+                return result.ResultCode == 0 ? Ok(result) : NotFound(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erreur lors de la récupération du technicien {Id}", id);
+                return StatusCode(500, ApiResponse<TechnicienDto>.Failure(
+                    message: "Erreur interne du serveur",
+                    errors: null,
+                    resultCode: 500));
+            }
+        }
+
+        /// <summary>
+        /// Récupère un commerçant par son ID
+        /// </summary>
+        [HttpGet("commercant/{id}")]
+        [Authorize(Policy = "AdminOnly")]
+        public async Task<IActionResult> GetCommercantById(Guid id)
+        {
+            try
+            {
+                var result = await _userService.GetCommercantByIdAsync(id);
+                return result.ResultCode == 0 ? Ok(result) : NotFound(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erreur lors de la récupération du commerçant {Id}", id);
+                return StatusCode(500, ApiResponse<CommercantDto>.Failure(
+                    message: "Erreur interne du serveur",
+                    errors: null,
+                    resultCode: 500));
+            }
+        }
+
     }
 
 }
