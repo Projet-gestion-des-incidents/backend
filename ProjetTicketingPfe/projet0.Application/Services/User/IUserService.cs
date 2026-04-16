@@ -39,6 +39,10 @@ namespace projet0.Application.Services.User
         // ✅ Ajouter ces 2 méthodes
         Task<ApiResponse<TechnicienDto>> GetTechnicienByIdAsync(Guid id);
         Task<ApiResponse<CommercantDto>> GetCommercantByIdAsync(Guid id);
+
+
+        // ✅ Ajouter cette méthode
+        Task<ApiResponse<ApplicationUser>> EditAdminProfileAsync(Guid userId, EditAdminProfileDto dto);
     }
 
 }

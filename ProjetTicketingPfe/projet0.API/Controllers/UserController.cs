@@ -51,15 +51,48 @@ namespace projet0.API.Controllers
             return Ok(result);
         }
 
+        // API/Controllers/UserController.cs
+
+        // API/Controllers/UserController.cs
+
+        /// <summary>
+        /// Modifier le profil de l'administrateur (par l'admin lui-même)
+        /// </summary>
         [Authorize]
         [HttpPut("me")]
-        public async Task<IActionResult> EditProfile([FromBody] EditProfileDto dto)
+        public async Task<IActionResult> EditAdminProfile([FromBody] EditAdminProfileDto dto)
         {
+            // ✅ 1. Valider le modèle (DataAnnotations)
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage)
+                    .ToList();
+
+                return BadRequest(ApiResponse<ApplicationUser>.Failure(
+                    message: "Données invalides",
+                    errors: errors,
+                    resultCode: 99));
+            }
+
             var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
                 return Unauthorized("Utilisateur non identifié");
 
-            var response = await _userService.EditProfileAsync(userId, dto);
+            var roles = await _userService.GetUserRolesAsync(userId);
+            if (!roles.Contains("Admin"))
+            {
+                return BadRequest(ApiResponse<ApplicationUser>.Failure(
+                    message: "Cette API est réservée aux administrateurs",
+                    errors: null,
+                    resultCode: 99));
+            }
+
+            var response = await _userService.EditAdminProfileAsync(userId, dto);
+
+            if (response.ResultCode == 42 || response.ResultCode == 43)
+                return Ok(response);
 
             if (response.ResultCode != 0)
                 return BadRequest(response);
