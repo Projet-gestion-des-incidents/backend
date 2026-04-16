@@ -1041,6 +1041,8 @@ namespace projet0.Application.Services.User
             });
         }
         // Dans UserService.cs
+        // Dans UserService.cs - GetTechniciensPagedAsync
+
         public async Task<ApiResponse<PagedResult<TechnicienDto>>> GetTechniciensPagedAsync(TechnicienSearchRequest request)
         {
             return await MeasureAsync("GetTechniciensPaged", request, async () =>
@@ -1053,7 +1055,7 @@ namespace projet0.Application.Services.User
                     // 2. Convertir en IQueryable pour appliquer les filtres
                     var query = techniciens.AsQueryable();
 
-                    // 3. Appliquer les filtres
+                    // 3. Appliquer les filtres (reste identique)
                     if (!string.IsNullOrWhiteSpace(request.SearchTerm))
                     {
                         var term = request.SearchTerm.ToLower();
@@ -1061,7 +1063,8 @@ namespace projet0.Application.Services.User
                             t.Nom.ToLower().Contains(term) ||
                             t.Prenom.ToLower().Contains(term) ||
                             t.Email.ToLower().Contains(term) ||
-                            t.UserName.ToLower().Contains(term));
+                            (t.UserName != null && t.UserName.ToLower().Contains(term)) ||
+                            (t.PhoneNumber != null && t.PhoneNumber.Contains(term)));
                     }
 
                     if (!string.IsNullOrWhiteSpace(request.Nom))
@@ -1110,13 +1113,19 @@ namespace projet0.Application.Services.User
                         .Take(pageSize)
                         .ToList();
 
-                    // 7. Mapper vers DTO
+                    // ✅ 7. Mapper vers DTO (CORRIGÉ - TOUS LES CHAMPS)
                     var dtos = paginatedTechniciens.Select(t => new TechnicienDto
                     {
                         Id = t.Id,
                         Nom = t.Nom,
                         Prenom = t.Prenom,
-                        Email = t.Email
+                        Email = t.Email,
+                        UserName = t.UserName,           // ✅ Ajouté
+                        PhoneNumber = t.PhoneNumber,     // ✅ Ajouté
+                        Image = t.Image,                 // ✅ Ajouté
+                        BirthDate = t.BirthDate,         // ✅ Ajouté
+                        Statut = t.Statut,               // ✅ Ajouté
+                        EmailConfirmed = t.EmailConfirmed // ✅ Ajouté
                     }).ToList();
 
                     // 8. Créer le résultat paginé
