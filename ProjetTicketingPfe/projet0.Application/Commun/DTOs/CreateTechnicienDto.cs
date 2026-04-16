@@ -9,7 +9,7 @@ namespace projet0.Application.Commun.DTOs
     public class CreateTechnicienDto
     {
         [Required(ErrorMessage = "Le nom d'utilisateur est requis")]
-        [MinLength(4, ErrorMessage = "Le nom d'utilisateur doit contenir au moins 4 caractères")]
+        [MinLength(3, ErrorMessage = "Le nom d'utilisateur doit contenir au moins  caractères")]
         [MaxLength(30, ErrorMessage = "Le nom d'utilisateur ne peut pas dépasser 30 caractères")]
         public string UserName { get; set; }
 
