@@ -160,7 +160,8 @@ namespace projet0.API.Controllers
                             var pieceDto = new CreatePieceJointeDTO
                             {
                                 NomFichier = fichier.FileName,
-                                Fichier = fichier
+                                Fichier = fichier,
+
                             };
                             _logger.LogInformation("PieceDto.NomFichier après création: {NomFichier}", pieceDto.NomFichier);
 

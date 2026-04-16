@@ -66,7 +66,7 @@ namespace projet0.Application.Services
             {
                 Id = Guid.NewGuid(),
                 NomFichier = dto.Fichier.FileName,
-                
+                ContentType = dto.Fichier.ContentType,
                 DateAjout = DateTime.UtcNow,
                 IncidentId = incidentId,
                 UploadedById = uploadedById
