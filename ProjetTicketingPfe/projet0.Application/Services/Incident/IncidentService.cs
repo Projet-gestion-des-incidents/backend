@@ -194,6 +194,7 @@ namespace projet0.Application.Services.Incident
                         Id = p.Id,
                         NomFichier = p.NomFichier,
                         DateAjout = p.DateAjout,
+                        ContentType=p.ContentType,
                         // Url sera ajoutée dans le contrôleur
                     })
                     .ToList();

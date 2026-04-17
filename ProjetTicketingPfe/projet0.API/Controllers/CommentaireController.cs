@@ -68,8 +68,8 @@ namespace projet0.API.Controllers
                     PiecesJointes = c.PiecesJointes?.Select(p => new PieceJointeDTO
                     {
                         Id = p.Id,
-                        NomFichier = p.NomFichier, 
-
+                        NomFichier = p.NomFichier,
+                        ContentType = p.ContentType,
                         DateAjout = p.DateAjout,
                         Url = $"{Request.Scheme}://{Request.Host}/api/pieces-jointes/{p.Id}"
                     }).ToList() ?? new()
@@ -192,11 +192,13 @@ namespace projet0.API.Controllers
                     EstInterne = commentaireComplet.EstInterne,
                     AuteurId = commentaireComplet.AuteurId,
                     AuteurNom = commentaireComplet.Auteur != null ? $"{commentaireComplet.Auteur.Nom} {commentaireComplet.Auteur.Prenom}" : "Inconnu",
+                    TicketId = commentaireComplet.TicketId,  // ✅ AJOUTER CETTE LIGNE
+                    TicketReference = commentaireComplet.Ticket?.ReferenceTicket,  // ✅ AJOUTER CETTE LIGNE (optionnel)
                     PiecesJointes = commentaireComplet.PiecesJointes?.Select(p => new PieceJointeDTO
                     {
                         Id = p.Id,
                         NomFichier = p.NomFichier,
-                        
+                        ContentType = p.ContentType,  // ✅ AJOUTER CETTE LIGNE
                         DateAjout = p.DateAjout,
                         Url = $"{Request.Scheme}://{Request.Host}/api/pieces-jointes/{p.Id}"
                     }).ToList() ?? new()

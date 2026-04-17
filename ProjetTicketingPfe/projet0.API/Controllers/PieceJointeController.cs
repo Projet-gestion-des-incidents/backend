@@ -12,6 +12,7 @@ using System.IO;  // ✅ AJOUTER CET USING
 namespace projet0.API.Controllers
 {
     [ApiController]
+    [AllowAnonymous]
     [Route("api/pieces-jointes")]
     [Authorize]
     public class PieceJointeController : ControllerBase
@@ -40,32 +41,92 @@ namespace projet0.API.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> Telecharger(Guid id)
         {
+            _logger.LogInformation("=== DÉBUT Télécharger ===");
+            _logger.LogInformation("ID reçu: {Id}", id);
+
             try
             {
                 var pieceJointe = await _pieceJointeService.GetMetadataAsync(id);
                 if (pieceJointe == null)
+                {
+                    _logger.LogWarning("❌ Pièce jointe non trouvée pour ID: {Id}", id);
                     return NotFound();
+                }
 
-                // Construire le chemin du fichier
-                var filePath = Path.Combine(_environment.ContentRootPath, "uploads",
-                    pieceJointe.IncidentId.HasValue ? "incidents" : "commentaires",
-                    pieceJointe.NomFichier);
+                _logger.LogInformation("✅ Pièce jointe trouvée:");
+                _logger.LogInformation("   - NomFichier (base): {NomFichier}", pieceJointe.NomFichier);
+                _logger.LogInformation("   - ContentType (base): {ContentType}", pieceJointe.ContentType);
+                _logger.LogInformation("   - IncidentId: {IncidentId}", pieceJointe.IncidentId);
 
-                if (!System.IO.File.Exists(filePath))
+                // Déterminer le dossier
+                var subFolder = pieceJointe.IncidentId.HasValue ? "incidents" : "commentaires";
+                var uploadsFolder = Path.Combine(_environment.ContentRootPath, "uploads", subFolder);
+
+                _logger.LogInformation("📁 Dossier de recherche: {UploadsFolder}", uploadsFolder);
+
+                if (!Directory.Exists(uploadsFolder))
+                {
+                    _logger.LogWarning("📁 Le dossier n'existe pas: {UploadsFolder}", uploadsFolder);
                     return NotFound();
+                }
 
-                // Lire le fichier
+                // ✅ Chercher le fichier de différentes manières
+                string filePath = null;
+
+                // 1. Chercher le fichier exact avec le nom stocké
+                var exactPath = Path.Combine(uploadsFolder, pieceJointe.NomFichier);
+                if (System.IO.File.Exists(exactPath))
+                {
+                    filePath = exactPath;
+                    _logger.LogInformation("✅ Fichier trouvé (nom exact): {FilePath}", filePath);
+                }
+
+                // 2. Chercher un fichier qui contient l'ID dans son nom
+                if (filePath == null)
+                {
+                    var files = Directory.GetFiles(uploadsFolder, $"*{pieceJointe.Id}*");
+                    if (files.Length > 0)
+                    {
+                        filePath = files[0];
+                        _logger.LogInformation("✅ Fichier trouvé par ID: {FilePath}", filePath);
+                    }
+                }
+
+                // 3. Chercher un fichier qui se termine par le nom original
+                if (filePath == null && pieceJointe.NomFichier != null)
+                {
+                    var files = Directory.GetFiles(uploadsFolder, $"*_{pieceJointe.NomFichier}");
+                    if (files.Length > 0)
+                    {
+                        filePath = files[0];
+                        _logger.LogInformation("✅ Fichier trouvé par pattern: {FilePath}", filePath);
+                    }
+                }
+
+                // 4. Lister tous les fichiers du dossier pour déboguer
+                if (filePath == null)
+                {
+                    var allFiles = Directory.GetFiles(uploadsFolder);
+                    _logger.LogInformation("📁 Tous les fichiers dans {UploadsFolder}:", uploadsFolder);
+                    foreach (var f in allFiles)
+                    {
+                        _logger.LogInformation("   - {File}", Path.GetFileName(f));
+                    }
+                    return NotFound($"Fichier non trouvé. Stocké: {pieceJointe.NomFichier}");
+                }
+
                 var fileBytes = await System.IO.File.ReadAllBytesAsync(filePath);
-
-                // Déterminer le content type
                 var contentType = pieceJointe.ContentType ?? "application/octet-stream";
+                var fileName = Path.GetFileName(filePath);
 
-                // Retourner le fichier directement
-                return File(fileBytes, contentType, pieceJointe.NomFichier);
+                _logger.LogInformation("📤 Retour du fichier: {FileName}, Size: {Size} bytes, ContentType: {ContentType}",
+                    fileName, fileBytes.Length, contentType);
+
+                return File(fileBytes, contentType, fileName);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Erreur lors du téléchargement du fichier {Id}", id);
+                _logger.LogError(ex, "❌ Erreur lors du téléchargement du fichier {Id}", id);
                 return StatusCode(500);
             }
         }

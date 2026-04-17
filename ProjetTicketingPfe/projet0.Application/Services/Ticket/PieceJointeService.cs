@@ -172,36 +172,119 @@ namespace projet0.Application.Services
         }
 
         public async Task<PieceJointe> SauvegarderFichierPourCommentaireAsync(
-    CreatePieceJointeDTO dto,
-    Guid commentaireId,
-    Guid uploadedById)
+       CreatePieceJointeDTO dto,
+       Guid commentaireId,
+       Guid uploadedById)
         {
+            _logger.LogInformation("=== DÉBUT SauvegarderFichierPourCommentaireAsync ===");
+            _logger.LogInformation("CommentaireId: {CommentaireId}", commentaireId);
+            _logger.LogInformation("UploadedById: {UploadedById}", uploadedById);
+
+            // 1. Vérification du fichier
             if (dto.Fichier == null || dto.Fichier.Length == 0)
+            {
+                _logger.LogError("❌ Aucun fichier fourni ou fichier vide");
                 throw new ArgumentException("Aucun fichier fourni");
+            }
 
+            _logger.LogInformation("✅ Fichier reçu:");
+            _logger.LogInformation("   - Nom original: {FileName}", dto.Fichier.FileName);
+            _logger.LogInformation("   - Taille: {Length} bytes", dto.Fichier.Length);
+            _logger.LogInformation("   - ContentType: {ContentType}", dto.Fichier.ContentType);
+            _logger.LogInformation("   - DTO.NomFichier: {DtoNomFichier}", dto.NomFichier);
+
+            // 2. Création du dossier d'upload
             var uploadsFolder = Path.Combine(_environment.ContentRootPath, "uploads", "commentaires");
-            if (!Directory.Exists(uploadsFolder))
-                Directory.CreateDirectory(uploadsFolder);
+            _logger.LogInformation("📁 Dossier d'upload: {UploadsFolder}", uploadsFolder);
 
+            if (!Directory.Exists(uploadsFolder))
+            {
+                _logger.LogInformation("📁 Création du dossier: {UploadsFolder}", uploadsFolder);
+                Directory.CreateDirectory(uploadsFolder);
+            }
+            else
+            {
+                _logger.LogInformation("📁 Dossier existe déjà: {UploadsFolder}", uploadsFolder);
+            }
+
+            // 3. Génération du nom unique
             var uniqueFileName = $"{Guid.NewGuid()}_{dto.Fichier.FileName}";
             var filePath = Path.Combine(uploadsFolder, uniqueFileName);
 
-            using (var fileStream = new FileStream(filePath, FileMode.Create))
+            _logger.LogInformation("📄 Génération du nom unique:");
+            _logger.LogInformation("   - Nom unique: {UniqueFileName}", uniqueFileName);
+            _logger.LogInformation("   - Chemin complet: {FilePath}", filePath);
+
+            // 4. Sauvegarde du fichier physique
+            try
             {
-                await dto.Fichier.CopyToAsync(fileStream);
+                using (var fileStream = new FileStream(filePath, FileMode.Create))
+                {
+                    _logger.LogInformation("💾 Début de la copie du fichier...");
+                    await dto.Fichier.CopyToAsync(fileStream);
+                    _logger.LogInformation("✅ Fichier copié avec succès");
+                }
+
+                // Vérifier que le fichier a bien été créé
+                if (File.Exists(filePath))
+                {
+                    var fileInfo = new FileInfo(filePath);
+                    _logger.LogInformation("✅ Fichier physique vérifié: {Size} bytes", fileInfo.Length);
+                }
+                else
+                {
+                    _logger.LogError("❌ Le fichier n'a pas été créé sur le disque !");
+                }
             }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ Erreur lors de la sauvegarde du fichier physique");
+                throw;
+            }
+
+            // 5. Création de l'entité PieceJointe
+            var pieceId = Guid.NewGuid();
+            _logger.LogInformation("🆕 Création de l'entité PieceJointe:");
+            _logger.LogInformation("   - Id: {PieceId}", pieceId);
+            _logger.LogInformation("   - NomFichier (stocké): {NomFichier}", uniqueFileName);
+            _logger.LogInformation("   - ContentType: {ContentType}", dto.Fichier.ContentType);
+            _logger.LogInformation("   - CommentaireId: {CommentaireId}", commentaireId);
+            _logger.LogInformation("   - UploadedById: {UploadedById}", uploadedById);
+            _logger.LogInformation("   - DateAjout: {DateAjout}", DateTime.UtcNow);
 
             var pieceJointe = new PieceJointe
             {
-                Id = Guid.NewGuid(),
-                NomFichier = dto.NomFichier,
+                Id = pieceId,
+                NomFichier = uniqueFileName,
+                ContentType = dto.Fichier.ContentType,
                 DateAjout = DateTime.UtcNow,
                 CommentaireId = commentaireId,
                 UploadedById = uploadedById
             };
 
-            await _pieceJointeRepository.AddAsync(pieceJointe);
-            await _pieceJointeRepository.SaveChangesAsync();
+            // 6. Sauvegarde en base de données
+            try
+            {
+                _logger.LogInformation("💾 Sauvegarde en base de données...");
+                await _pieceJointeRepository.AddAsync(pieceJointe);
+                _logger.LogInformation("✅ Entité ajoutée au repository");
+
+                var saveResult = await _pieceJointeRepository.SaveChangesAsync();
+                _logger.LogInformation("✅ SaveChangesAsync terminé: {SaveResult} entité(s) modifiée(s)", saveResult);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ Erreur lors de la sauvegarde en base de données");
+                throw;
+            }
+
+            // 7. Vérification finale
+            _logger.LogInformation("=== FIN SauvegarderFichierPourCommentaireAsync ===");
+            _logger.LogInformation("✅ Pièce jointe sauvegardée avec succès:");
+            _logger.LogInformation("   - ID: {PieceId}", pieceJointe.Id);
+            _logger.LogInformation("   - Nom fichier (base): {NomFichier}", pieceJointe.NomFichier);
+            _logger.LogInformation("   - ContentType (base): {ContentType}", pieceJointe.ContentType);
+            _logger.LogInformation("   - Chemin physique: {FilePath}", filePath);
 
             return pieceJointe;
         }
@@ -214,34 +297,114 @@ namespace projet0.Application.Services
             Guid incidentId,
             Guid uploadedById)
         {
+            _logger.LogInformation("=== DÉBUT SauvegarderFichierPourIncidentAsync ===");
+            _logger.LogInformation("IncidentId: {IncidentId}", incidentId);
+            _logger.LogInformation("UploadedById: {UploadedById}", uploadedById);
+
+            // 1. Vérification du fichier
             if (dto.Fichier == null || dto.Fichier.Length == 0)
+            {
+                _logger.LogError("❌ Aucun fichier fourni ou fichier vide");
                 throw new ArgumentException("Aucun fichier fourni");
+            }
 
+            _logger.LogInformation("✅ Fichier reçu:");
+            _logger.LogInformation("   - Nom original: {FileName}", dto.Fichier.FileName);
+            _logger.LogInformation("   - Taille: {Length} bytes", dto.Fichier.Length);
+            _logger.LogInformation("   - ContentType: {ContentType}", dto.Fichier.ContentType);
+
+            // 2. Création du dossier d'upload
             var uploadsFolder = Path.Combine(_environment.ContentRootPath, "uploads", "incidents");
-            if (!Directory.Exists(uploadsFolder))
-                Directory.CreateDirectory(uploadsFolder);
+            _logger.LogInformation("📁 Dossier d'upload: {UploadsFolder}", uploadsFolder);
 
+            if (!Directory.Exists(uploadsFolder))
+            {
+                _logger.LogInformation("📁 Création du dossier: {UploadsFolder}", uploadsFolder);
+                Directory.CreateDirectory(uploadsFolder);
+            }
+            else
+            {
+                _logger.LogInformation("📁 Dossier existe déjà: {UploadsFolder}", uploadsFolder);
+            }
+
+            // 3. Génération du nom unique
             var uniqueFileName = $"{Guid.NewGuid()}_{dto.Fichier.FileName}";
             var filePath = Path.Combine(uploadsFolder, uniqueFileName);
 
-            using (var fileStream = new FileStream(filePath, FileMode.Create))
+            _logger.LogInformation("📄 Génération du nom unique:");
+            _logger.LogInformation("   - Nom unique: {UniqueFileName}", uniqueFileName);
+            _logger.LogInformation("   - Chemin complet: {FilePath}", filePath);
+
+            // 4. Sauvegarde du fichier physique
+            try
             {
-                await dto.Fichier.CopyToAsync(fileStream);
+                using (var fileStream = new FileStream(filePath, FileMode.Create))
+                {
+                    _logger.LogInformation("💾 Début de la copie du fichier...");
+                    await dto.Fichier.CopyToAsync(fileStream);
+                    _logger.LogInformation("✅ Fichier copié avec succès");
+                }
+
+                // Vérifier que le fichier a bien été créé
+                if (File.Exists(filePath))
+                {
+                    var fileInfo = new FileInfo(filePath);
+                    _logger.LogInformation("✅ Fichier physique vérifié: {Size} bytes", fileInfo.Length);
+                }
+                else
+                {
+                    _logger.LogError("❌ Le fichier n'a pas été créé sur le disque !");
+                }
             }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ Erreur lors de la sauvegarde du fichier physique");
+                throw;
+            }
+
+            // 5. Création de l'entité PieceJointe
+            var pieceId = Guid.NewGuid();
+            _logger.LogInformation("🆕 Création de l'entité PieceJointe:");
+            _logger.LogInformation("   - Id: {PieceId}", pieceId);
+            _logger.LogInformation("   - NomFichier (stocké): {NomFichier}", uniqueFileName);  // ✅ STOCKER LE NOM UNIQUE
+            _logger.LogInformation("   - ContentType: {ContentType}", dto.Fichier.ContentType);
+            _logger.LogInformation("   - IncidentId: {IncidentId}", incidentId);
+            _logger.LogInformation("   - UploadedById: {UploadedById}", uploadedById);
+            _logger.LogInformation("   - DateAjout: {DateAjout}", DateTime.UtcNow);
 
             var pieceJointe = new PieceJointe
             {
-                Id = Guid.NewGuid(),
-                NomFichier = dto.Fichier.FileName,
-                ContentType = dto.Fichier.ContentType,  // ✅ AJOUTER CETTE LIGNE
-
+                Id = pieceId,
+                NomFichier = uniqueFileName,  // ✅ CORRECTION ICI : utiliser uniqueFileName, pas le nom original !
+                ContentType = dto.Fichier.ContentType,
                 DateAjout = DateTime.UtcNow,
                 IncidentId = incidentId,
                 UploadedById = uploadedById
             };
 
-            await _pieceJointeRepository.AddAsync(pieceJointe);
-            await _pieceJointeRepository.SaveChangesAsync();
+            // 6. Sauvegarde en base de données
+            try
+            {
+                _logger.LogInformation("💾 Sauvegarde en base de données...");
+                await _pieceJointeRepository.AddAsync(pieceJointe);
+                _logger.LogInformation("✅ Entité ajoutée au repository");
+
+                var saveResult = await _pieceJointeRepository.SaveChangesAsync();
+                _logger.LogInformation("✅ SaveChangesAsync terminé: {SaveResult} entité(s) modifiée(s)", saveResult);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ Erreur lors de la sauvegarde en base de données");
+                throw;
+            }
+
+            // 7. Vérification finale
+            _logger.LogInformation("=== FIN SauvegarderFichierPourIncidentAsync ===");
+            _logger.LogInformation("✅ Pièce jointe sauvegardée avec succès:");
+            _logger.LogInformation("   - ID: {PieceId}", pieceJointe.Id);
+            _logger.LogInformation("   - Nom fichier (base): {NomFichier}", pieceJointe.NomFichier);
+            _logger.LogInformation("   - ContentType (base): {ContentType}", pieceJointe.ContentType);
+            _logger.LogInformation("   - Chemin physique: {FilePath}", filePath);
 
             return pieceJointe;
         }
@@ -257,6 +420,7 @@ namespace projet0.Application.Services
             {
                 Id = p.Id,
                 NomFichier = p.NomFichier,
+                ContentType = p.ContentType,
                 DateAjout = p.DateAjout,
                 Url = GetUrlForPiece(p)
             }).ToList();
