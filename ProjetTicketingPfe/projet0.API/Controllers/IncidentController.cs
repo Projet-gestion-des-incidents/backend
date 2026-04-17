@@ -322,12 +322,10 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
             }
         }
 
-        // Remplacer l'ancienne méthode GetMyIncidents par celle-ci :
-
         [HttpGet("my-incidents")]
         [Authorize(Policy = "IncidentRead")]
         public async Task<ActionResult<ApiResponse<PagedResult<IncidentDTO>>>> GetMyIncidents(
-            [FromQuery] IncidentSearchRequest request)  // ✅ Ajout des filtres
+            [FromQuery] IncidentSearchRequest request) 
         {
             try
             {
@@ -554,8 +552,6 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
                 return StatusCode(500, ApiResponse<List<IncidentDTO>>.Failure("Erreur interne"));
             }
         }
-
-        // Dans IncidentController.cs
 
         /// <summary>
         /// Récupère les statistiques du dashboard incidents

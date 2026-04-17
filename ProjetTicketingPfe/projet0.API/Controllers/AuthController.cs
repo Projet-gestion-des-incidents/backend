@@ -37,12 +37,12 @@ namespace projet0.API.Controllers
             _userManager = userManager;
             _emailService = emailService;
         }
-        // Dans AuthController.cs
+       
         [HttpPost("register")]
         [AllowAnonymous]
         public async Task<IActionResult> Register([FromBody] RegisterDTO dto)
         {
-            // ✅ Vérifier la validité du modèle
+            // Vérifier la validité du modèle
             if (!ModelState.IsValid)
             {
                 var errors = ModelState.Values
@@ -66,53 +66,6 @@ namespace projet0.API.Controllers
         public async Task<IActionResult> Login(LoginDTO dto)
             => Ok(await _authService.LoginAsync(dto));
 
-        //[HttpPost("send-otp")]
-        //[AllowAnonymous]
-        //public async Task<IActionResult> SendOtp([FromBody] EmailDTO dto)
-        //{
-        //    if (string.IsNullOrEmpty(dto.Email))
-        //        return BadRequest("Email requis");
-
-        //    var user = await _userManager.FindByEmailAsync(dto.Email);
-        //    if (user == null)
-        //        return NotFound(new ApiResponse<string>("Utilisateur introuvable", null, 20));
-
-        //    await _otpService.GenerateAndSendOtpAsync(user, OtpPurpose.EmailConfirmation);
-
-        //    // RETOURNER ApiResponse AU LIEU D'UNE CHAÎNE SIMPLE
-        //    return Ok(new ApiResponse<string>(
-        //        data: "OTP envoyé avec succès",
-        //        message: "Un code de vérification a été envoyé à votre adresse email",
-        //        resultCode: 0
-        //    ));
-        //}
-
-        //[HttpPost("validate-otp")]
-        //[AllowAnonymous]
-        //public async Task<IActionResult> ValidateOtp(ValidateOtpDTO dto)
-        //{
-        //    var user = await _userManager.FindByEmailAsync(dto.Email);
-        //    if (user == null)
-        //        return NotFound("Utilisateur introuvable");
-
-        //    var isValid = await _otpService.ValidateOtpAsync(
-        //        user.Id,
-        //        dto.Code,
-        //        OtpPurpose.EmailConfirmation
-        //    );
-
-        //    if (!isValid)
-        //        return BadRequest(new ApiResponse<string>("OTP invalide ou expiré", null, 30));
-        //    user.EmailConfirmed = true;
-        //    await _userManager.UpdateAsync(user);
-
-        //    return Ok(new ApiResponse<string>(
-        //                  data: "OTP validé",
-        //                  message: "OTP validé avec succès. Vous êtes maintenant connecté.",
-        //                  resultCode: 0
-        //              ));
-        //}        
-
         [HttpPost("send-otp")]
         [AllowAnonymous]
         public async Task<IActionResult> SendOtp([FromBody] EmailDTO dto)
@@ -131,10 +84,6 @@ namespace projet0.API.Controllers
                                ));
             var result = await _otpService.GenerateAndSendOtpAsync(user, OtpPurpose.EmailConfirmation);
 
-            // Retourner directement l'ApiResponse du service
-           
-                // Pour les codes d'avertissement (comme email non envoyé), on peut toujours retourner 200
-                // mais avec un resultCode différent pour informer le frontend
                 return Ok(result);
             }
         
@@ -159,25 +108,6 @@ namespace projet0.API.Controllers
 
             if (result.ResultCode == 0 && result.Data)
             {
-                //// OTP validé avec succès
-                //user.EmailConfirmed = true;
-                //await _userManager.UpdateAsync(user);
-
-                //// Générer le token JWT
-                //var token = _tokenService.GenerateAccessToken(user , "User");
-                //var refreshToken = _tokenService.GenerateRefreshToken();
-
-                //var authResponse = new AuthResponseDTO
-                //{
-                //    AccessToken = token,
-                //    RefreshToken = refreshToken,
-                //    ExpiresAt = DateTime.UtcNow.AddHours(2),
-                //    Email = user.Email,
-                //    UserName = user.UserName,
-                //    Role = user.Role,
-                //    EmailConfirmed = user.EmailConfirmed
-                //};
-
                 return Ok(ApiResponse<AuthResponseDTO>.Success(
                          data: null,
                          message: result.Message,
@@ -220,12 +150,11 @@ namespace projet0.API.Controllers
                    : BadRequest(result);
         }
 
-        // Dans AuthController.cs - ResetPassword
         [HttpPost("reset-password")]
         [AllowAnonymous]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDTO dto)
         {
-            // ✅ 1. Valider le modèle
+            // Valider le modèle
             if (!ModelState.IsValid)
             {
                 return BadRequest(ApiResponse<string>.Failure(
@@ -234,7 +163,7 @@ namespace projet0.API.Controllers
                     resultCode: 99));
             }
 
-            // ✅ 2. Vérifier que les mots de passe correspondent
+            // Vérifier que les mots de passe correspondent
             if (dto.NewPassword != dto.ConfirmPassword)
             {
                 return BadRequest(ApiResponse<string>.Failure(
@@ -242,7 +171,7 @@ namespace projet0.API.Controllers
                     resultCode: 42));
             }
 
-            // ✅ 3. Vérifier la force du mot de passe
+            // Vérifier la force du mot de passe
             if (dto.NewPassword.Length < 6)
             {
                 return BadRequest(ApiResponse<string>.Failure(
@@ -258,7 +187,7 @@ namespace projet0.API.Controllers
                     resultCode: 40));
             }
 
-            // ✅ 4. Valider l'OTP
+            // Valider l'OTP
             var otpValid = await _otpService.ValidateOtpAsync(
                 user.Id,
                 dto.OtpCode,
@@ -272,7 +201,7 @@ namespace projet0.API.Controllers
                     resultCode: otpValid.ResultCode));
             }
 
-            // ✅ 5. Réinitialiser le mot de passe
+            // Réinitialiser le mot de passe
             var resetToken = await _userManager.GeneratePasswordResetTokenAsync(user);
             var result = await _userManager.ResetPasswordAsync(user, resetToken, dto.NewPassword);
 
@@ -284,7 +213,7 @@ namespace projet0.API.Controllers
                     resultCode: 41));
             }
 
-            // ✅ 6. Optionnel : Déconnecter toutes les sessions actives
+            // Optionnel : Déconnecter toutes les sessions actives
             await _userManager.UpdateSecurityStampAsync(user);
 
             return Ok(ApiResponse<string>.Success(
@@ -292,9 +221,6 @@ namespace projet0.API.Controllers
                 message: "Mot de passe réinitialisé avec succès. Vous pouvez maintenant vous connecter.",
                 resultCode: 0));
         }
-
-
-        // AuthController.cs - Ajouter ces endpoints
 
         [HttpPost("confirm-email-change")]
         [Authorize]

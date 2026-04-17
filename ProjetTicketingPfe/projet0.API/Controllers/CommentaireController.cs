@@ -192,13 +192,13 @@ namespace projet0.API.Controllers
                     EstInterne = commentaireComplet.EstInterne,
                     AuteurId = commentaireComplet.AuteurId,
                     AuteurNom = commentaireComplet.Auteur != null ? $"{commentaireComplet.Auteur.Nom} {commentaireComplet.Auteur.Prenom}" : "Inconnu",
-                    TicketId = commentaireComplet.TicketId,  // ✅ AJOUTER CETTE LIGNE
-                    TicketReference = commentaireComplet.Ticket?.ReferenceTicket,  // ✅ AJOUTER CETTE LIGNE (optionnel)
+                    TicketId = commentaireComplet.TicketId,  
+                    TicketReference = commentaireComplet.Ticket?.ReferenceTicket,  
                     PiecesJointes = commentaireComplet.PiecesJointes?.Select(p => new PieceJointeDTO
                     {
                         Id = p.Id,
                         NomFichier = p.NomFichier,
-                        ContentType = p.ContentType,  // ✅ AJOUTER CETTE LIGNE
+                        ContentType = p.ContentType,  
                         DateAjout = p.DateAjout,
                         Url = $"{Request.Scheme}://{Request.Host}/api/pieces-jointes/{p.Id}"
                     }).ToList() ?? new()
@@ -378,6 +378,7 @@ namespace projet0.API.Controllers
                 return StatusCode(500, ApiResponse<List<PieceJointeDTO>>.Failure("Erreur interne"));
             }
         }
+
         /// <summary>
         /// Récupère les commentaires du technicien connecté
         /// </summary>
@@ -429,8 +430,8 @@ namespace projet0.API.Controllers
                     EstInterne = c.EstInterne,
                     AuteurId = c.AuteurId,
                     AuteurNom = c.Auteur != null ? $"{c.Auteur.Nom} {c.Auteur.Prenom}" : "Inconnu",
-                    TicketId = c.TicketId, // Ajoutez cette propriété si elle n'existe pas dans votre DTO
-                    TicketReference = c.Ticket?.ReferenceTicket, // Ajoutez pour contexte
+                    TicketId = c.TicketId, 
+                    TicketReference = c.Ticket?.ReferenceTicket, 
                     PiecesJointes = c.PiecesJointes?.Select(p => new PieceJointeDTO
                     {
                         Id = p.Id,

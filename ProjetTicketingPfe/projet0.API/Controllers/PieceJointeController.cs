@@ -6,8 +6,8 @@ using projet0.Application.Interfaces;
 using projet0.Application.Services.Incident;
 using projet0.Application.Services.User;
 using System.Security.Claims;
-using Microsoft.AspNetCore.Hosting;  // ✅ AJOUTER CET USING
-using System.IO;  // ✅ AJOUTER CET USING
+using Microsoft.AspNetCore.Hosting;  
+using System.IO;  
 
 namespace projet0.API.Controllers
 {
@@ -21,20 +21,20 @@ namespace projet0.API.Controllers
         private readonly ILogger<PieceJointeController> _logger;
         private readonly IUserService _userService;
         private readonly IIncidentService _incidentService;
-        private readonly IWebHostEnvironment _environment;  // ✅ AJOUTER CETTE LIGNE
+        private readonly IWebHostEnvironment _environment;
 
         public PieceJointeController(
             IPieceJointeService pieceJointeService,
             ILogger<PieceJointeController> logger,
             IUserService userService,
             IIncidentService incidentService,
-            IWebHostEnvironment environment)  // ✅ AJOUTER CE PARAMÈTRE
+            IWebHostEnvironment environment) 
         {
             _pieceJointeService = pieceJointeService;
             _logger = logger;
             _userService = userService;
             _incidentService = incidentService;
-            _environment = environment;  // ✅ INITIALISER
+            _environment = environment;  
         }
 
         [HttpGet("{id}")]
@@ -70,7 +70,7 @@ namespace projet0.API.Controllers
                     return NotFound();
                 }
 
-                // ✅ Chercher le fichier de différentes manières
+                // Chercher le fichier de différentes manières
                 string filePath = null;
 
                 // 1. Chercher le fichier exact avec le nom stocké
@@ -225,8 +225,7 @@ namespace projet0.API.Controllers
                     {
                         Id = pieceJointe.Id,
                         NomFichier = pieceJointe.NomFichier,
-                        ContentType = pieceJointe.ContentType,  // ✅ AJOUTER
-                         // ✅ AJOUTER
+                        ContentType = pieceJointe.ContentType,  
                         DateAjout = pieceJointe.DateAjout,
                         Url = $"{Request.Scheme}://{Request.Host}/api/pieces-jointes/{pieceJointe.Id}"
                     });
@@ -255,7 +254,7 @@ namespace projet0.API.Controllers
             {
                 var pieces = await _pieceJointeService.GetPiecesJointesByIncidentIdAsync(incidentId);
 
-                // ✅ Ajouter les URLs complètes
+                // Ajouter les URLs complètes
                 foreach (var piece in pieces)
                 {
                     piece.Url = $"{Request.Scheme}://{Request.Host}/api/pieces-jointes/{piece.Id}";
@@ -283,14 +282,14 @@ namespace projet0.API.Controllers
             {
                 var userId = GetCurrentUserId();
 
-                // ✅ Récupérer l'incident
+                // Récupérer l'incident
                 var incident = await _incidentService.GetIncidentByIdAsync(incidentId);
                 if (incident == null || incident.Data == null)
                 {
                     return NotFound(ApiResponse<bool>.Failure("Incident non trouvé"));
                 }
 
-                // ✅ Vérifier les droits
+                // Vérifier les droits
                 var userRoles = await _userService.GetUserRolesAsync(userId);
                 var isAdmin = userRoles.Contains("Admin");
                 var isCommercant = userRoles.Contains("Commercant");
@@ -331,7 +330,6 @@ namespace projet0.API.Controllers
                 return StatusCode(500, ApiResponse<bool>.Failure("Erreur interne"));
             }
         }
-
         private Guid GetCurrentUserId()
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
