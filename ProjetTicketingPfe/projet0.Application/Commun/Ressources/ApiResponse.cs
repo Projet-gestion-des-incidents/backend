@@ -15,7 +15,7 @@
         public static ApiResponse<T> Success(
             T? data = default,
             string? message = null,
- int resultCode = 0)
+            int resultCode = 0)
         {
             return new ApiResponse<T>
             {
@@ -30,7 +30,7 @@
         public static ApiResponse<T> Failure(
             string message,
             List<string>? errors = null,
-        int resultCode = 1
+            int resultCode = 1
             )
         {
             return new ApiResponse<T>

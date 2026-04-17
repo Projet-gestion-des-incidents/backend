@@ -37,15 +37,12 @@ namespace projet0.Application.Services.Auth
         }
 
         // ================= REGISTER =================
-        // Dans Application/Services/Auth/AuthService.cs
-        // Dans AuthService.RegisterAsync - Ajouter ces validations
-        // Dans AuthService.RegisterAsync - Ajouter ces validations
         public async Task<ApiResponse<AuthResponseDTO>> RegisterAsync(RegisterDTO dto)
         {
-            // ✅ 1. Valider le modèle (les annotations sont déjà vérifiées par le contrôleur)
+            // 1. Valider le modèle (les annotations sont déjà vérifiées par le contrôleur)
             // Mais on peut ajouter des validations supplémentaires
 
-            // ✅ 2. Vérifier l'unicité de l'email
+            // 2. Vérifier l'unicité de l'email
             var existingEmail = await _userManager.FindByEmailAsync(dto.Email);
             if (existingEmail != null)
             {
@@ -55,7 +52,7 @@ namespace projet0.Application.Services.Auth
                 );
             }
 
-            // ✅ 3. Vérifier l'unicité du nom d'utilisateur
+            // 3. Vérifier l'unicité du nom d'utilisateur
             var existingUserName = await _userManager.FindByNameAsync(dto.UserName);
             if (existingUserName != null)
             {
@@ -65,7 +62,7 @@ namespace projet0.Application.Services.Auth
                 );
             }
 
-            // ✅ 4. Vérifier l'unicité du numéro de téléphone (si fourni)
+            // 4. Vérifier l'unicité du numéro de téléphone (si fourni)
             if (!string.IsNullOrEmpty(dto.PhoneNumber))
             {
                 var users = _userManager.Users.ToList();
@@ -79,7 +76,7 @@ namespace projet0.Application.Services.Auth
                 }
             }
 
-            // ✅ 5. Vérifier la force du mot de passe (validation supplémentaire)
+            // 5. Vérifier la force du mot de passe (validation supplémentaire)
             var passwordValidator = new PasswordValidator<ApplicationUser>();
             var passwordResult = await passwordValidator.ValidateAsync(_userManager, null, dto.Password);
             if (!passwordResult.Succeeded)
@@ -92,7 +89,7 @@ namespace projet0.Application.Services.Auth
                 );
             }
 
-            // ✅ 6. Récupérer le rôle "Technicien"
+            // 6. Récupérer le rôle "Technicien"
             var role = await _roleManager.FindByNameAsync("Technicien");
             if (role == null)
             {
@@ -100,7 +97,7 @@ namespace projet0.Application.Services.Auth
                 await _roleManager.CreateAsync(role);
             }
 
-            // ✅ 7. Créer l'utilisateur (EmailConfirmed forcé à false)
+            // 7. Créer l'utilisateur (EmailConfirmed forcé à false)
             var user = new ApplicationUser
             {
                 UserName = dto.UserName,
@@ -108,9 +105,8 @@ namespace projet0.Application.Services.Auth
                 Nom = dto.Nom,
                 Prenom = dto.Prenom,
                 PhoneNumber = dto.PhoneNumber,
-                BirthDate = dto.BirthDate,
-               
-                EmailConfirmed = false  // ✅ Toujours false - l'utilisateur doit confirmer son email
+                BirthDate = dto.BirthDate,               
+                EmailConfirmed = false  // Toujours false - l'utilisateur doit confirmer son email
             };
 
             var result = await _userManager.CreateAsync(user, dto.Password);
@@ -124,10 +120,10 @@ namespace projet0.Application.Services.Auth
                 );
             }
 
-            // ✅ 8. Assignation du rôle Technicien
+            // 8. Assignation du rôle Technicien
             await _userManager.AddToRoleAsync(user, role.Name);
 
-            // ✅ 9. Envoyer OTP pour confirmer l'email
+            // 9. Envoyer OTP pour confirmer l'email
             var otpResult = await _otpService.GenerateAndSendOtpAsync(
                 user,
                 OtpPurpose.EmailConfirmation
@@ -165,7 +161,7 @@ namespace projet0.Application.Services.Auth
             var isAdmin = roles.Contains("Admin");
 
             // ============================================
-            // ✅ ADMIN : Pas de lockout
+            // ADMIN : Pas de lockout
             // ============================================
             if (isAdmin)
             {
@@ -230,7 +226,7 @@ namespace projet0.Application.Services.Auth
             }
 
             // ============================================
-            // ✅ NON-ADMIN : Logique avec lockout
+            // NON-ADMIN : Logique avec lockout
             // ============================================
 
             // 1. NETTOYER LE LOCKOUT EXPIRÉ (restaure le statut si nécessaire)
@@ -368,16 +364,12 @@ namespace projet0.Application.Services.Auth
             );
         }
 
-
-
-        // Méthode utilitaire pour détecter un lockout permanent
-        private bool IsPermanentLockout(DateTimeOffset lockoutEnd)
-        {
-            // Si lockoutEnd est très loin dans le futur (>= 1 an), considérer comme permanent
-            return lockoutEnd > DateTimeOffset.UtcNow.AddYears(1);
-        }
-
-        // Dans AuthService.cs, ajoutez ces méthodes
+        //// Méthode utilitaire pour détecter un lockout permanent
+        //private bool IsPermanentLockout(DateTimeOffset lockoutEnd)
+        //{
+        //    // Si lockoutEnd est très loin dans le futur (>= 1 an), considérer comme permanent
+        //    return lockoutEnd > DateTimeOffset.UtcNow.AddYears(1);
+        //}
 
         /// <summary>
         /// Synchronise le champ Statut avec LockoutEnd
@@ -400,7 +392,7 @@ namespace projet0.Application.Services.Auth
             }
             else
             {
-                // ✅ Si non bloqué, le statut doit être Actif
+                // Si non bloqué, le statut doit être Actif
                 if (user.Statut != UserStatut.Actif)
                 {
                     user.Statut = UserStatut.Actif;
@@ -440,7 +432,7 @@ namespace projet0.Application.Services.Auth
                 // 2. Réinitialiser le compteur de tentatives
                 await _userManager.ResetAccessFailedCountAsync(user);
 
-                // 3. ✅ RESTAURER LE STATUT À ACTIF
+                // 3. RESTAURER LE STATUT À ACTIF
                 if (user.Statut != UserStatut.Actif)
                 {
                     user.Statut = UserStatut.Actif;

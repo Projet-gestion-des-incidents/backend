@@ -16,7 +16,7 @@ namespace projet0.Application.Commun.DTOs
         public Guid? CommercantId { get; set; }
         public string CommercantNom { get; set; }
 
-        // ✅ CHAMPS D'AUDIT
+        // CHAMPS D'AUDIT
         public DateTime CreatedAt { get; set; }
         public string CreatedByNom { get; set; }
         public DateTime? UpdatedAt { get; set; }

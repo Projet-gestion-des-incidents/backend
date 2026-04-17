@@ -17,7 +17,7 @@ namespace projet0.Application.Services.Otp
                 Guid userId,
                 string code,
                 OtpPurpose purpose);
-        // ✅ AJOUTER CETTE MÉTHODE
+
         Task<ApiResponse<string>> GenerateAndSendOtpToEmailAsync(
             ApplicationUser user,
             string targetEmail,

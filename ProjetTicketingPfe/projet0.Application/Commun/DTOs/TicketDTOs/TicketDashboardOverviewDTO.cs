@@ -38,7 +38,6 @@ namespace projet0.Application.Commun.DTOs.TicketDTOs
         public DateTime Date { get; set; }
         public string DateFormatee => Date.ToString("dd/MM/yyyy");
         public string Jour => Date.ToString("dddd", new System.Globalization.CultureInfo("fr-FR"));
-
         public int Crees { get; set; }
         public int NonAssigne { get; set; }
         public int Assignes { get; set; }

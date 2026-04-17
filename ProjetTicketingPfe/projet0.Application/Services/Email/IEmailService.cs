@@ -8,7 +8,7 @@ namespace projet0.Application.Services.Email
     {
         Task SendAsync(string to, string subject, string body);
         Task SendWelcomeEmailAsync(string to, string nom, string prenom, string defaultPassword);
-        Task SendPasswordChangeConfirmationAsync(string email);  // ✅ AJOUTER
+        Task SendPasswordChangeConfirmationAsync(string email); 
     }
 
 }

@@ -41,7 +41,7 @@ namespace projet0.Application.Commun.DTOs
         [CustomValidation(typeof(RegisterDTO), nameof(ValidateAge))]
         public DateTime? BirthDate { get; set; }
 
-        // ✅ Validation personnalisée pour le mot de passe
+        // Validation personnalisée pour le mot de passe
         public static ValidationResult? ValidatePassword(string? password, ValidationContext context)
         {
             if (string.IsNullOrEmpty(password))

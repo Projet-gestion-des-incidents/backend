@@ -55,7 +55,7 @@ namespace projet0.API.Controllers
         [HttpGet]  
         [Authorize(Policy = "TicketRead")]
         public async Task<ActionResult<ApiResponse<PagedResult<TicketDTO>>>> GetTicketsPaged(
-       [FromQuery] TicketPagedRequest request) 
+        [FromQuery] TicketPagedRequest request) 
         {
             try
             {
@@ -330,10 +330,11 @@ namespace projet0.API.Controllers
                 return StatusCode(500, ApiResponse<List<IncidentDetailDTO>>.Failure("Erreur interne"));
             }
         }
+
         [HttpGet("mes-tickets")]
         [Authorize(Policy = "TicketRead")]
         public async Task<ActionResult<ApiResponse<PagedResult<TicketDTO>>>> GetMesTicketsPaged(
-    [FromQuery] TicketPagedRequest request)
+        [FromQuery] TicketPagedRequest request)
         {
             try
             {
@@ -394,8 +395,6 @@ namespace projet0.API.Controllers
                 return StatusCode(500, ApiResponse<bool>.Failure("Erreur interne"));
             }
         }
-
-        // Dans TicketController.cs
 
         /// <summary>
         /// Récupère les statistiques du dashboard tickets

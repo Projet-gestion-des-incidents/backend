@@ -5,7 +5,6 @@ using System.Text;
 
 namespace projet0.Application.Commun.DTOs
 {
-    // Dans Application/Commun/DTOs/CreateCommercantDto.cs
     public class CreateCommercantDto
     {
         [Required(ErrorMessage = "Le nom du magasin est requis")]

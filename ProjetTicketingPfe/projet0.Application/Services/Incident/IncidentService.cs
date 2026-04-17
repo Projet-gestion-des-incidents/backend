@@ -33,7 +33,7 @@ namespace projet0.Application.Services.Incident
         private readonly IIncidentTPERepository _incidentTPERepository;
         private readonly IWebHostEnvironment _environment;
         private readonly ICommentaireRepository _commentaireRepository;
-        private readonly IPieceJointeRepository _pieceJointeRepository;// ✅ AJOUTER
+        private readonly IPieceJointeRepository _pieceJointeRepository;
 
         public IncidentService(
             IIncidentRepository incidentRepository,
@@ -47,7 +47,7 @@ namespace projet0.Application.Services.Incident
             ITicketRepository ticketRepository,
             IIncidentTPERepository incidentTPERepository,
             IWebHostEnvironment environment,
-            IPieceJointeRepository pieceJointeRepository,      // ✅ AJOUTER
+            IPieceJointeRepository pieceJointeRepository,      
             ICommentaireRepository commentaireRepository)
         {
             _incidentRepository = incidentRepository;
@@ -95,7 +95,7 @@ namespace projet0.Application.Services.Incident
             var dto = _mapper.Map<IncidentDTO>(incident);
 
             dto.StatutIncidentLibelle = GetStatutLibelle(incident.StatutIncident);
-            dto.SeveriteIncidentLibelle = GetSeveriteLibelle(incident.SeveriteIncident); // ✅ Appel correct
+            dto.SeveriteIncidentLibelle = GetSeveriteLibelle(incident.SeveriteIncident); 
             dto.Emplacement = incident.Emplacement;
 
             if (incident.CreatedById.HasValue && dto.CreatedByName == null)
@@ -106,7 +106,7 @@ namespace projet0.Application.Services.Incident
 
             dto.TypeProbleme = incident.TypeProbleme;
 
-            // ✅ AJOUTER LE MAPPAGE DES ENTITÉS IMPACTÉES
+            // AJOUTER LE MAPPAGE DES ENTITÉS IMPACTÉES
             if (incident.EntitesImpactees != null && incident.EntitesImpactees.Any())
             {
                 dto.EntitesImpactees = incident.EntitesImpactees
@@ -234,7 +234,7 @@ namespace projet0.Application.Services.Incident
                 );
             }
 
-            // ✅ FILTRE PAR STATUT (gère le null)
+            // FILTRE PAR STATUT (gère le null)
             if (request.StatutIncident.HasValue)
             {
                 query = query.Where(i => i.StatutIncident == request.StatutIncident.Value);
@@ -267,7 +267,7 @@ namespace projet0.Application.Services.Incident
                 query = query.Where(i => i.StatutIncident == request.StatutIncident.Value);
             }
 
-            // ✅ FILTRE PAR SÉVÉRITÉ (CORRIGÉ)
+            // FILTRE PAR SÉVÉRITÉ (CORRIGÉ)
             if (request.SeveriteIncident.HasValue)
             {
                 query = query.Where(i => i.SeveriteIncident == request.SeveriteIncident.Value);
@@ -319,7 +319,7 @@ namespace projet0.Application.Services.Incident
                 query = query.Where(i => i.DateDetection >= date && i.DateDetection < nextDay);
             }
 
-            // ✅ NOUVEAU : Filtre par date de résolution exacte
+            // NOUVEAU : Filtre par date de résolution exacte
             if (request.DateResolution.HasValue)
             {
                 var date = request.DateResolution.Value.Date;
@@ -328,7 +328,6 @@ namespace projet0.Application.Services.Incident
                                          i.DateResolution.Value >= date &&
                                          i.DateResolution.Value < nextDay);
             }
-
 
             return query;
         }
@@ -540,7 +539,7 @@ namespace projet0.Application.Services.Incident
                     DescriptionIncident = dto.DescriptionIncident ?? "",
                     Emplacement = dto.Emplacement,
                     TypeProbleme = dto.TypeProbleme,  // Un seul type
-                    StatutIncident = StatutIncident.NonTraite,  // ← AUCUN STATUT À LA CRÉATION
+                    StatutIncident = StatutIncident.NonTraite,  // AUCUN STATUT À LA CRÉATION
                     DateDetection = DateTime.UtcNow,
                     CreatedById = createdById,
                     EntitesImpactees = new List<EntiteImpactee>(),
@@ -644,7 +643,7 @@ namespace projet0.Application.Services.Incident
                 // RÈGLE : Si c'est un commerçant, vérifier si l'incident est modifiable
                 if (isCommercant && !isAdmin)
                 {
-                    // ✅ CORRECTION : Vérifier si l'incident est en cours (StatutIncident = 1) ou fermé (StatutIncident = 2)
+                    // CORRECTION : Vérifier si l'incident est en cours (StatutIncident = 1) ou fermé (StatutIncident = 2)
                     // "Non traité" = 0 → modifiable
                     // "En cours" = 1 → non modifiable
                     // "Fermé/Résolu" = 2 → non modifiable
@@ -671,7 +670,6 @@ namespace projet0.Application.Services.Incident
                         );
                     }
                 }
-
 
                 // Gestion de la modification du TypeProbleme
                 bool typeProblemeModifie = false;
@@ -750,7 +748,6 @@ namespace projet0.Application.Services.Incident
         /// </summary>
         // Dans IncidentService.cs - Méthode à appeler quand un ticket change de statut
         // Dans IncidentService.cs - Remplacer MettreAJourStatutIncident
-
         public async Task<ApiResponse<bool>> MettreAJourStatutIncident(Guid incidentId)
         {
             try
@@ -769,28 +766,28 @@ namespace projet0.Application.Services.Incident
 
                     if (tousLesTicketsResolus)
                     {
-                        // ✅ TOUS les tickets sont résolus → incident fermé
+                        // TOUS les tickets sont résolus → incident fermé
                         incident.StatutIncident = StatutIncident.Ferme;
                         incident.DateResolution = DateTime.UtcNow;
                         _logger.LogInformation("Incident {IncidentId} fermé car tous ses tickets sont résolus", incidentId);
                     }
                     else if (aUnTicketEnCours)
                     {
-                        // ✅ Au moins un ticket en cours → incident en cours
+                        // Au moins un ticket en cours → incident en cours
                         incident.StatutIncident = StatutIncident.EnCours;
                         incident.DateResolution = null;
                         _logger.LogInformation("Incident {IncidentId} en cours", incidentId);
                     }
                     else if (aUnTicketAssigne && !aUnTicketEnCours)
                     {
-                        // ✅ Tickets assignés mais aucun en cours → incident reste en cours
+                        // Tickets assignés mais aucun en cours → incident reste en cours
                         incident.StatutIncident = StatutIncident.EnCours;
                         incident.DateResolution = null;
                     }
                 }
                 else
                 {
-                    // ✅ Plus aucun ticket lié → incident sans statut
+                    // Plus aucun ticket lié → incident sans statut
                     incident.StatutIncident = null;
                     incident.DateResolution = null;
                     _logger.LogInformation("Incident {IncidentId} : plus de tickets liés, statut remis à null", incidentId);
@@ -880,7 +877,7 @@ namespace projet0.Application.Services.Incident
                         );
                     }
 
-                    // ✅ Plus de vérification sur les tickets liés
+                    // Plus de vérification sur les tickets liés
                     // Le commerçant peut supprimer son incident même s'il est lié à des tickets
                 }
 
@@ -912,7 +909,7 @@ namespace projet0.Application.Services.Incident
                     {
                         _logger.LogInformation("Ticket {TicketId} n'a plus d'incidents liés - suppression", ticket.Id);
 
-                        // ✅ Supprimer les commentaires et leurs pièces jointes
+                        // Supprimer les commentaires et leurs pièces jointes
                         if (ticketMisAJour.Commentaires != null && ticketMisAJour.Commentaires.Any())
                         {
                             foreach (var commentaire in ticketMisAJour.Commentaires.ToList())
@@ -952,8 +949,6 @@ namespace projet0.Application.Services.Incident
                 return ApiResponse<bool>.Failure("Erreur interne du serveur");
             }
         }
-
-        // Dans IncidentService.cs - Ajouter cette méthode
 
         public async Task<ApiResponse<IncidentDashboardDTO>> GetIncidentDashboardAsync()
         {
@@ -1305,6 +1300,7 @@ namespace projet0.Application.Services.Incident
         {
             return await _userRepository.GetUserRolesAsync(userId);
         }
+
         /// <summary>
         /// Lie plusieurs TPEs à un incident et retourne la liste des TPEs liés
         /// </summary>
@@ -1422,7 +1418,6 @@ namespace projet0.Application.Services.Incident
             };
         }
 
-        // Dans IncidentService.cs
         public async Task<ApiResponse<PagedResult<IncidentDTO>>> GetMyIncidentsPagedAsync(IncidentSearchRequest request, Guid userId)
         {
             return await MeasureAsync(nameof(GetMyIncidentsPagedAsync), request, async () =>

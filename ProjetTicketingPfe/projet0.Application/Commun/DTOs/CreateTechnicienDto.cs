@@ -5,7 +5,6 @@ using System.Text;
 
 namespace projet0.Application.Commun.DTOs
 {
-    // Dans Application/Commun/DTOs/CreateTechnicienDto.cs
     public class CreateTechnicienDto
     {
         [Required(ErrorMessage = "Le nom d'utilisateur est requis")]
@@ -26,7 +25,6 @@ namespace projet0.Application.Commun.DTOs
         [MinLength(3, ErrorMessage = "Le prénom doit contenir au moins 3 caractères")]
         [MaxLength(30, ErrorMessage = "Le prénom ne peut pas dépasser 30 caractères")]
         public string Prenom { get; set; }
-
 
     }
 }

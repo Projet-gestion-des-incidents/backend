@@ -27,13 +27,7 @@ namespace projet0.API.Controllers
             _userService = userService;
             _logger = logger;
 
-        }
-
-        
-
-
-
-       
+        }        
 
         [HttpPut("{id}/activate")]
         [Authorize(Policy = "AdminOnly")]
@@ -51,10 +45,6 @@ namespace projet0.API.Controllers
             return Ok(result);
         }
 
-        // API/Controllers/UserController.cs
-
-        // API/Controllers/UserController.cs
-
         /// <summary>
         /// Modifier le profil de l'administrateur (par l'admin lui-même)
         /// </summary>
@@ -62,7 +52,7 @@ namespace projet0.API.Controllers
         [HttpPut("me")]
         public async Task<IActionResult> EditAdminProfile([FromBody] EditAdminProfileDto dto)
         {
-            // ✅ 1. Valider le modèle (DataAnnotations)
+            // Valider le modèle (DataAnnotations)
             if (!ModelState.IsValid)
             {
                 var errors = ModelState.Values
@@ -130,8 +120,7 @@ namespace projet0.API.Controllers
                 user.Image,
                 user.BirthDate,
                 user.Statut,
-                user.Adresse,  // ✅ AJOUTER CETTE LIGNE
-
+                user.Adresse, 
                 user.TicketsCrees,
                 user.TicketsAssignes,
                 user.Commentaires,
@@ -181,10 +170,6 @@ namespace projet0.API.Controllers
 
             return Ok(result);
         }
-        // projet0.API/Controllers/UserController.cs
-
-
-        // Dans UserController.cs - Remplacer l'ancienne méthode GetTechniciens
 
         /// <summary>
         /// Récupère la liste paginée des techniciens avec recherche et filtres
@@ -264,7 +249,6 @@ namespace projet0.API.Controllers
                     "Erreur interne du serveur"));
             }
         }
-        // Dans UserController.cs
 
         /// <summary>
         /// Créer un technicien (par admin)
@@ -311,8 +295,6 @@ namespace projet0.API.Controllers
             var result = await _userService.CreateCommercantAsync(dto);
             return Ok(result);
         }
-
-        // Dans UserController.cs
 
         /// <summary>
         /// Récupère la liste paginée des commerçants avec recherche et filtres
@@ -361,8 +343,6 @@ namespace projet0.API.Controllers
             }
         }
 
-        // Dans UserController.cs
-
         //// <summary>
         /// Modifier le profil d'un technicien (par le technicien lui-même)
         /// </summary>
@@ -384,7 +364,7 @@ namespace projet0.API.Controllers
 
             var result = await _userService.EditTechnicienProfileAsync(userId, dto);
 
-            // ✅ Gérer les codes de retour spécifiques
+            // Gérer les codes de retour spécifiques
             if (result.ResultCode == 42) // Email change - OTP envoyé
                 return Ok(result);
 
@@ -423,8 +403,6 @@ namespace projet0.API.Controllers
 
             return result.ResultCode == 0 ? Ok(result) : BadRequest(result);
         }
-
-        // Dans UserController.cs
 
         /// <summary>
         /// Admin - Modifier un technicien
@@ -471,8 +449,6 @@ namespace projet0.API.Controllers
             var result = await _userService.AdminUpdateCommercantAsync(id, dto);
             return result.ResultCode == 0 ? Ok(result) : BadRequest(result);
         }
-
-        // API/Controllers/UserController.cs
 
         /// <summary>
         /// Récupère un technicien par son ID
@@ -537,9 +513,7 @@ namespace projet0.API.Controllers
                     resultCode: 500));
             }
         }
-
     }
-
 }
 
     

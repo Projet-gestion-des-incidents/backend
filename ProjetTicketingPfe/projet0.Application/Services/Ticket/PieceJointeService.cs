@@ -81,7 +81,6 @@ namespace projet0.Application.Services
         /// <summary>
         /// Supprime un fichier (physique et base de données)
         /// </summary>
-
         public async Task<bool> SupprimerFichierAsync(Guid pieceJointeId)
         {
             var pieceJointe = await _pieceJointeRepository.GetByIdAsync(pieceJointeId);
@@ -131,8 +130,7 @@ namespace projet0.Application.Services
         
         /// <summary>
         /// Génère l'URL pour une pièce jointe
-        /// </summary>        
-
+        /// </summary>     
         public async Task<bool> SupprimerPiecesJointesAsync(List<Guid> pieceJointeIds)
         {
             _logger.LogInformation("Suppression de {Count} pièce(s) jointe(s)", pieceJointeIds.Count);
@@ -366,7 +364,7 @@ namespace projet0.Application.Services
             var pieceId = Guid.NewGuid();
             _logger.LogInformation("🆕 Création de l'entité PieceJointe:");
             _logger.LogInformation("   - Id: {PieceId}", pieceId);
-            _logger.LogInformation("   - NomFichier (stocké): {NomFichier}", uniqueFileName);  // ✅ STOCKER LE NOM UNIQUE
+            _logger.LogInformation("   - NomFichier (stocké): {NomFichier}", uniqueFileName);  // STOCKER LE NOM UNIQUE
             _logger.LogInformation("   - ContentType: {ContentType}", dto.Fichier.ContentType);
             _logger.LogInformation("   - IncidentId: {IncidentId}", incidentId);
             _logger.LogInformation("   - UploadedById: {UploadedById}", uploadedById);
@@ -375,7 +373,7 @@ namespace projet0.Application.Services
             var pieceJointe = new PieceJointe
             {
                 Id = pieceId,
-                NomFichier = uniqueFileName,  // ✅ CORRECTION ICI : utiliser uniqueFileName, pas le nom original !
+                NomFichier = uniqueFileName,  // CORRECTION ICI : utiliser uniqueFileName, pas le nom original !
                 ContentType = dto.Fichier.ContentType,
                 DateAjout = DateTime.UtcNow,
                 IncidentId = incidentId,

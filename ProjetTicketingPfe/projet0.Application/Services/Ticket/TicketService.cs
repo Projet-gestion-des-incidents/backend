@@ -222,7 +222,7 @@ namespace projet0.Application.Services.Ticket
                         (t.Createur.Prenom.ToLower() + " " + t.Createur.Nom.ToLower()).Contains(term)
                     )) ||
 
-                    // ✅ NOUVEAU : Recherche dans le nom de l'assigné (prénom + nom)
+                    // NOUVEAU : Recherche dans le nom de l'assigné (prénom + nom)
                     (t.Assignee != null && (
                         t.Assignee.Nom.ToLower().Contains(term) ||
                         t.Assignee.Prenom.ToLower().Contains(term) ||
@@ -304,7 +304,6 @@ namespace projet0.Application.Services.Ticket
         }
 
         // Méthode de tri améliorée
-
         private IQueryable<TicketEntity> ApplySorting(IQueryable<TicketEntity> query, string sortBy, bool descending)
         {
             if (string.IsNullOrWhiteSpace(sortBy))
@@ -550,7 +549,7 @@ namespace projet0.Application.Services.Ticket
                         }
                     }
 
-                    // ✅ Supprimer les commentaires et leurs pièces jointes
+                    // Supprimer les commentaires et leurs pièces jointes
                     if (ticket.Commentaires != null && ticket.Commentaires.Any())
                     {
                         foreach (var commentaire in ticket.Commentaires)
@@ -1238,28 +1237,28 @@ namespace projet0.Application.Services.Ticket
             };
         }
 
-        private UpdateTicketResponseDTO MapToUpdateResponse(TicketDetailDTO detailDto)
-        {
-            return new UpdateTicketResponseDTO
-            {
-                Id = detailDto.Id,
-                ReferenceTicket = detailDto.ReferenceTicket,
-                TitreTicket = detailDto.TitreTicket,
-                DescriptionTicket = detailDto.DescriptionTicket,
-                StatutTicket = detailDto.StatutTicket,
-                StatutTicketLibelle = detailDto.StatutTicketLibelle,
-                DateCreation = detailDto.DateCreation,
-                DateLimite = detailDto.DateLimite,
-                DateCloture = detailDto.DateCloture,
-                CreateurId = detailDto.CreateurId,
-                CreateurNom = detailDto.CreateurNom,
-                AssigneeId = detailDto.AssigneeId,
-                AssigneeNom = detailDto.AssigneeNom,
-                NombreCommentaires = detailDto.NombreCommentaires,
-                NombrePiecesJointes = detailDto.NombrePiecesJointes,
-                Commentaires = detailDto.Commentaires
-            };
-        }
+        //private UpdateTicketResponseDTO MapToUpdateResponse(TicketDetailDTO detailDto)
+        //{
+        //    return new UpdateTicketResponseDTO
+        //    {
+        //        Id = detailDto.Id,
+        //        ReferenceTicket = detailDto.ReferenceTicket,
+        //        TitreTicket = detailDto.TitreTicket,
+        //        DescriptionTicket = detailDto.DescriptionTicket,
+        //        StatutTicket = detailDto.StatutTicket,
+        //        StatutTicketLibelle = detailDto.StatutTicketLibelle,
+        //        DateCreation = detailDto.DateCreation,
+        //        DateLimite = detailDto.DateLimite,
+        //        DateCloture = detailDto.DateCloture,
+        //        CreateurId = detailDto.CreateurId,
+        //        CreateurNom = detailDto.CreateurNom,
+        //        AssigneeId = detailDto.AssigneeId,
+        //        AssigneeNom = detailDto.AssigneeNom,
+        //        NombreCommentaires = detailDto.NombreCommentaires,
+        //        NombrePiecesJointes = detailDto.NombrePiecesJointes,
+        //        Commentaires = detailDto.Commentaires
+        //    };
+        //}
 
         public async Task<ApiResponse<UpdateTicketResponseDTO>> TechnicianUpdateTicketAsync(
             Guid id,
@@ -1341,7 +1340,7 @@ namespace projet0.Application.Services.Ticket
                             ticket.StatutTicket = nouveauStatut;
                             modifications.Add($"Statut -> {GetStatutLibelle(nouveauStatut)}");
 
-                            // ✅ Mettre à jour les incidents liés pour TOUT changement de statut
+                            // Mettre à jour les incidents liés pour TOUT changement de statut
                             if (ticket.IncidentTickets != null && ticket.IncidentTickets.Any())
                             {
                                 foreach (var lien in ticket.IncidentTickets)
@@ -1443,13 +1442,14 @@ namespace projet0.Application.Services.Ticket
             });
         }
 
-        private async Task ReloadTicketAsync(TicketEntity ticket)
-        {
-            if (ticket == null) return;
+        //private async Task ReloadTicketAsync(TicketEntity ticket)
+        //{
+        //    if (ticket == null) return;
 
-            var entry = _ticketRepository.GetDbContext().Entry(ticket);
-            await entry.ReloadAsync();
-        }
+        //    var entry = _ticketRepository.GetDbContext().Entry(ticket);
+        //    await entry.ReloadAsync();
+        //}
+
         public async Task<ApiResponse<bool>> DelierIncidentDuTicket(Guid ticketId, Guid incidentId, Guid userId)
         {
             return await MeasureAsync(nameof(DelierIncidentDuTicket), new { ticketId, incidentId }, async () =>
@@ -1587,7 +1587,7 @@ namespace projet0.Application.Services.Ticket
                     // 4. Obtenir la requête avec le filtre combiné
                     var query = _ticketRepository.GetFilteredQuery(combinedFilter);
 
-                    // ✅ PAS DE FILTRE SUPPLÉMENTAIRE SUR LE STATUT
+                    // PAS DE FILTRE SUPPLÉMENTAIRE SUR LE STATUT
                     // La méthode BuildFilter s'occupe déjà du filtre par statut
 
                     // 5. Appliquer le tri
@@ -1633,8 +1633,6 @@ namespace projet0.Application.Services.Ticket
                 }
             });
         }
-
-        // Dans TicketService.cs - Ajouter cette méthode
 
         public async Task<ApiResponse<TicketDashboardDTO>> GetTicketDashboardAsync()
         {

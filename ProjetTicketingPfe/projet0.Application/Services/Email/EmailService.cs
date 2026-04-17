@@ -56,7 +56,7 @@ namespace projet0.Application.Services.Email
             }
         }
 
-        // ✅ Méthode d'envoi d'email de bienvenue avec mot de passe
+        // Méthode d'envoi d'email de bienvenue avec mot de passe
         public async Task SendWelcomeEmailAsync(string to, string nom, string prenom, string defaultPassword)
         {
             try

@@ -20,6 +20,5 @@ namespace projet0.Domain.Entities
         public virtual ICollection<IncidentTicket> IncidentLiaisons { get; set; }
         public virtual ICollection<TPE> TPEs { get; set; }
 
-
     }
 }

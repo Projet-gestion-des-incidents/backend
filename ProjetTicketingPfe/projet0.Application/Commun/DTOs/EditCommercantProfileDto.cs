@@ -10,19 +10,19 @@ namespace projet0.Application.Commun.DTOs
     {
         [MinLength(2, ErrorMessage = "Le nom du magasin doit contenir au moins 2 caractères")]
         [MaxLength(20, ErrorMessage = "Le nom du magasin ne peut pas dépasser 20 caractères")]
-        public string? NomMagasin { get; set; }  // ✅ Optionnel
+        public string? NomMagasin { get; set; }  
 
         [EmailAddress(ErrorMessage = "Format d'email invalide")]
-        public string? Email { get; set; }  // ✅ Optionnel
+        public string? Email { get; set; }  
 
         [Phone(ErrorMessage = "Format de téléphone invalide")]
         [RegularExpression(@"^[0-9]{8}$", ErrorMessage = "Le numéro de téléphone doit contenir exactement 8 chiffres")]
-        public string? PhoneNumber { get; set; }  // ✅ Optionnel
+        public string? PhoneNumber { get; set; }  
 
         [MaxLength(200, ErrorMessage = "L'adresse ne peut pas dépasser 200 caractères")]
-        public string? Adresse { get; set; }  // ✅ Optionnel
+        public string? Adresse { get; set; }  
 
-        public string? Image { get; set; }  // ✅ Optionnel
+        public string? Image { get; set; }  
 
         // Champs pour changement de mot de passe (optionnels)
         public string? CurrentPassword { get; set; }
@@ -34,11 +34,11 @@ namespace projet0.Application.Commun.DTOs
         [Compare("NewPassword", ErrorMessage = "Les mots de passe ne correspondent pas")]
         public string? ConfirmPassword { get; set; }
 
-        // ✅ Validation personnalisée pour le mot de passe (optionnelle)
+        // Validation personnalisée pour le mot de passe (optionnelle)
         public static ValidationResult? ValidatePassword(string? password, ValidationContext context)
         {
             if (string.IsNullOrEmpty(password))
-                return ValidationResult.Success;  // ✅ Optionnel
+                return ValidationResult.Success; 
 
             var errors = new List<string>();
 

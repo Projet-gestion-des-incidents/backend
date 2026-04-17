@@ -31,9 +31,7 @@ namespace projet0.Application.Services.TPEService
             _tpeRepository = tpeRepository;
             _userRepository = userRepository;
             _logger = logger;
-        }
-
-        
+        }      
 
         private async Task<T> MeasureAsync<T>(string actionName, object input, Func<Task<T>> action)
         {
@@ -140,7 +138,6 @@ namespace projet0.Application.Services.TPEService
                 );
             });
         }
-
 
         public async Task<ApiResponse<TPEDto>> UpdateAsync(Guid id, UpdateTPEDto dto, Guid userId)
         {
@@ -335,7 +332,7 @@ namespace projet0.Application.Services.TPEService
 
                 foreach (var tpe in tpes)
                 {
-                    // ✅ Récupérer les infos de création et modification
+                    // Récupérer les infos de création et modification
                     ApplicationUser createdBy = null;
                     if (tpe.CreatedById.HasValue)
                     {
@@ -387,7 +384,7 @@ namespace projet0.Application.Services.TPEService
                         commercant = await _userRepository.GetByIdAsync(tpe.CommercantId.Value);
                     }
 
-                    // ✅ Récupérer les infos de création et modification
+                    // Récupérer les infos de création et modification
                     ApplicationUser createdBy = null;
                     if (tpe.CreatedById.HasValue)
                     {
@@ -408,7 +405,6 @@ namespace projet0.Application.Services.TPEService
                         Modele = tpe.Modele,
                         CommercantId = tpe.CommercantId,
                         CommercantNom = commercant != null ? $"{commercant.Nom} {commercant.Prenom}" : "Non assigné",
-                        // ✅ AJOUTER LES CHAMPS D'AUDIT
                         CreatedAt = tpe.CreatedAt,
                         CreatedByNom = createdBy != null ? $"{createdBy.Nom} {createdBy.Prenom}" : "Inconnu",
                         UpdatedAt = tpe.UpdatedAt,
@@ -504,7 +500,6 @@ namespace projet0.Application.Services.TPEService
                             Modele = tpe.Modele,
                             CommercantId = tpe.CommercantId,
                             CommercantNom = tpe.Commercant != null ? $"{tpe.Commercant.Nom} {tpe.Commercant.Prenom}" : "Non assigné",
-                            // ✅ AJOUTER LES CHAMPS D'AUDIT
                             CreatedAt = tpe.CreatedAt,
                             CreatedByNom = createdBy != null ? $"{createdBy.Nom} {createdBy.Prenom}" : "Inconnu",
                             UpdatedAt = tpe.UpdatedAt,

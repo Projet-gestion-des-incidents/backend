@@ -113,7 +113,7 @@ namespace projet0.Infrastructure.Repositories
                 _ => query.OrderBy(t => t.NumSerieComplet)
             };
         }
-        // Dans TPERepository.cs
+
         public async Task<int> GetNextSequenceNumberAsync(ModeleTPE modele)
         {
             // Récupérer le dernier numéro de série pour ce modèle

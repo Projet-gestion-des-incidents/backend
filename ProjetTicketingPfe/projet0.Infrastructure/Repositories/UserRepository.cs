@@ -22,9 +22,7 @@ namespace projet0.Infrastructure.Repositories
         private readonly RoleManager<IdentityRole<Guid>> _roleManager;
         private readonly ApplicationDbContext _context;
         private readonly ILogger<UserRepository> _logger;
-        private readonly IWebHostEnvironment _environment;  // ✅ AJOUTER
-
-
+        private readonly IWebHostEnvironment _environment;
 
         public UserRepository(
             ApplicationDbContext context,
@@ -36,9 +34,9 @@ namespace projet0.Infrastructure.Repositories
         {
             _userManager = userManager;
             _roleManager = roleManager;
-            _context = context; // Ajouter cette ligne
-            _logger = logger; // Ajouter cette ligne
-            _environment = environment;  // ✅ AJOUTER
+            _context = context; 
+            _logger = logger; 
+            _environment = environment;  
 
         }
 
@@ -126,7 +124,7 @@ namespace projet0.Infrastructure.Repositories
                     Role = roleName,
                     Statut = user.Statut,
                     BirthDate = user.BirthDate,
-                    Adresse = user.Adresse  // ✅ AJOUTER CETTE LIGNE
+                    Adresse = user.Adresse  
 
                 });
             }
@@ -289,7 +287,7 @@ namespace projet0.Infrastructure.Repositories
                         Role = roleName,
                         Statut = user.Statut,
                         BirthDate = user.BirthDate,
-                        Adresse = user.Adresse  // ✅ AJOUTER CETTE LIGNE
+                        Adresse = user.Adresse  
 
                     });
                 }
@@ -352,7 +350,7 @@ namespace projet0.Infrastructure.Repositories
                     return query.OrderBy(u => u.Nom);
             }
         }
-        // projet0.Infrastructure/Repositories/UserRepository.cs
+
         public async Task<IEnumerable<TechnicienDto>> GetTechniciensAsync()
         {
             // Récupérer tous les utilisateurs avec le rôle "Technicien"
@@ -477,11 +475,11 @@ namespace projet0.Infrastructure.Repositories
                         _logger.LogInformation("Suppression de {Count} incident(s) du commerçant {UserId}",
                             incidentsCommercant.Count, user.Id);
 
-                        // ✅ CRUCIAL : Sauvegarder les changements en base AVANT de vérifier les tickets
+                        // CRUCIAL : Sauvegarder les changements en base AVANT de vérifier les tickets
                         await _context.SaveChangesAsync();
                         _logger.LogInformation("SaveChanges effectué - Incidents et liaisons supprimés en base");
 
-                        // ✅ MAINTENANT, vérifier et supprimer les tickets qui n'ont plus d'incidents
+                        // MAINTENANT, vérifier et supprimer les tickets qui n'ont plus d'incidents
                         var ticketsUniques = ticketsLiesAuxIncidents.Distinct().ToList();
                         _logger.LogInformation("Tickets uniques à vérifier: {Count}", ticketsUniques.Count);
 
@@ -582,7 +580,7 @@ namespace projet0.Infrastructure.Repositories
                             _logger.LogInformation("Traitement ticket {TicketId} (Ref: {Reference}, AncienStatut: {Statut})",
                                 ticket.Id, ticket.ReferenceTicket, ancienStatutTicket);
 
-                            // ✅ FORCER l'état de l'entité pour éviter la concurrency
+                            // FORCER l'état de l'entité pour éviter la concurrency
                             _context.Entry(ticket).State = EntityState.Modified;
 
                             // Désassigner le ticket
@@ -600,7 +598,7 @@ namespace projet0.Infrastructure.Repositories
                                     ticket.Id, ancienStatutTicket);
                             }
 
-                            // ✅ Mettre à jour les incidents liés à ce ticket
+                            // Mettre à jour les incidents liés à ce ticket
                             if (ticket.IncidentTickets != null && ticket.IncidentTickets.Any())
                             {
                                 _logger.LogInformation("Ticket {TicketId} lié à {Count} incident(s)",
@@ -610,14 +608,14 @@ namespace projet0.Infrastructure.Repositories
                                 {
                                     if (lien.Incident != null)
                                     {
-                                        // ✅ FORCER l'état de l'incident
+                                        // FORCER l'état de l'incident
                                         _context.Entry(lien.Incident).State = EntityState.Modified;
 
-                                        // 🔴 CORRECTION : Vérifier le statut de l'incident AVANT de le modifier
+                                        // CORRECTION : Vérifier le statut de l'incident AVANT de le modifier
                                         var incident = lien.Incident;
                                         var ancienStatutIncident = incident.StatutIncident;
 
-                                        // ✅ RÈGLE : Un incident Résolu/Fermé ne change PAS
+                                        // RÈGLE : Un incident Résolu/Fermé ne change PAS
                                         if (
                                             ancienStatutIncident == StatutIncident.Ferme)
                                         {
@@ -662,11 +660,11 @@ namespace projet0.Infrastructure.Repositories
                             };
                             ticket.Historiques.Add(historique);
 
-                            // ✅ FORCER l'état de l'historique
+                            // FORCER l'état de l'historique
                             _context.Entry(historique).State = EntityState.Added;
                         }
 
-                        // ✅ Sauvegarder les modifications
+                        // Sauvegarder les modifications
                         var saveResult = await _context.SaveChangesAsync();
                         _logger.LogInformation("{Count} ticket(s) désassigné(s) du technicien {UserId}, SaveChanges retourne: {SaveResult}",
                             ticketsAssignes.Count, user.Id, saveResult);
@@ -730,7 +728,7 @@ namespace projet0.Infrastructure.Repositories
                         _context.Tickets.RemoveRange(ticketsCrees);
                         _logger.LogInformation("{Count} ticket(s) supprimés (créés par le technicien)", ticketsCrees.Count);
 
-                        // ✅ Sauvegarder la suppression des tickets
+                        // Sauvegarder la suppression des tickets
                         await _context.SaveChangesAsync();
                     }
 
@@ -815,6 +813,6 @@ namespace projet0.Infrastructure.Repositories
                 throw;
             }
         
-    }
+        }
     } 
 }

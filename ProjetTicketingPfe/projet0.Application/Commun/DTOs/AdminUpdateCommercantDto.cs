@@ -21,6 +21,7 @@ namespace projet0.Application.Commun.DTOs
         [RegularExpression(@"^[0-9]{8}$", ErrorMessage = "Le numéro de téléphone doit contenir exactement 8 chiffres")]
         public string? PhoneNumber { get; set; }
 
+
         [MaxLength(200, ErrorMessage = "L'adresse ne peut pas dépasser 200 caractères")]
         public string? Adresse { get; set; }
 

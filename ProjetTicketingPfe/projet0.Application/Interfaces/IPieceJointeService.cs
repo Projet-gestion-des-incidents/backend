@@ -40,7 +40,6 @@ namespace projet0.Application.Interfaces
       Guid uploadedById);
 
         Task<List<PieceJointeDTO>> GetPiecesJointesByIncidentIdAsync(Guid incidentId);
-
         Task<bool> SupprimerPiecesJointesIncidentAsync(List<Guid> pieceJointeIds);
         Task<PieceJointe> GetMetadataAsync(Guid pieceJointeId);
     }

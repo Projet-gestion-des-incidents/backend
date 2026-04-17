@@ -28,7 +28,6 @@ namespace projet0.Application.Interfaces
         IQueryable<Ticket> GetFilteredQuery(Expression<Func<Ticket, bool>>? filter = null);
         Task<List<Ticket>> GetTicketsByIncidentIdAsync(Guid incidentId);
         DbContext GetDbContext();
-
         void Detach(Ticket entity);
         void Attach(Ticket entity);
         void SetModified(Ticket entity);

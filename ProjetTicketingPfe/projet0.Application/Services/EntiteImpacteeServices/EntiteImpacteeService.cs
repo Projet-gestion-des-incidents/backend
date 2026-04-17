@@ -75,8 +75,7 @@ namespace projet0.Application.Services.EntiteImpacteeServices
 
         /// <summary>
         /// Ajouter une entité impactée à un incident existant
-        /// </summary>
-     
+        /// </summary>     
         public async Task<ApiResponse<EntiteImpacteeDTO>> AddToIncidentAsync(AddEntiteImpacteeDTO dto)
         {
             try
@@ -126,7 +125,7 @@ namespace projet0.Application.Services.EntiteImpacteeServices
         /// <summary>
         /// Supprimer une entité impactée d'un incident
         /// </summary>
-        public async Task<ApiResponse<bool>> RemoveFromIncidentAsync(Guid entiteImpacteeId)
+       public async Task<ApiResponse<bool>> RemoveFromIncidentAsync(Guid entiteImpacteeId)
         {
             try
             {

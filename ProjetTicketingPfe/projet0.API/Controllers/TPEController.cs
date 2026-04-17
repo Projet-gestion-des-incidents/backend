@@ -26,7 +26,6 @@ namespace projet0.API.Controllers
             _logger = logger;
         }
 
-        // ✅ AJOUTER CETTE MÉTHODE
         private Guid GetCurrentUserId()
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
@@ -86,7 +85,6 @@ namespace projet0.API.Controllers
             return Ok(result);
         }
 
-        // Dans TPEController.cs
         /// <summary>
         /// Récupère la liste paginée des TPEs avec filtres
         /// </summary>
@@ -116,6 +114,5 @@ namespace projet0.API.Controllers
                     "Erreur interne du serveur"));
             }
         }
-
     }
 }

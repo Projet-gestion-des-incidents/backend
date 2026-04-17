@@ -33,8 +33,7 @@ namespace projet0.Application.Services.User
             _userManager = userManager;
             _webHostEnvironment = webHostEnvironment;
             _emailService = emailService;
-
-            _otpService = otpService;  // ✅ INITIALISER
+            _otpService = otpService;  
 
         }
 
@@ -137,38 +136,8 @@ namespace projet0.Application.Services.User
 
                     return user;
                 }
-            );
-
-        // ================= CREATE =================
-      
-
-            // Dans CreateAsync, après la création réussie :
-            /*try
-            {
-                // Envoyer un email avec le mot de passe par défaut
-                var emailBody = $@"
-        Bonjour {user.Nom} {user.Prenom},
+            );   
         
-        Votre compte a été créé avec succès.
-        
-        Identifiants de connexion :
-        Email: {user.Email}
-        Mot de passe temporaire: {defaultPassword}
-        
-        Veuillez changer votre mot de passe dès votre première connexion.
-        
-        Cordialement,
-        L'équipe d'administration
-    ";
-
-                // _emailService.SendEmailAsync(user.Email, "Votre compte a été créé", emailBody);
-                _logger.LogInformation("Email de bienvenue envoyé à {Email}", user.Email);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Erreur lors de l'envoi de l'email de bienvenue");
-            }*/
-       
 
         // ================= UPDATE =================
         public Task<ApiResponse<ApplicationUser>> UpdateAsync(Guid id, UserDto dto)
@@ -197,9 +166,7 @@ namespace projet0.Application.Services.User
                     user.Prenom = dto.Prenom;
                     user.PhoneNumber = dto.PhoneNumber;
                     user.Image = dto.Image;
-                    user.Adresse = dto.Adresse;  // ✅ AJOUTER CETTE LIGNE
-
-                    //user.Age = dto.Age;
+                    user.Adresse = dto.Adresse; 
 
                     var result = await _userRepository.UpdateAsync(user);
 
@@ -267,6 +234,7 @@ namespace projet0.Application.Services.User
                     message: "Utilisateur désactivé avec succès",
                     resultCode: 0);
             });
+
 
         // ================= ACTIVATE (par admin) =================
         public Task<ApiResponse<string>> ActivateAsync(Guid id)
@@ -353,8 +321,6 @@ namespace projet0.Application.Services.User
                 });
         }
 
-        // UserService.cs - Version complète modifiée
-
         public async Task<ApiResponse<ApplicationUser>> EditProfileAsync(Guid userId, EditProfileDto dto)
         {
             return await MeasureAsync("EditProfile", new { userId, dto }, async () =>
@@ -380,7 +346,7 @@ namespace projet0.Application.Services.User
                             resultCode: 10);
                     }
 
-                    // ✅ Envoyer OTP sur le NOUVEL email
+                    // Envoyer OTP sur le NOUVEL email
                     var otpResult = await _otpService.GenerateAndSendOtpToEmailAsync(
                         user,
                         dto.Email,  // Envoyer au nouvel email
@@ -434,7 +400,7 @@ namespace projet0.Application.Services.User
                             resultCode: 43);
                     }
 
-                    // ✅ Envoyer OTP sur l'email actuel (comme reset password)
+                    // Envoyer OTP sur l'email actuel (comme reset password)
                     var otpResult = await _otpService.GenerateAndSendOtpAsync(
                         user,
                         OtpPurpose.ResetPassword);  // Réutilise ResetPassword
@@ -533,83 +499,85 @@ namespace projet0.Application.Services.User
         }
 
         // Méthode pour supprimer l'ancienne image
-        private async Task DeleteOldImageAsync(string imageUrl)
-        {
-            try
-            {
-                if (string.IsNullOrEmpty(imageUrl) || imageUrl.Contains("default-avatar"))
-                    return;
+        //private async Task DeleteOldImageAsync(string imageUrl)
+        //{
+        //    try
+        //    {
+        //        if (string.IsNullOrEmpty(imageUrl) || imageUrl.Contains("default-avatar"))
+        //            return;
 
-                var webRootPath = _webHostEnvironment.ContentRootPath;
-                var imagePath = Path.Combine(webRootPath, imageUrl.TrimStart('/'));
+        //        var webRootPath = _webHostEnvironment.ContentRootPath;
+        //        var imagePath = Path.Combine(webRootPath, imageUrl.TrimStart('/'));
 
-                if (File.Exists(imagePath))
-                {
-                    File.Delete(imagePath);
-                    _logger.LogDebug("Old profile image deleted: {ImagePath}", imagePath);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error deleting old profile image: {ImageUrl}", imageUrl);
-            }
-        }
-        private async Task<string> SaveBase64ImageAsync(string base64String)
-        {
-            try
-            {
-                Console.WriteLine($"Sauvegarde image Base64, longueur: {base64String.Length}");
+        //        if (File.Exists(imagePath))
+        //        {
+        //            File.Delete(imagePath);
+        //            _logger.LogDebug("Old profile image deleted: {ImagePath}", imagePath);
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        _logger.LogError(ex, "Error deleting old profile image: {ImageUrl}", imageUrl);
+        //    }
+        //}
 
-                if (string.IsNullOrEmpty(base64String))
-                    return null;
+        //private async Task<string> SaveBase64ImageAsync(string base64String)
+        //{
+        //    try
+        //    {
+        //        Console.WriteLine($"Sauvegarde image Base64, longueur: {base64String.Length}");
 
-                // Vérifier si c'est un Base64 valide
-                if (!base64String.Contains(","))
-                {
-                    // Si le frontend envoie déjà le Base64 propre (sans préfixe)
-                    base64String = "data:image/jpeg;base64," + base64String;
-                }
+        //        if (string.IsNullOrEmpty(base64String))
+        //            return null;
 
-                var base64Data = base64String.Split(',')[1];
+        //        // Vérifier si c'est un Base64 valide
+        //        if (!base64String.Contains(","))
+        //        {
+        //            // Si le frontend envoie déjà le Base64 propre (sans préfixe)
+        //            base64String = "data:image/jpeg;base64," + base64String;
+        //        }
 
-                // Déterminer l'extension
-                string extension = ".jpg";
-                if (base64String.Contains("data:image/png"))
-                    extension = ".png";
-                else if (base64String.Contains("data:image/gif"))
-                    extension = ".gif";
-                else if (base64String.Contains("data:image/webp"))
-                    extension = ".webp";
+        //        var base64Data = base64String.Split(',')[1];
 
-                // Créer un nom unique
-                var fileName = $"{Guid.NewGuid()}{extension}";
+        //        // Déterminer l'extension
+        //        string extension = ".jpg";
+        //        if (base64String.Contains("data:image/png"))
+        //            extension = ".png";
+        //        else if (base64String.Contains("data:image/gif"))
+        //            extension = ".gif";
+        //        else if (base64String.Contains("data:image/webp"))
+        //            extension = ".webp";
 
-                // Chemin de sauvegarde
-                var webRootPath = _webHostEnvironment.ContentRootPath;
-                var uploadsFolder = Path.Combine(webRootPath, "uploads", "users");
+        //        // Créer un nom unique
+        //        var fileName = $"{Guid.NewGuid()}{extension}";
 
-                // Créer le dossier s'il n'existe pas
-                if (!Directory.Exists(uploadsFolder))
-                {
-                    Console.WriteLine($"Création du dossier: {uploadsFolder}");
-                    Directory.CreateDirectory(uploadsFolder);
-                }
+        //        // Chemin de sauvegarde
+        //        var webRootPath = _webHostEnvironment.ContentRootPath;
+        //        var uploadsFolder = Path.Combine(webRootPath, "uploads", "users");
 
-                var filePath = Path.Combine(uploadsFolder, fileName);
+        //        // Créer le dossier s'il n'existe pas
+        //        if (!Directory.Exists(uploadsFolder))
+        //        {
+        //            Console.WriteLine($"Création du dossier: {uploadsFolder}");
+        //            Directory.CreateDirectory(uploadsFolder);
+        //        }
 
-                // Convertir Base64 en bytes et sauvegarder
-                var imageBytes = Convert.FromBase64String(base64Data);
-                await System.IO.File.WriteAllBytesAsync(filePath, imageBytes);
+        //        var filePath = Path.Combine(uploadsFolder, fileName);
 
-                // Retourner l'URL relative
-                return $"/uploads/users/{fileName}";
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Erreur sauvegarde image: {ex.Message}");
-                throw;
-            }
-        }
+        //        // Convertir Base64 en bytes et sauvegarder
+        //        var imageBytes = Convert.FromBase64String(base64Data);
+        //        await System.IO.File.WriteAllBytesAsync(filePath, imageBytes);
+
+        //        // Retourner l'URL relative
+        //        return $"/uploads/users/{fileName}";
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        Console.WriteLine($"Erreur sauvegarde image: {ex.Message}");
+        //        throw;
+        //    }
+        //}
+
         public async Task<UserProfileDto> GetMyProfileAsync(Guid userId)
         {
             var user = await _userRepository.GetByIdAsync(userId);
@@ -629,7 +597,7 @@ namespace projet0.Application.Services.User
         }
 
         // ================= DELETE (SUPPRESSION DÉFINITIVE AVEC CASCADE) =================
-        // ================= DELETE (SUPPRESSION DÉFINITIVE AVEC CASCADE) =================
+     
         public Task<ApiResponse<string>> DeleteAsync(Guid id)
             => MeasureAsync(
                 actionName: "DeleteUser",
@@ -662,7 +630,7 @@ namespace projet0.Application.Services.User
 
                     try
                     {
-                        // 🔥 UTILISER LA MÉTHODE DU REPOSITORY AU LIEU DE _context DIRECTEMENT
+                        // UTILISER LA MÉTHODE DU REPOSITORY AU LIEU DE _context DIRECTEMENT
                         var result = await _userRepository.DeleteUserWithCascadeAsync(user);
 
                         if (!result.Succeeded)
@@ -700,6 +668,8 @@ namespace projet0.Application.Services.User
                         );
                     }
                 });
+
+
         // ================= SEARCH USERS =================
         public async Task<ApiResponse<PagedResult<UserWithRoleDto>>> SearchUsersAsync(UserSearchRequest request)
         {
@@ -748,46 +718,46 @@ namespace projet0.Application.Services.User
         }
 
         // Méthode helper pour le tri
-        private IQueryable<ApplicationUser> ApplySorting(
-            IQueryable<ApplicationUser> query,
-            string sortBy,
-            bool sortDescending)
-        {
-            if (string.IsNullOrWhiteSpace(sortBy))
-                return query.OrderBy(u => u.Nom); // Tri par défaut
+        //private IQueryable<ApplicationUser> ApplySorting(
+        //    IQueryable<ApplicationUser> query,
+        //    string sortBy,
+        //    bool sortDescending)
+        //{
+        //    if (string.IsNullOrWhiteSpace(sortBy))
+        //        return query.OrderBy(u => u.Nom); // Tri par défaut
 
-            // Normaliser le nom du champ
-            var normalizedSortBy = sortBy.ToLower().Trim();
+        //    // Normaliser le nom du champ
+        //    var normalizedSortBy = sortBy.ToLower().Trim();
 
-            return normalizedSortBy switch
-            {
-                "username" or "user_name" or "username" =>
-                    sortDescending ? query.OrderByDescending(u => u.UserName) : query.OrderBy(u => u.UserName),
+        //    return normalizedSortBy switch
+        //    {
+        //        "username" or "user_name" or "username" =>
+        //            sortDescending ? query.OrderByDescending(u => u.UserName) : query.OrderBy(u => u.UserName),
 
-                "email" =>
-                    sortDescending ? query.OrderByDescending(u => u.Email) : query.OrderBy(u => u.Email),
+        //        "email" =>
+        //            sortDescending ? query.OrderByDescending(u => u.Email) : query.OrderBy(u => u.Email),
 
-                "nom" or "name" or "lastname" =>
-                    sortDescending ? query.OrderByDescending(u => u.Nom) : query.OrderBy(u => u.Nom),
+        //        "nom" or "name" or "lastname" =>
+        //            sortDescending ? query.OrderByDescending(u => u.Nom) : query.OrderBy(u => u.Nom),
 
-                "prenom" or "firstname" or "prenom" =>
-                    sortDescending ? query.OrderByDescending(u => u.Prenom) : query.OrderBy(u => u.Prenom),
+        //        "prenom" or "firstname" or "prenom" =>
+        //            sortDescending ? query.OrderByDescending(u => u.Prenom) : query.OrderBy(u => u.Prenom),
 
-                "birthdate" or "birth_date" or "date" =>
-                    sortDescending ? query.OrderByDescending(u => u.BirthDate) : query.OrderBy(u => u.BirthDate),
+        //        "birthdate" or "birth_date" or "date" =>
+        //            sortDescending ? query.OrderByDescending(u => u.BirthDate) : query.OrderBy(u => u.BirthDate),
 
-                "statut" or "status" =>
-                    sortDescending ? query.OrderByDescending(u => u.Statut) : query.OrderBy(u => u.Statut),
+        //        "statut" or "status" =>
+        //            sortDescending ? query.OrderByDescending(u => u.Statut) : query.OrderBy(u => u.Statut),
 
-                _ => query.OrderBy(u => u.Nom) // Tri par défaut
-            };
-        }
+        //        _ => query.OrderBy(u => u.Nom) // Tri par défaut
+        //    };
+        //}
+
         public async Task<IList<string>> GetUserRolesAsync(Guid userId)
         {
             return await _userRepository.GetUserRolesAsync(userId);
         }
 
-        // projet0.Application/Services/User/UserService.cs
         public async Task<ApiResponse<IEnumerable<TechnicienDto>>> GetTechniciensAsync()
         {
             return await MeasureAsync(
@@ -816,7 +786,6 @@ namespace projet0.Application.Services.User
                 });
         }
 
-        // Dans UserService.cs
 
         // ================= CREATE TECHNICIEN =================
         public async Task<ApiResponse<ApplicationUser>> CreateTechnicienAsync(CreateTechnicienDto dto)
@@ -875,7 +844,7 @@ namespace projet0.Application.Services.User
                 // 5. Assigner le rôle
                 await _userManager.AddToRoleAsync(user, role.Name);
 
-                // ✅ 7. ENVOYER L'EMAIL AVEC LE MOT DE PASSE
+                // 6. ENVOYER L'EMAIL AVEC LE MOT DE PASSE
                 try
                 {
                     await _emailService.SendWelcomeEmailAsync(
@@ -903,7 +872,7 @@ namespace projet0.Application.Services.User
             });
         }
 
-        // ✅ Méthode pour générer un mot de passe temporaire sécurisé
+        // Méthode pour générer un mot de passe temporaire sécurisé
         private string GenerateRandomPassword(int length = 10)
         {
             const string upperCase = "ABCDEFGHJKLMNOPQRSTUVWXYZ";
@@ -938,7 +907,7 @@ namespace projet0.Application.Services.User
         {
             return await MeasureAsync("CreateCommercant", dto, async () =>
             {
-                // ✅ 1. Validation de l'email (UNIQUE pour TOUS les users)
+                // 1. Validation de l'email (UNIQUE pour TOUS les users)
                 if (!await _userRepository.IsEmailUniqueAsync(dto.Email))
                 {
                     return ApiResponse<ApplicationUser>.Failure(
@@ -946,7 +915,7 @@ namespace projet0.Application.Services.User
                         resultCode: 10);
                 }
 
-                // ✅ 2. Validation du numéro de téléphone (UNIQUE pour TOUS les users)
+                // 2. Validation du numéro de téléphone (UNIQUE pour TOUS les users)
                 if (!string.IsNullOrEmpty(dto.PhoneNumber))
                 {
                     var users = _userManager.Users.ToList();
@@ -958,15 +927,6 @@ namespace projet0.Application.Services.User
                             resultCode: 12);
                     }
                 }
-
-                // ❌ SUPPRIMER LA VÉRIFICATION D'UNICITÉ DU NOM MAGASIN
-                // Le nom du magasin peut être redondant
-                // if (!await _userRepository.IsUserNameUniqueAsync(dto.NomMagasin))
-                // {
-                //     return ApiResponse<ApplicationUser>.Failure(
-                //         message: "Ce nom de magasin est déjà utilisé",
-                //         resultCode: 11);
-                // }
 
                 // 3. Récupérer le rôle Commercant
                 var role = await _roleManager.FindByNameAsync("Commercant");
@@ -1002,7 +962,6 @@ namespace projet0.Application.Services.User
                     EmailConfirmed = true,
                     Statut = UserStatut.Actif
                 };
-
                 
                 var result = await _userRepository.CreateAsync(user, defaultPassword);
 
@@ -1016,7 +975,7 @@ namespace projet0.Application.Services.User
 
                 // 6. Assigner le rôle
                 await _userManager.AddToRoleAsync(user, role.Name);
-                // ✅ Envoyer l'email
+                // Envoyer l'email
                 try
                 {
                     await _emailService.SendWelcomeEmailAsync(
@@ -1040,8 +999,6 @@ namespace projet0.Application.Services.User
             resultCode: 0);
             });
         }
-        // Dans UserService.cs
-        // Dans UserService.cs - GetTechniciensPagedAsync
 
         public async Task<ApiResponse<PagedResult<TechnicienDto>>> GetTechniciensPagedAsync(TechnicienSearchRequest request)
         {
@@ -1113,19 +1070,19 @@ namespace projet0.Application.Services.User
                         .Take(pageSize)
                         .ToList();
 
-                    // ✅ 7. Mapper vers DTO (CORRIGÉ - TOUS LES CHAMPS)
+                    // 7. Mapper vers DTO (CORRIGÉ - TOUS LES CHAMPS)
                     var dtos = paginatedTechniciens.Select(t => new TechnicienDto
                     {
                         Id = t.Id,
                         Nom = t.Nom,
                         Prenom = t.Prenom,
                         Email = t.Email,
-                        UserName = t.UserName,           // ✅ Ajouté
-                        PhoneNumber = t.PhoneNumber,     // ✅ Ajouté
-                        Image = t.Image,                 // ✅ Ajouté
-                        BirthDate = t.BirthDate,         // ✅ Ajouté
-                        Statut = t.Statut,               // ✅ Ajouté
-                        EmailConfirmed = t.EmailConfirmed // ✅ Ajouté
+                        UserName = t.UserName,           
+                        PhoneNumber = t.PhoneNumber,     
+                        Image = t.Image,                 
+                        BirthDate = t.BirthDate,         
+                        Statut = t.Statut,              
+                        EmailConfirmed = t.EmailConfirmed 
                     }).ToList();
 
                     // 8. Créer le résultat paginé
@@ -1186,7 +1143,7 @@ namespace projet0.Application.Services.User
                 _ => query.OrderBy(t => t.Nom).ThenBy(t => t.Prenom)
             };
         }
-        // Dans UserService.cs
+
         public async Task<ApiResponse<PagedResult<CommercantDto>>> GetCommercantsPagedAsync(CommercantSearchRequest request)
         {
             return await MeasureAsync("GetCommercantsPaged", request, async () =>
@@ -1323,7 +1280,6 @@ namespace projet0.Application.Services.User
         }
 
         // ================= EDIT TECHNICIEN PROFILE =================
-        // UserService.cs - Version complète avec OTP
 
         public async Task<ApiResponse<ApplicationUser>> EditTechnicienProfileAsync(Guid userId, EditTechnicienProfileDto dto)
         {
@@ -1362,7 +1318,7 @@ namespace projet0.Application.Services.User
                             resultCode: 10);
                     }
 
-                    // ✅ Envoyer OTP sur le NOUVEL email
+                    // Envoyer OTP sur le NOUVEL email
                     var otpResult = await _otpService.GenerateAndSendOtpToEmailAsync(
                         user,
                         dto.Email,
@@ -1416,7 +1372,7 @@ namespace projet0.Application.Services.User
                             resultCode: 43);
                     }
 
-                    // ✅ Envoyer OTP sur l'email actuel
+                    // Envoyer OTP sur l'email actuel
                     var otpResult = await _otpService.GenerateAndSendOtpAsync(
                         user,
                         OtpPurpose.ResetPassword);
@@ -1512,8 +1468,7 @@ namespace projet0.Application.Services.User
         }
 
         // ================= EDIT COMMERCANT PROFILE =================
-        // UserService.cs - EditCommercantProfileAsync corrigé
-
+        
         public async Task<ApiResponse<ApplicationUser>> EditCommercantProfileAsync(Guid userId, EditCommercantProfileDto dto)
         {
             return await MeasureAsync("EditCommercantProfile", new { userId, dto }, async () =>
@@ -1552,7 +1507,7 @@ namespace projet0.Application.Services.User
                             resultCode: 10);
                     }
 
-                    // ✅ Envoyer OTP sur le NOUVEL email
+                    // Envoyer OTP sur le NOUVEL email
                     var otpResult = await _otpService.GenerateAndSendOtpToEmailAsync(
                         user,
                         dto.Email,  // Envoyer au nouvel email
@@ -1606,7 +1561,7 @@ namespace projet0.Application.Services.User
                             resultCode: 43);
                     }
 
-                    // ✅ Envoyer OTP sur l'email actuel
+                    // Envoyer OTP sur l'email actuel
                     var otpResult = await _otpService.GenerateAndSendOtpAsync(
                         user,
                         OtpPurpose.ResetPassword);
@@ -1696,8 +1651,6 @@ namespace projet0.Application.Services.User
         }
 
         // ================= ADMIN UPDATE TECHNICIEN =================
-        // ================= ADMIN UPDATE TECHNICIEN =================
-        // ================= ADMIN UPDATE TECHNICIEN =================
         public async Task<ApiResponse<ApplicationUser>> AdminUpdateTechnicienAsync(Guid userId, AdminUpdateTechnicienDto dto)
         {
             return await MeasureAsync("AdminUpdateTechnicien", new { userId, dto }, async () =>
@@ -1719,7 +1672,7 @@ namespace projet0.Application.Services.User
                 bool emailChanged = false;
                 bool userNameChanged = false;
 
-                // ✅ 1. VALIDATION DU NOM D'UTILISATEUR (si fourni)
+                // 1. VALIDATION DU NOM D'UTILISATEUR (si fourni)
                 if (!string.IsNullOrEmpty(dto.UserName))
                 {
                     // Vérifier la longueur minimale
@@ -1750,8 +1703,7 @@ namespace projet0.Application.Services.User
                     }
                 }
 
-                // ✅ 2. VALIDATION DE L'EMAIL (si fourni)
-                // UserService.cs - Dans AdminUpdateTechnicienAsync
+                // 2. VALIDATION DE L'EMAIL (si fourni)
 
                 if (!string.IsNullOrEmpty(dto.Email) && dto.Email != user.Email)
                 {
@@ -1779,7 +1731,7 @@ namespace projet0.Application.Services.User
                     hasChanges = true;
                     emailChanged = true;
 
-                    // ✅ Envoyer email avec les nouveaux identifiants (comme register)
+                    // Envoyer email avec les nouveaux identifiants (comme register)
                     await _emailService.SendWelcomeEmailAsync(
                         user.Email,  // Nouvel email
                         user.Nom,
@@ -1788,9 +1740,7 @@ namespace projet0.Application.Services.User
                     );
                 }
 
-                // Même chose pour AdminUpdateCommercantAsync
-
-                // ✅ 3. VALIDATION DU TÉLÉPHONE (si fourni)
+                // 3. VALIDATION DU TÉLÉPHONE (si fourni)
                 if (!string.IsNullOrEmpty(dto.PhoneNumber))
                 {
                     // Vérifier le format (8 chiffres)
@@ -1815,7 +1765,7 @@ namespace projet0.Application.Services.User
                     }
                 }
 
-                // ✅ 4. VALIDATION DE LA DATE DE NAISSANCE (si fournie)
+                // 4. VALIDATION DE LA DATE DE NAISSANCE (si fournie)
                 if (dto.BirthDate.HasValue)
                 {
                     var birthDate = dto.BirthDate.Value;
@@ -1848,7 +1798,7 @@ namespace projet0.Application.Services.User
                     }
                 }
 
-                // ✅ 5. VALIDATION DES CHAMPS TEXTE (longueur)
+                // 5. VALIDATION DES CHAMPS TEXTE (longueur)
                 if (!string.IsNullOrEmpty(dto.Nom) && (dto.Nom.Length < 4 || dto.Nom.Length > 30))
                 {
                     return ApiResponse<ApplicationUser>.Failure(
@@ -1863,7 +1813,7 @@ namespace projet0.Application.Services.User
                         resultCode: 40);
                 }
 
-                // ✅ 6. APPLIQUER LES MODIFICATIONS
+                // 6. APPLIQUER LES MODIFICATIONS
                 // Nom d'utilisateur
                 if (!string.IsNullOrEmpty(dto.UserName) && dto.UserName != user.UserName)
                 {
@@ -1878,7 +1828,7 @@ namespace projet0.Application.Services.User
                 {
                     user.Email = dto.Email;
                     user.NormalizedEmail = dto.Email.ToUpper();
-                    user.EmailConfirmed = false;  // ✅ Forcer reconfirmation
+                    user.EmailConfirmed = false;  // Forcer reconfirmation
                     hasChanges = true;
                     emailChanged = true;
                 }
@@ -1918,7 +1868,7 @@ namespace projet0.Application.Services.User
                     hasChanges = true;
                 }
 
-                // ✅ 7. SAUVEGARDE
+                // 7. SAUVEGARDE
                 if (hasChanges)
                 {
                     var result = await _userRepository.UpdateAsync(user);
@@ -1932,7 +1882,7 @@ namespace projet0.Application.Services.User
                     }
                 }
 
-                // ✅ 8. MESSAGE DE RETOUR
+                // 8. MESSAGE DE RETOUR
                 string message = hasChanges ? "Technicien mis à jour avec succès" : "Aucune modification détectée";
 
                 if (emailChanged)
@@ -1949,23 +1899,22 @@ namespace projet0.Application.Services.User
             });
         }
 
-        // ✅ Méthode utilitaire pour valider l'email
-        private bool IsValidEmail(string email)
-        {
-            try
-            {
-                var addr = new System.Net.Mail.MailAddress(email);
-                return addr.Address == email;
-            }
-            catch
-            {
-                return false;
-            }
-        }
+        // Méthode utilitaire pour valider l'email
+        //private bool IsValidEmail(string email)
+        //{
+        //    try
+        //    {
+        //        var addr = new System.Net.Mail.MailAddress(email);
+        //        return addr.Address == email;
+        //    }
+        //    catch
+        //    {
+        //        return false;
+        //    }
+        //}
 
         // ================= ADMIN UPDATE COMMERCANT =================
-        // ================= ADMIN UPDATE COMMERCANT =================
-        // ================= ADMIN UPDATE COMMERCANT =================
+ 
         public async Task<ApiResponse<ApplicationUser>> AdminUpdateCommercantAsync(Guid userId, AdminUpdateCommercantDto dto)
         {
             return await MeasureAsync("AdminUpdateCommercant", new { userId, dto }, async () =>
@@ -1986,7 +1935,7 @@ namespace projet0.Application.Services.User
                 bool hasChanges = false;
                 bool emailChanged = false;
 
-                // ✅ 1. VALIDATION DU NOM MAGASIN (si fourni)
+                // 1. VALIDATION DU NOM MAGASIN (si fourni)
                 if (!string.IsNullOrEmpty(dto.NomMagasin))
                 {
                     // Vérifier la longueur (2-20 caractères comme dans CreateCommercantDto)
@@ -2016,7 +1965,7 @@ namespace projet0.Application.Services.User
                     }
                 }
 
-                // ✅ 2. VALIDATION DE L'EMAIL (si fourni)
+                // 2. VALIDATION DE L'EMAIL (si fourni)
                 // UserService.cs - Dans AdminUpdateTechnicienAsync
 
                 if (!string.IsNullOrEmpty(dto.Email) && dto.Email != user.Email)
@@ -2045,7 +1994,7 @@ namespace projet0.Application.Services.User
                     hasChanges = true;
                     emailChanged = true;
 
-                    // ✅ Envoyer email avec les nouveaux identifiants (comme register)
+                    // Envoyer email avec les nouveaux identifiants (comme register)
                     await _emailService.SendWelcomeEmailAsync(
                         user.Email,  // Nouvel email
                         user.Nom,
@@ -2054,9 +2003,7 @@ namespace projet0.Application.Services.User
                     );
                 }
 
-                // Même chose pour AdminUpdateCommercantAsync
-
-                // ✅ 3. VALIDATION DU TÉLÉPHONE (si fourni)
+                // 3. VALIDATION DU TÉLÉPHONE (si fourni)
                 if (!string.IsNullOrEmpty(dto.PhoneNumber))
                 {
                     if (!System.Text.RegularExpressions.Regex.IsMatch(dto.PhoneNumber, @"^[0-9]{8}$"))
@@ -2079,7 +2026,7 @@ namespace projet0.Application.Services.User
                     }
                 }
 
-                // ✅ 4. VALIDATION DE L'ADRESSE (si fournie)
+                // 4. VALIDATION DE L'ADRESSE (si fournie)
                 if (!string.IsNullOrEmpty(dto.Adresse) && dto.Adresse.Length > 200)
                 {
                     return ApiResponse<ApplicationUser>.Failure(
@@ -2087,7 +2034,7 @@ namespace projet0.Application.Services.User
                         resultCode: 40);
                 }
 
-                // ✅ 5. APPLIQUER LES MODIFICATIONS
+                // 5. APPLIQUER LES MODIFICATIONS
                 // Nom du magasin (UserName et Nom)
                 if (!string.IsNullOrEmpty(dto.NomMagasin) && dto.NomMagasin != user.UserName)
                 {
@@ -2102,7 +2049,7 @@ namespace projet0.Application.Services.User
                 {
                     user.Email = dto.Email;
                     user.NormalizedEmail = dto.Email.ToUpper();
-                    user.EmailConfirmed = false;  // ✅ Forcer reconfirmation
+                    user.EmailConfirmed = false;  // Forcer reconfirmation
                     hasChanges = true;
                     emailChanged = true;
                 }
@@ -2128,7 +2075,7 @@ namespace projet0.Application.Services.User
                     hasChanges = true;
                 }
 
-                // ✅ 6. SAUVEGARDE
+                // 6. SAUVEGARDE
                 if (hasChanges)
                 {
                     var result = await _userRepository.UpdateAsync(user);
@@ -2142,7 +2089,7 @@ namespace projet0.Application.Services.User
                     }
                 }
 
-                // ✅ 7. MESSAGE DE RETOUR
+                // 7. MESSAGE DE RETOUR
                 string message = hasChanges ? "Commerçant mis à jour avec succès" : "Aucune modification détectée";
 
                 if (emailChanged)
@@ -2153,12 +2100,6 @@ namespace projet0.Application.Services.User
                 return ApiResponse<ApplicationUser>.Success(user, message, 0);
             });
         }
-
-
-        // Application/Services/User/UserService.cs
-
-        // ================= GET TECHNICIEN BY ID =================
-        // Application/Services/User/UserService.cs
 
         // ================= GET TECHNICIEN BY ID =================
         public async Task<ApiResponse<TechnicienDto>> GetTechnicienByIdAsync(Guid id)
@@ -2219,9 +2160,6 @@ namespace projet0.Application.Services.User
         }
 
         // ================= GET COMMERCANT BY ID =================
-        // Application/Services/User/UserService.cs
-
-        // ================= GET COMMERCANT BY ID =================
         public async Task<ApiResponse<CommercantDto>> GetCommercantByIdAsync(Guid id)
         {
             return await MeasureAsync("GetCommercantById", new { UserId = id }, async () =>
@@ -2276,8 +2214,6 @@ namespace projet0.Application.Services.User
                 }
             });
         }
-
-        // Application/Services/User/UserService.cs
 
         // ================= EDIT ADMIN PROFILE =================
         public async Task<ApiResponse<ApplicationUser>> EditAdminProfileAsync(Guid userId, EditAdminProfileDto dto)
@@ -2340,7 +2276,7 @@ namespace projet0.Application.Services.User
                 // ============================================
                 if (!string.IsNullOrEmpty(dto.CurrentPassword) && !string.IsNullOrEmpty(dto.NewPassword))
                 {
-                    // ✅ Vérifier l'ancien mot de passe
+                    // Vérifier l'ancien mot de passe
                     var passwordValid = await _userManager.CheckPasswordAsync(user, dto.CurrentPassword);
                     if (!passwordValid)
                     {
@@ -2350,7 +2286,7 @@ namespace projet0.Application.Services.User
                             resultCode: 25);
                     }
 
-                    // ✅ Vérifier la confirmation
+                    // Vérifier la confirmation
                     if (dto.NewPassword != dto.ConfirmPassword)
                     {
                         return ApiResponse<ApplicationUser>.Failure(
@@ -2359,7 +2295,7 @@ namespace projet0.Application.Services.User
                             resultCode: 26);
                     }
 
-                    // ✅ Vérifier la force du mot de passe (mêmes règles que Register)
+                    // Vérifier la force du mot de passe (mêmes règles que Register)
                     if (dto.NewPassword.Length < 6)
                     {
                         return ApiResponse<ApplicationUser>.Failure(
@@ -2392,7 +2328,7 @@ namespace projet0.Application.Services.User
                             resultCode: 43);
                     }
 
-                    // ✅ Envoyer OTP sur l'email actuel
+                    // Envoyer OTP sur l'email actuel
                     var otpResult = await _otpService.GenerateAndSendOtpAsync(
                         user,
                         OtpPurpose.ResetPassword);
@@ -2464,7 +2400,7 @@ namespace projet0.Application.Services.User
                 // Date de naissance
                 if (dto.BirthDate.HasValue && dto.BirthDate != user.BirthDate)
                 {
-                    // ✅ Vérifier l'âge (18 ans minimum)
+                    // Vérifier l'âge (18 ans minimum)
                     var today = DateTime.Today;
                     var age = today.Year - dto.BirthDate.Value.Year;
                     if (dto.BirthDate.Value.Date > today.AddYears(-age)) age--;
@@ -2502,9 +2438,7 @@ namespace projet0.Application.Services.User
                 {
                     user.Image = dto.Image;
                     hasChanges = true;
-                }
-
-                
+                }                
 
                 // Sauvegarde
                 if (hasChanges)

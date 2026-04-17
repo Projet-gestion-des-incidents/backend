@@ -12,13 +12,9 @@ namespace projet0.Application.Services.User
         public string Email { get; set; }
         public string Nom { get; set; }
         public string Prenom { get; set; }
-
         public string? PhoneNumber { get; set; }
-
         public Guid RoleId { get; set; }
-
         public string? Image { get; set; }
-
         public DateTime? BirthDate { get; set; }
         public UserStatut Statut { get; set; }
         public string? Adresse { get; set; }

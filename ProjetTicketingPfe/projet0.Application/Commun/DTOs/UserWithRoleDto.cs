@@ -20,6 +20,5 @@ namespace projet0.Application.Commun.DTOs
         public DateTime? BirthDate { get; set; }
         public string? Adresse { get; set; }
 
-
     }
 }

@@ -26,7 +26,7 @@ namespace projet0.Infrastructure.Data.Configurations
                 .HasForeignKey(t => t.CommercantId)
                 .OnDelete(DeleteBehavior.SetNull);
 
-            // ✅ CONFIGURATION DES CHAMPS D'AUDIT
+            // CONFIGURATION DES CHAMPS D'AUDIT
             builder.Property(t => t.CreatedAt)
                 .IsRequired()
                 .HasDefaultValueSql("GETUTCDATE()");
@@ -51,6 +51,6 @@ namespace projet0.Infrastructure.Data.Configurations
                 .HasForeignKey(t => t.UpdatedById)
                 .OnDelete(DeleteBehavior.Restrict);
         
-    }
+        }
     }
 }

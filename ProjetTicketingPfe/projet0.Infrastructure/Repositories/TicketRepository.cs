@@ -203,7 +203,6 @@ namespace projet0.Infrastructure.Repositories
             return 1;
         }
 
-
         public IQueryable<Ticket> GetQueryWithIncludes()
         {
             return _context.Tickets
@@ -259,7 +258,6 @@ namespace projet0.Infrastructure.Repositories
         }
         public void Detach(Ticket entity) => _context.Entry(entity).State = EntityState.Detached;
         public void Attach(Ticket entity) => _context.Tickets.Attach(entity);
-        // Dans TicketRepository.cs
         public void SetModified(Ticket entity)
         {
             // Vérifier si l'entité est déjà trackée
@@ -275,6 +273,7 @@ namespace projet0.Infrastructure.Repositories
             _context.Tickets.Attach(entity);
             _context.Entry(entity).State = EntityState.Modified;
         }
+
         public async Task<int> UpdateTicketStatutAsync(Guid ticketId, StatutTicket? nouveauStatut, Guid userId)
         {
             var ticket = await _context.Tickets.FindAsync(ticketId);
@@ -285,15 +284,16 @@ namespace projet0.Infrastructure.Repositories
 
             return await _context.SaveChangesAsync();
         }
+
         public DbContext GetDbContext()
         {
             return _context; // où _context est votre DbContext
         }
+
         public async Task<bool> ExistsAsync(Guid id)
         {
             return await _context.Set<Ticket>().AnyAsync(t => t.Id == id);
         }
     }
-
 }
 

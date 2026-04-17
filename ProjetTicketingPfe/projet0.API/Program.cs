@@ -316,7 +316,6 @@ using (var scope = app.Services.CreateScope())
     await IdentitySeeder.SeedRolesAsync(roleManager);
 }
 
-
 var uploadsPath = Path.Combine(Directory.GetCurrentDirectory(), "uploads");
 if (!Directory.Exists(uploadsPath))
     Directory.CreateDirectory(uploadsPath);
@@ -325,8 +324,8 @@ app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(uploadsPath),
     RequestPath = "/uploads",
-    ServeUnknownFileTypes = true,  // ✅ Permettre tous les types
-    DefaultContentType = "application/octet-stream"  // ✅ Type par défaut
+    ServeUnknownFileTypes = true,  // Permettre tous les types
+    DefaultContentType = "application/octet-stream"  // Type par défaut
 });
 
 Log.Information("Application démarrée avec succès");

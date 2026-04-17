@@ -16,9 +16,7 @@ namespace projet0.Infrastructure.Data.Configurations
 
             builder.Property(p => p.NomFichier).IsRequired().HasMaxLength(255);
             
-            builder.Property(p => p.DateAjout).HasDefaultValueSql("GETUTCDATE()");
-
-            
+            builder.Property(p => p.DateAjout).HasDefaultValueSql("GETUTCDATE()");            
 
             builder.HasOne(p => p.Commentaire)
                 .WithMany(c => c.PiecesJointes)

@@ -16,7 +16,6 @@ namespace projet0.Application.Commun.DTOs
         public string Image { get; set; }
         public string? Adresse { get; set; }
 
-
     }
 
 }

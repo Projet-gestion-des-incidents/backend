@@ -98,7 +98,7 @@ Cordialement,
 L'équipe technique";
                     }
 
-                    // ✅ ENVOI RÉEL DE L'EMAIL
+                    // ENVOI RÉEL DE L'EMAIL
                     await _emailService.SendAsync(user.Email, subject, body);
                     emailSent = true;
                     _logger.LogInformation("📧 Email OTP envoyé avec succès à {Email}", user.Email);
@@ -113,7 +113,7 @@ L'équipe technique";
                 if (emailSent)
                 {
                     return ApiResponse<string>.Success(
-                        data: code,  // ⚠️ Gardé pour les tests (à supprimer en production)
+                        data: code,  // Gardé pour les tests (à supprimer en production)
                         message: "Code OTP généré et envoyé avec succès par email",
                         resultCode: 0
                     );
@@ -220,8 +220,6 @@ L'équipe technique";
             }
         }
 
-        // OtpService.cs - Ajouter cette méthode
-
         public async Task<ApiResponse<string>> GenerateAndSendOtpToEmailAsync(
             ApplicationUser user,
             string targetEmail,  // Email cible (peut être différent de user.Email)
@@ -254,7 +252,7 @@ L'équipe technique";
                     ? "🔐 Confirmation de changement d'email"
                     : "🔐 Votre code OTP";
 
-                // ✅ Code corrigé
+                // Code corrigé
                 string body;
                 if (purpose == OtpPurpose.EmailChange)
                 {
@@ -303,8 +301,5 @@ L'équipe technique";
                     resultCode: 99);
             }
         }
-
-
-
     }
 }

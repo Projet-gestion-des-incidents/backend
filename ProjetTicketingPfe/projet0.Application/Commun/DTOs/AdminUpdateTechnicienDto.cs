@@ -31,9 +31,7 @@ namespace projet0.Application.Commun.DTOs
 
         
         [DataType(DataType.Date)]
-        public DateTime? BirthDate { get; set; }
-
-    
+        public DateTime? BirthDate { get; set; }        
 
         public string? Image { get; set; }
 
@@ -53,7 +51,7 @@ namespace projet0.Application.Commun.DTOs
             if (age > 120)
                 return new ValidationResult("La date de naissance n'est pas valide");
 
-            // ✅ Empêcher les dates dans le futur
+            // Empêcher les dates dans le futur
             if (birthDate.Value.Date > today)
                 return new ValidationResult("La date de naissance ne peut pas être dans le futur");
 

@@ -10,24 +10,24 @@ namespace projet0.Application.Commun.DTOs
     {
         [MinLength(3, ErrorMessage = "Le nom doit contenir au moins 3 caractères")]
         [MaxLength(30, ErrorMessage = "Le nom ne peut pas dépasser 30 caractères")]
-        public string? Nom { get; set; }  // ✅ Optionnel
+        public string? Nom { get; set; }  
 
         [MinLength(3, ErrorMessage = "Le prénom doit contenir au moins 3 caractères")]
         [MaxLength(30, ErrorMessage = "Le prénom ne peut pas dépasser 30 caractères")]
-        public string? Prenom { get; set; }  // ✅ Optionnel (supprimer [Required])
+        public string? Prenom { get; set; }  
 
         [EmailAddress(ErrorMessage = "Format d'email invalide")]
-        public string? Email { get; set; }  // ✅ Optionnel
+        public string? Email { get; set; }  
 
         [Phone(ErrorMessage = "Format de téléphone invalide")]
         [RegularExpression(@"^[0-9]{8}$", ErrorMessage = "Le numéro de téléphone doit contenir exactement 8 chiffres")]
-        public string? PhoneNumber { get; set; }  // ✅ Optionnel
+        public string? PhoneNumber { get; set; }  
 
         [DataType(DataType.Date)]
         [CustomValidation(typeof(EditTechnicienProfileDto), nameof(ValidateAge))]
-        public DateTime? BirthDate { get; set; }  // ✅ Optionnel
+        public DateTime? BirthDate { get; set; }  
 
-        public string? Image { get; set; }  // ✅ Optionnel
+        public string? Image { get; set; }  
 
         // Champs pour changement de mot de passe (optionnels)
         public string? CurrentPassword { get; set; }
@@ -39,11 +39,11 @@ namespace projet0.Application.Commun.DTOs
         [Compare("NewPassword", ErrorMessage = "Les mots de passe ne correspondent pas")]
         public string? ConfirmPassword { get; set; }
 
-        // ✅ Validation personnalisée pour l'âge (optionnelle)
+        // Validation personnalisée pour l'âge (optionnelle)
         public static ValidationResult? ValidateAge(DateTime? birthDate, ValidationContext context)
         {
             if (!birthDate.HasValue)
-                return ValidationResult.Success;  // ✅ Optionnel
+                return ValidationResult.Success;  
 
             var today = DateTime.Today;
             var age = today.Year - birthDate.Value.Year;
@@ -61,11 +61,11 @@ namespace projet0.Application.Commun.DTOs
             return ValidationResult.Success;
         }
 
-        // ✅ Validation personnalisée pour le mot de passe (optionnelle)
+        // Validation personnalisée pour le mot de passe (optionnelle)
         public static ValidationResult? ValidatePassword(string? password, ValidationContext context)
         {
             if (string.IsNullOrEmpty(password))
-                return ValidationResult.Success;  // ✅ Optionnel
+                return ValidationResult.Success;  
 
             var errors = new List<string>();
 

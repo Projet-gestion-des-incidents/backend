@@ -25,7 +25,6 @@ namespace projet0.Infrastructure.Data
         public DbSet<HistoriqueTicket> HistoriquesTicket { get; set; }
         public DbSet<Notification> Notifications { get; set; }
         public DbSet<EntiteImpactee> EntitesImpactees { get; set; }
-
         public DbSet<TPE> TPEs { get; set; }
         public DbSet<IncidentTPE> IncidentTPEs { get; set; }
 
@@ -33,19 +32,13 @@ namespace projet0.Infrastructure.Data
         {
             base.OnModelCreating(builder);
 
-            builder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
-
-            
+            builder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);            
 
             // Configuration Fluent API pour OtpCode
             builder.Entity<OtpCode>()
                 .HasOne(o => o.User)
                 .WithMany() // si tu n'as pas de collection d'OtpCode dans ApplicationUser
-                .HasForeignKey(o => o.UserId);
-
-           
-
-            
+                .HasForeignKey(o => o.UserId);                  
 
         }
     }
