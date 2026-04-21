@@ -63,6 +63,12 @@ namespace projet0.Application.Commun.DTOs.TicketDTOs
         public List<ResolutionParPeriodeDTO> ResolutionParJour { get; set; }
         public List<ResolutionParPeriodeDTO> ResolutionParSemaine { get; set; }
         public List<ResolutionParPeriodeDTO> ResolutionParMois { get; set; }
+
+        // ✅ NOUVEAU : Statistiques d'assignation par technicien
+        public List<TechnicienAssignationDTO> AssignationParTechnicien { get; set; }
+
+        // ✅ NOUVEAU : Statistiques globales d'assignation
+        public AssignationGlobaleDTO AssignationGlobale { get; set; }
     }
 
     // Top techniciens
@@ -103,5 +109,34 @@ namespace projet0.Application.Commun.DTOs.TicketDTOs
         public int ResolusApresDelai { get; set; }
         public int TotalResolusPeriode { get; set; }
         public double TauxRespectDelai { get; set; }
+    }
+
+    // Statistiques d'assignation par technicien
+    public class TechnicienAssignationDTO
+    {
+        public Guid TechnicienId { get; set; }
+        public string Nom { get; set; }
+        public string Prenom { get; set; }
+        public string NomComplet => $"{Nom} {Prenom}";
+
+        // Tickets assignés à ce technicien
+        public int TicketsAssignes { get; set; }
+        public int TicketsEnCours { get; set; }
+        public int TicketsResolus { get; set; }
+        public int TotalTicketsTechnicien { get; set; }
+
+        // Pourcentages
+        public double PourcentageAssignation { get; set; }  // (TotalTechnicien / TotalTicketsAssignesGlobaux) × 100
+        public double TauxResolution { get; set; }          // (Resolus / TotalTechnicien) × 100
+    }
+
+    // Statistiques globales d'assignation
+    public class AssignationGlobaleDTO
+    {
+        public int TotalTicketsAvecAssignation { get; set; }  // Tickets avec AssigneeId != null
+        public int TotalTicketsSansAssignation { get; set; }  // Tickets avec AssigneeId == null
+        
+        // Pourcentages
+        public double TauxAssignation { get; set; }  // (AvecAssignation / TotalTickets) × 100
     }
 }

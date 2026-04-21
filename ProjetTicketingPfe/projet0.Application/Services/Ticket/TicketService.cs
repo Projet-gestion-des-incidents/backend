@@ -1844,6 +1844,57 @@ namespace projet0.Application.Services.Ticket
                         ResolutionParSemaine = resolutionParSemaine, // ✅ NOUVEAU
                         ResolutionParMois = resolutionParMois        // ✅ NOUVEAU
                     };
+                    // ============================================
+                    // ✅ 10. STATISTIQUES D'ASSIGNATION PAR TECHNICIEN (simplifié)
+                    // ============================================
+
+                    // Compter le nombre total de tickets avec assignation
+                    var totalAvecAssignation = ticketsList.Count(t => t.AssigneeId.HasValue);
+                    var totalSansAssignation = ticketsList.Count(t => !t.AssigneeId.HasValue);
+
+                    var assignationParTechnicien = new List<TechnicienAssignationDTO>();
+
+                    foreach (var technicien in techniciensList)
+                    {
+                        var ticketsTechnicien = ticketsList.Where(t => t.AssigneeId == technicien.Id).ToList();
+                        var totalTech = ticketsTechnicien.Count;
+
+                        // ✅ Inclure TOUS les techniciens (même ceux avec 0 ticket)
+                        // Le pourcentage sera 0 pour ceux sans ticket
+
+                        assignationParTechnicien.Add(new TechnicienAssignationDTO
+                        {
+                            TechnicienId = technicien.Id,
+                            Nom = technicien.Nom,
+                            Prenom = technicien.Prenom,
+                            TicketsAssignes = ticketsTechnicien.Count(t => t.StatutTicket == StatutTicket.Assigne),
+                            TicketsEnCours = ticketsTechnicien.Count(t => t.StatutTicket == StatutTicket.EnCours),
+                            TicketsResolus = ticketsTechnicien.Count(t => t.StatutTicket == StatutTicket.Resolu),
+                            TotalTicketsTechnicien = totalTech,
+                            PourcentageAssignation = totalAvecAssignation > 0
+                                ? Math.Round((double)totalTech / totalAvecAssignation * 100, 1)
+                                : 0
+                        });
+                    }
+
+                    // Trier par pourcentage d'assignation (optionnel)
+                    assignationParTechnicien = assignationParTechnicien
+                        .OrderByDescending(t => t.PourcentageAssignation)
+                        .ToList();
+
+                    // Statistiques globales d'assignation (simplifié)
+                    var assignationGlobale = new AssignationGlobaleDTO
+                    {
+                        TotalTicketsAvecAssignation = totalAvecAssignation,
+                        TotalTicketsSansAssignation = totalSansAssignation,
+                        TauxAssignation = total > 0
+                            ? Math.Round((double)totalAvecAssignation / total * 100, 1)
+                            : 0
+                    };
+
+                    // Ajouter au dashboard
+                    dashboard.AssignationParTechnicien = assignationParTechnicien;
+                    dashboard.AssignationGlobale = assignationGlobale;
 
                     _logger.LogInformation("Dashboard tickets généré - Résolu: {Resolus}, Temps moyen: {Moyenne}h, Respect délai: {Taux}%",
                         resolus, moyenneHeures, statsResolution.TauxRespectDelai);
