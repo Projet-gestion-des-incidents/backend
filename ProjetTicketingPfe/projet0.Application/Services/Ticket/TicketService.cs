@@ -1646,6 +1646,9 @@ namespace projet0.Application.Services.Ticket
                     var tickets = await _ticketRepository.GetAllAsync();
                     var ticketsList = tickets.ToList();
 
+                    // ✅ Récupérer les tickets résolus
+                    var ticketsResolus = ticketsList.Where(t => t.StatutTicket == StatutTicket.Resolu && t.DateCloture.HasValue).ToList();
+
                     // Récupérer tous les techniciens
                     var techniciens = await _userRepository.GetUsersByRoleAsync("Technicien");
                     var techniciensList = techniciens.ToList();
@@ -1657,7 +1660,7 @@ namespace projet0.Application.Services.Ticket
                     var nonAssigne = ticketsList.Count(t => t.StatutTicket == null);
                     var assignes = ticketsList.Count(t => t.StatutTicket == StatutTicket.Assigne);
                     var enCours = ticketsList.Count(t => t.StatutTicket == StatutTicket.EnCours);
-                    var resolus = ticketsList.Count(t => t.StatutTicket == StatutTicket.Resolu);
+                    var resolus = ticketsResolus.Count;
 
                     var overview = new TicketDashboardOverviewDTO
                     {
@@ -1674,7 +1677,33 @@ namespace projet0.Application.Services.Ticket
                     };
 
                     // ============================================
-                    // 2. STATISTIQUES PAR STATUT (pour graphique)
+                    // ✅ 2. STATISTIQUES DE RÉSOLUTION (NOUVEAU)
+                    // ============================================
+                    var (moyenneHeures, moyenneJours, avantDelai, apresDelai, sansDelai) = CalculerStatsResolution(ticketsResolus);
+
+                    var statsResolution = new ResolutionStatsDTO
+                    {
+                        TempsMoyenResolutionHeures = moyenneHeures,
+                        TempsMoyenResolutionJours = moyenneJours,
+                        TicketsResolusAvantDelai = avantDelai,
+                        TicketsResolusApresDelai = apresDelai,
+                        TicketsSansDateLimite = sansDelai,
+                        TauxRespectDelai = (avantDelai + apresDelai) > 0
+                            ? Math.Round((double)avantDelai / (avantDelai + apresDelai) * 100, 1)
+                            : 0
+                    };
+
+                    // ============================================
+                    // ✅ 3. STATISTIQUES DE RÉSOLUTION PAR PÉRIODE
+                    // ============================================
+                    var today = DateTime.Today;
+
+                    var resolutionParJour = CalculerResolutionParPeriode(ticketsResolus, "jour", today, 7);
+                    var resolutionParSemaine = CalculerResolutionParPeriode(ticketsResolus, "semaine", today, 4);
+                    var resolutionParMois = CalculerResolutionParPeriode(ticketsResolus, "mois", today, 6);
+
+                    // ============================================
+                    // 4. STATISTIQUES PAR STATUT (pour graphique)
                     // ============================================
                     var statsParStatut = new List<TicketStatutStatDTO>
             {
@@ -1682,37 +1711,36 @@ namespace projet0.Application.Services.Ticket
                 {
                     Statut = "Non assigné",
                     Count = nonAssigne,
-                    Color = "#6c757d",  // Gris
+                    Color = "#6c757d",
                     Pourcentage = total > 0 ? Math.Round((double)nonAssigne / total * 100, 1) : 0
                 },
                 new TicketStatutStatDTO
                 {
                     Statut = "Assigné",
                     Count = assignes,
-                    Color = "#17a2b8",  // Bleu
+                    Color = "#17a2b8",
                     Pourcentage = total > 0 ? Math.Round((double)assignes / total * 100, 1) : 0
                 },
                 new TicketStatutStatDTO
                 {
                     Statut = "En cours",
                     Count = enCours,
-                    Color = "#ffc107",  // Jaune
+                    Color = "#ffc107",
                     Pourcentage = total > 0 ? Math.Round((double)enCours / total * 100, 1) : 0
                 },
                 new TicketStatutStatDTO
                 {
                     Statut = "Résolu",
                     Count = resolus,
-                    Color = "#28a745",  // Vert
+                    Color = "#28a745",
                     Pourcentage = total > 0 ? Math.Round((double)resolus / total * 100, 1) : 0
                 }
             };
 
                     // ============================================
-                    // 3. STATISTIQUES PAR JOUR (7 derniers jours)
+                    // 5. STATISTIQUES PAR JOUR (créations)
                     // ============================================
                     var statsParJour = new List<TicketJournalierDTO>();
-                    var today = DateTime.Today;
 
                     for (int i = 6; i >= 0; i--)
                     {
@@ -1731,7 +1759,7 @@ namespace projet0.Application.Services.Ticket
                     }
 
                     // ============================================
-                    // 4. STATISTIQUES PAR SEMAINE (4 dernières semaines)
+                    // 6. STATISTIQUES PAR SEMAINE (créations)
                     // ============================================
                     var statsParSemaine = new List<TicketJournalierDTO>();
 
@@ -1753,7 +1781,7 @@ namespace projet0.Application.Services.Ticket
                     }
 
                     // ============================================
-                    // 5. STATISTIQUES PAR MOIS (6 derniers mois)
+                    // 7. STATISTIQUES PAR MOIS (créations)
                     // ============================================
                     var statsParMois = new List<TicketJournalierDTO>();
 
@@ -1776,7 +1804,7 @@ namespace projet0.Application.Services.Ticket
                     }
 
                     // ============================================
-                    // 6. TOP TECHNICIENS
+                    // 8. TOP TECHNICIENS
                     // ============================================
                     var topTechniciens = new List<TopTechnicienDTO>();
 
@@ -1798,21 +1826,27 @@ namespace projet0.Application.Services.Ticket
                         });
                     }
 
-                    // Trier par nombre de tickets résolus (décroissant)
                     topTechniciens = topTechniciens.OrderByDescending(t => t.TicketsResolus).Take(5).ToList();
 
+                    // ============================================
+                    // 9. DASHBOARD COMPLET
+                    // ============================================
                     var dashboard = new TicketDashboardDTO
                     {
                         Overview = overview,
+                        StatsResolution = statsResolution,           // ✅ NOUVEAU
                         StatsParStatut = statsParStatut,
                         StatsParJour = statsParJour,
                         StatsParSemaine = statsParSemaine,
                         StatsParMois = statsParMois,
-                        TopTechniciens = topTechniciens
+                        TopTechniciens = topTechniciens,
+                        ResolutionParJour = resolutionParJour,       // ✅ NOUVEAU
+                        ResolutionParSemaine = resolutionParSemaine, // ✅ NOUVEAU
+                        ResolutionParMois = resolutionParMois        // ✅ NOUVEAU
                     };
 
-                    _logger.LogInformation("Dashboard tickets généré avec succès - Total: {Total}, Résolus: {Resolus}, Taux: {Taux}%",
-                        total, resolus, overview.TauxResolutionGlobal);
+                    _logger.LogInformation("Dashboard tickets généré - Résolu: {Resolus}, Temps moyen: {Moyenne}h, Respect délai: {Taux}%",
+                        resolus, moyenneHeures, statsResolution.TauxRespectDelai);
 
                     return ApiResponse<TicketDashboardDTO>.Success(dashboard);
                 }
@@ -1822,6 +1856,124 @@ namespace projet0.Application.Services.Ticket
                     return ApiResponse<TicketDashboardDTO>.Failure("Erreur interne du serveur");
                 }
             });
+        }
+
+
+        // Ajouter cette méthode dans TicketService.cs
+        private (double moyenneHeures, double moyenneJours, int avantDelai, int apresDelai, int sansDelai) CalculerStatsResolution(List<TicketEntity> ticketsResolus)
+        {
+            var tempsResolution = new List<double>();
+            int avantDelai = 0;
+            int apresDelai = 0;
+            int sansDelai = 0;
+
+            foreach (var ticket in ticketsResolus)
+            {
+                // Calculer le temps de résolution
+                if (ticket.DateCloture.HasValue && ticket.DateCreation != null)
+                {
+                    var temps = (ticket.DateCloture.Value - ticket.DateCreation).TotalHours;
+                    tempsResolution.Add(temps);
+
+                    // Vérifier le respect de la date limite
+                    if (ticket.DateLimite.HasValue)
+                    {
+                        if (ticket.DateCloture.Value <= ticket.DateLimite.Value)
+                            avantDelai++;
+                        else
+                            apresDelai++;
+                    }
+                    else
+                    {
+                        sansDelai++;
+                    }
+                }
+            }
+
+            double moyenneHeures = tempsResolution.Any() ? Math.Round(tempsResolution.Average(), 1) : 0;
+            double moyenneJours = Math.Round(moyenneHeures / 24, 1);
+
+            return (moyenneHeures, moyenneJours, avantDelai, apresDelai, sansDelai);
+        }
+
+        private List<ResolutionParPeriodeDTO> CalculerResolutionParPeriode(
+            List<TicketEntity> ticketsResolus,
+            string periode,  // "jour", "semaine", "mois"
+            DateTime startDate,
+            int nbPeriodes)
+        {
+            var result = new List<ResolutionParPeriodeDTO>();
+
+            for (int i = nbPeriodes - 1; i >= 0; i--)
+            {
+                DateTime debut;
+                DateTime fin;
+
+                switch (periode)
+                {
+                    case "jour":
+                        debut = startDate.AddDays(-i).Date;
+                        fin = debut.AddDays(1);
+                        break;
+                    case "semaine":
+                        debut = startDate.AddDays(-(int)startDate.DayOfWeek - (i * 7));
+                        fin = debut.AddDays(7);
+                        break;
+                    case "mois":
+                        debut = new DateTime(startDate.Year, startDate.Month, 1).AddMonths(-i);
+                        fin = debut.AddMonths(1);
+                        break;
+                    default:
+                        debut = startDate.AddDays(-i).Date;
+                        fin = debut.AddDays(1);
+                        break;
+                }
+
+                var ticketsPeriode = ticketsResolus
+                    .Where(t => t.DateCloture.HasValue &&
+                                t.DateCloture.Value >= debut &&
+                                t.DateCloture.Value < fin)
+                    .ToList();
+
+                var tempsResolution = new List<double>();
+                int avantDelai = 0;
+                int apresDelai = 0;
+
+                foreach (var ticket in ticketsPeriode)
+                {
+                    if (ticket.DateCloture.HasValue && ticket.DateCreation != null)
+                    {
+                        var temps = (ticket.DateCloture.Value - ticket.DateCreation).TotalHours;
+                        tempsResolution.Add(temps);
+
+                        if (ticket.DateLimite.HasValue)
+                        {
+                            if (ticket.DateCloture.Value <= ticket.DateLimite.Value)
+                                avantDelai++;
+                            else
+                                apresDelai++;
+                        }
+                    }
+                }
+
+                double moyenneHeures = tempsResolution.Any() ? Math.Round(tempsResolution.Average(), 1) : 0;
+                double moyenneJours = Math.Round(moyenneHeures / 24, 1);
+                int totalPeriode = ticketsPeriode.Count;
+                double tauxRespect = totalPeriode > 0 ? Math.Round((double)avantDelai / totalPeriode * 100, 1) : 0;
+
+                result.Add(new ResolutionParPeriodeDTO
+                {
+                    Date = debut,
+                    TempsMoyenResolutionHeures = moyenneHeures,
+                    TempsMoyenResolutionJours = moyenneJours,
+                    ResolusAvantDelai = avantDelai,
+                    ResolusApresDelai = apresDelai,
+                    TotalResolusPeriode = totalPeriode,
+                    TauxRespectDelai = tauxRespect
+                });
+            }
+
+            return result;
         }
 
         #endregion

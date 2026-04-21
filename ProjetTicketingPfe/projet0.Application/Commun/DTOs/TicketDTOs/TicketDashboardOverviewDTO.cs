@@ -56,6 +56,13 @@ namespace projet0.Application.Commun.DTOs.TicketDTOs
 
         // Top techniciens
         public List<TopTechnicienDTO> TopTechniciens { get; set; }
+        // ✅ NOUVEAU : Statistiques de résolution globales
+        public ResolutionStatsDTO StatsResolution { get; set; }
+
+        // ✅ NOUVEAU : Résolution par période
+        public List<ResolutionParPeriodeDTO> ResolutionParJour { get; set; }
+        public List<ResolutionParPeriodeDTO> ResolutionParSemaine { get; set; }
+        public List<ResolutionParPeriodeDTO> ResolutionParMois { get; set; }
     }
 
     // Top techniciens
@@ -68,5 +75,33 @@ namespace projet0.Application.Commun.DTOs.TicketDTOs
         public int TicketsResolus { get; set; }
         public int TicketsEnCours { get; set; }
         public double TauxResolution { get; set; }
+    }
+
+    // Statistiques de résolution
+    public class ResolutionStatsDTO
+    {
+        public double TempsMoyenResolutionHeures { get; set; }
+        public double TempsMoyenResolutionJours { get; set; }
+        public int TicketsResolusAvantDelai { get; set; }
+        public int TicketsResolusApresDelai { get; set; }
+        public int TicketsSansDateLimite { get; set; }
+        public double TauxRespectDelai { get; set; }  // (AvantDelai / TotalAvecDelai) × 100
+    }
+
+    // Statistiques de résolution par période
+    public class ResolutionParPeriodeDTO
+    {
+        public DateTime Date { get; set; }
+        public string DateFormatee => Date.ToString("dd/MM/yyyy");
+
+        // Temps moyen de résolution
+        public double TempsMoyenResolutionHeures { get; set; }
+        public double TempsMoyenResolutionJours { get; set; }
+
+        // Respect des délais
+        public int ResolusAvantDelai { get; set; }
+        public int ResolusApresDelai { get; set; }
+        public int TotalResolusPeriode { get; set; }
+        public double TauxRespectDelai { get; set; }
     }
 }
