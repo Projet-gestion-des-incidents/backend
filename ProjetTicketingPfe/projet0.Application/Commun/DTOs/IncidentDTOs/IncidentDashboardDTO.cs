@@ -1,4 +1,5 @@
-﻿using System;
+﻿using projet0.Domain.Enums;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -50,5 +51,55 @@ namespace projet0.Application.Commun.DTOs.IncidentDTOs
         public List<IncidentJournalierDTO> StatsParJour { get; set; }
         public List<IncidentJournalierDTO> StatsParSemaine { get; set; }
         public List<IncidentJournalierDTO> StatsParMois { get; set; }
+
+        // ✅ NOUVEAU : Statistiques de résolution globales
+        public ResolutionIncidentStatsDTO StatsResolution { get; set; }
+
+        // ✅ NOUVEAU : Temps moyen par sévérité
+        public List<ResolutionParSeveriteDTO> ResolutionParSeverite { get; set; }
+
+        // ✅ NOUVEAU : Temps moyen par type de problème + pourcentage
+        public List<ResolutionParTypeProblemeDTO> ResolutionParTypeProbleme { get; set; }
     }
+
+    // ============================================
+    // ✅ NOUVEAU : Statistiques de résolution
+    // ============================================
+
+    // Statistiques de résolution globales
+    public class ResolutionIncidentStatsDTO
+    {
+        public double TempsMoyenResolutionHeures { get; set; }
+        public double TempsMoyenResolutionJours { get; set; }
+        public int IncidentsResolus { get; set; }           // Nombre d'incidents résolus
+        public int IncidentsNonResolus { get; set; }        // Incidents non encore résolus
+        public double TauxResolution { get; set; }          // (Resolus / Total) × 100
+    }
+
+    // Statistiques de résolution par sévérité
+    public class ResolutionParSeveriteDTO
+    {
+        public string Severite { get; set; }                // "Non définie", "Faible", "Moyenne", "Forte"
+        public int NombreIncidents { get; set; }            // Nombre d'incidents avec cette sévérité
+        public int NombreResolus { get; set; }              // Dont combien sont résolus
+        public double TempsMoyenResolutionHeures { get; set; }
+        public double TempsMoyenResolutionJours { get; set; }
+        public double TauxResolution { get; set; }          // (Resolus / NombreIncidents) × 100
+        public string Color { get; set; }                   // Pour le graphique
+    }
+
+    // Statistiques de résolution par type de problème
+    public class ResolutionParTypeProblemeDTO
+    {
+        public string TypeProbleme { get; set; }            // Libellé du type
+        public TypeProbleme TypeProblemeEnum { get; set; }  // Valeur enum
+        public int NombreIncidents { get; set; }            // Nombre d'incidents de ce type
+        public int NombreResolus { get; set; }              // Dont combien sont résolus
+        public double TempsMoyenResolutionHeures { get; set; }
+        public double TempsMoyenResolutionJours { get; set; }
+        public double TauxResolution { get; set; }          // (Resolus / NombreIncidents) × 100
+        public double PourcentageTotal { get; set; }        // (NombreIncidents / TotalIncidents) × 100
+        public string Color { get; set; }                   // Pour le graphique
+    }
+
 }

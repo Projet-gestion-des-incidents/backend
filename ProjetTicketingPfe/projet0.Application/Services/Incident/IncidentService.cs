@@ -963,7 +963,7 @@ namespace projet0.Application.Services.Incident
                     var incidentsList = incidents.ToList();
 
                     // ============================================
-                    // 1. STATISTIQUES GLOBALES
+                    // 1. STATISTIQUES GLOBALES (existantes)
                     // ============================================
                     var total = incidentsList.Count;
                     var nonTraite = incidentsList.Count(i => i.StatutIncident == null || i.StatutIncident == StatutIncident.NonTraite);
@@ -982,7 +982,7 @@ namespace projet0.Application.Services.Incident
                     };
 
                     // ============================================
-                    // 2. STATISTIQUES PAR STATUT (pour graphique)
+                    // 2. STATISTIQUES PAR STATUT (existantes)
                     // ============================================
                     var statsParStatut = new List<IncidentStatutStatDTO>
             {
@@ -990,27 +990,101 @@ namespace projet0.Application.Services.Incident
                 {
                     Statut = "Non traité",
                     Count = nonTraite,
-                    Color = "#ffc107",  // Jaune
+                    Color = "#ffc107",
                     Pourcentage = total > 0 ? Math.Round((double)nonTraite / total * 100, 1) : 0
                 },
                 new IncidentStatutStatDTO
                 {
                     Statut = "En cours",
                     Count = enCours,
-                    Color = "#17a2b8",  // Bleu
+                    Color = "#17a2b8",
                     Pourcentage = total > 0 ? Math.Round((double)enCours / total * 100, 1) : 0
                 },
                 new IncidentStatutStatDTO
                 {
                     Statut = "Fermé",
                     Count = ferme,
-                    Color = "#28a745",  // Vert
+                    Color = "#28a745",
                     Pourcentage = total > 0 ? Math.Round((double)ferme / total * 100, 1) : 0
                 }
             };
 
                     // ============================================
-                    // 3. STATISTIQUES PAR JOUR (7 derniers jours)
+                    // 3. STATISTIQUES DE RÉSOLUTION GLOBALES (NOUVEAU)
+                    // ============================================
+                    var incidentsResolus = incidentsList.Where(i => i.StatutIncident == StatutIncident.Ferme && i.DateResolution.HasValue).ToList();
+                    var (moyenneHeuresGlobal, moyenneJoursGlobal, nbResolus) = CalculerTempsMoyenResolution(incidentsResolus);
+
+                    var statsResolution = new ResolutionIncidentStatsDTO
+                    {
+                        TempsMoyenResolutionHeures = moyenneHeuresGlobal,
+                        TempsMoyenResolutionJours = moyenneJoursGlobal,
+                        IncidentsResolus = nbResolus,
+                        IncidentsNonResolus = total - nbResolus,
+                        TauxResolution = total > 0 ? Math.Round((double)nbResolus / total * 100, 1) : 0
+                    };
+
+                    // ============================================
+                    // 4. TEMPS MOYEN PAR SÉVÉRITÉ (NOUVEAU)
+                    // ============================================
+                    var resolutionParSeverite = new List<ResolutionParSeveriteDTO>();
+
+                    foreach (SeveriteIncident severite in Enum.GetValues(typeof(SeveriteIncident)))
+                    {
+                        var incidentsSeverite = incidentsList.Where(i => i.SeveriteIncident == severite).ToList();
+                        var incidentsResolusSeverite = incidentsSeverite.Where(i => i.StatutIncident == StatutIncident.Ferme && i.DateResolution.HasValue).ToList();
+                        var (moyenneHeures, moyenneJours, _) = CalculerTempsMoyenResolution(incidentsResolusSeverite);
+
+                        resolutionParSeverite.Add(new ResolutionParSeveriteDTO
+                        {
+                            Severite = GetSeveriteLabel(severite),
+                            NombreIncidents = incidentsSeverite.Count,
+                            NombreResolus = incidentsResolusSeverite.Count,
+                            TempsMoyenResolutionHeures = moyenneHeures,
+                            TempsMoyenResolutionJours = moyenneJours,
+                            TauxResolution = incidentsSeverite.Count > 0
+                                ? Math.Round((double)incidentsResolusSeverite.Count / incidentsSeverite.Count * 100, 1)
+                                : 0,
+                            Color = GetColorForSeverite(severite)
+                        });
+                    }
+
+                    // ============================================
+                    // 5. TEMPS MOYEN PAR TYPE DE PROBLÈME + POURCENTAGE (NOUVEAU)
+                    // ============================================
+                    var resolutionParTypeProbleme = new List<ResolutionParTypeProblemeDTO>();
+
+                    foreach (TypeProbleme type in Enum.GetValues(typeof(TypeProbleme)))
+                    {
+                        var incidentsType = incidentsList.Where(i => i.TypeProbleme == type).ToList();
+                        var incidentsResolusType = incidentsType.Where(i => i.StatutIncident == StatutIncident.Ferme && i.DateResolution.HasValue).ToList();
+                        var (moyenneHeures, moyenneJours, _) = CalculerTempsMoyenResolution(incidentsResolusType);
+
+                        resolutionParTypeProbleme.Add(new ResolutionParTypeProblemeDTO
+                        {
+                            TypeProbleme = GetTypeProblemeLabel(type),
+                            TypeProblemeEnum = type,
+                            NombreIncidents = incidentsType.Count,
+                            NombreResolus = incidentsResolusType.Count,
+                            TempsMoyenResolutionHeures = moyenneHeures,
+                            TempsMoyenResolutionJours = moyenneJours,
+                            TauxResolution = incidentsType.Count > 0
+                                ? Math.Round((double)incidentsResolusType.Count / incidentsType.Count * 100, 1)
+                                : 0,
+                            PourcentageTotal = total > 0
+                                ? Math.Round((double)incidentsType.Count / total * 100, 1)
+                                : 0,
+                            Color = GetColorForTypeProbleme(type)
+                        });
+                    }
+
+                    // Trier par nombre d'incidents (décroissant)
+                    resolutionParTypeProbleme = resolutionParTypeProbleme
+                        .OrderByDescending(t => t.NombreIncidents)
+                        .ToList();
+
+                    // ============================================
+                    // 6. STATISTIQUES PAR JOUR (existantes)
                     // ============================================
                     var statsParJour = new List<IncidentJournalierDTO>();
                     var today = DateTime.Today;
@@ -1031,14 +1105,13 @@ namespace projet0.Application.Services.Incident
                     }
 
                     // ============================================
-                    // 4. STATISTIQUES PAR SEMAINE (4 dernières semaines)
+                    // 7. STATISTIQUES PAR SEMAINE (existantes)
                     // ============================================
                     var statsParSemaine = new List<IncidentJournalierDTO>();
-                    var todayWeek = DateTime.Today;
 
                     for (int i = 3; i >= 0; i--)
                     {
-                        var debutSemaine = todayWeek.AddDays(-(int)todayWeek.DayOfWeek - (i * 7));
+                        var debutSemaine = today.AddDays(-(int)today.DayOfWeek - (i * 7));
                         var finSemaine = debutSemaine.AddDays(6);
                         var incidentsSemaine = incidentsList.Where(i => i.DateDetection.Date >= debutSemaine && i.DateDetection.Date <= finSemaine).ToList();
 
@@ -1053,14 +1126,13 @@ namespace projet0.Application.Services.Incident
                     }
 
                     // ============================================
-                    // 5. STATISTIQUES PAR MOIS (6 derniers mois)
+                    // 8. STATISTIQUES PAR MOIS (existantes)
                     // ============================================
                     var statsParMois = new List<IncidentJournalierDTO>();
-                    var todayMonth = DateTime.Today;
 
                     for (int i = 5; i >= 0; i--)
                     {
-                        var dateMois = todayMonth.AddMonths(-i);
+                        var dateMois = today.AddMonths(-i);
                         var debutMois = new DateTime(dateMois.Year, dateMois.Month, 1);
                         var finMois = debutMois.AddMonths(1).AddDays(-1);
                         var incidentsMois = incidentsList.Where(i => i.DateDetection.Date >= debutMois && i.DateDetection.Date <= finMois).ToList();
@@ -1075,17 +1147,23 @@ namespace projet0.Application.Services.Incident
                         });
                     }
 
+                    // ============================================
+                    // 9. DASHBOARD COMPLET
+                    // ============================================
                     var dashboard = new IncidentDashboardDTO
                     {
                         Overview = overview,
                         StatsParStatut = statsParStatut,
                         StatsParJour = statsParJour,
                         StatsParSemaine = statsParSemaine,
-                        StatsParMois = statsParMois
+                        StatsParMois = statsParMois,
+                        StatsResolution = statsResolution,                      // ✅ NOUVEAU
+                        ResolutionParSeverite = resolutionParSeverite,          // ✅ NOUVEAU
+                        ResolutionParTypeProbleme = resolutionParTypeProbleme   // ✅ NOUVEAU
                     };
 
-                    _logger.LogInformation("Dashboard incidents généré avec succès - Total: {Total}, Non traité: {NonTraite}, En cours: {EnCours}, Fermé: {Ferme}",
-                        total, nonTraite, enCours, ferme);
+                    _logger.LogInformation("Dashboard incidents généré - Total: {Total}, Résolus: {Resolus}, Temps moyen: {Moyenne}h",
+                        total, nbResolus, moyenneHeuresGlobal);
 
                     return ApiResponse<IncidentDashboardDTO>.Success(dashboard);
                 }
@@ -1490,6 +1568,103 @@ namespace projet0.Application.Services.Incident
                     return ApiResponse<PagedResult<IncidentDTO>>.Failure("Erreur interne du serveur");
                 }
             });
+        }
+
+        #endregion
+
+        #region Dashboard Statistics Methods
+
+        /// <summary>
+        /// Calcule le temps moyen de résolution pour une liste d'incidents
+        /// </summary>
+        private (double moyenneHeures, double moyenneJours, int resolus) CalculerTempsMoyenResolution(List<IncidentEntity> incidents)
+        {
+            var tempsResolution = new List<double>();
+            int resolus = 0;
+
+            foreach (var incident in incidents)
+            {
+                // Un incident est résolu s'il a une date de résolution ET statut Fermé
+                if (incident.DateResolution.HasValue && incident.StatutIncident == StatutIncident.Ferme)
+                {
+                    var temps = (incident.DateResolution.Value - incident.DateDetection).TotalHours;
+                    tempsResolution.Add(temps);
+                    resolus++;
+                }
+            }
+
+            double moyenneHeures = tempsResolution.Any() ? Math.Round(tempsResolution.Average(), 1) : 0;
+            double moyenneJours = Math.Round(moyenneHeures / 24, 1);
+
+            return (moyenneHeures, moyenneJours, resolus);
+        }
+
+        /// <summary>
+        /// Récupère le libellé de la sévérité
+        /// </summary>
+        private string GetSeveriteLabel(SeveriteIncident severite)
+        {
+            return severite switch
+            {
+                SeveriteIncident.NonDefinie => "Non définie",
+                SeveriteIncident.Faible => "Faible",
+                SeveriteIncident.Moyenne => "Moyenne",
+                SeveriteIncident.Forte => "Forte",
+                _ => severite.ToString()
+            };
+        }
+
+        /// <summary>
+        /// Récupère le libellé du type de problème
+        /// </summary>
+        private string GetTypeProblemeLabel(TypeProbleme type)
+        {
+            return type switch
+            {
+                TypeProbleme.PaiementRefuse => "Paiement refusé",
+                TypeProbleme.TerminalHorsLigne => "Terminal hors ligne",
+                TypeProbleme.Lenteur => "Lenteur",
+                TypeProbleme.BugAffichage => "Bug affichage",
+                TypeProbleme.ConnexionReseau => "Connexion réseau",
+                TypeProbleme.ErreurFluxTransactionnel => "Erreur flux transactionnel",
+                TypeProbleme.ProblemeLogicielTPE => "Problème logiciel TPE",
+                TypeProbleme.Autre => "Autre",
+                _ => type.ToString()
+            };
+        }
+
+        /// <summary>
+        /// Récupère une couleur pour un type de problème (pour graphique)
+        /// </summary>
+        private string GetColorForTypeProbleme(TypeProbleme type)
+        {
+            return type switch
+            {
+                TypeProbleme.PaiementRefuse => "#dc3545",      // Rouge
+                TypeProbleme.TerminalHorsLigne => "#fd7e14",   // Orange
+                TypeProbleme.Lenteur => "#ffc107",             // Jaune
+                TypeProbleme.BugAffichage => "#20c997",        // Turquoise
+                TypeProbleme.ConnexionReseau => "#17a2b8",     // Bleu clair
+                TypeProbleme.ErreurFluxTransactionnel => "#6f42c1", // Violet
+                TypeProbleme.ProblemeLogicielTPE => "#e83e8c", // Rose
+                TypeProbleme.Autre => "#6c757d",               // Gris
+                _ => "#6c757d"
+            };
+        }
+
+        /// <summary>
+        /// Récupère une couleur pour la sévérité
+        /// </summary>
+        private string GetColorForSeverite(SeveriteIncident severite)
+        {
+            return severite switch
+            {
+                SeveriteIncident.NonDefinie => "#6c757d",  // Gris
+                SeveriteIncident.Faible => "#28a745",      // Vert
+                SeveriteIncident.Moyenne => "#ffc107",     // Jaune
+                SeveriteIncident.Forte => "#dc3545",       // Rouge
+                _ => "#6c757d"
+            };
         }
 
         #endregion
