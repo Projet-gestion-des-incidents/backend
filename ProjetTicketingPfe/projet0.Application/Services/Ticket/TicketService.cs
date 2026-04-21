@@ -1802,7 +1802,6 @@ namespace projet0.Application.Services.Ticket
                             Resolus = ticketsMois.Count(t => t.StatutTicket == StatutTicket.Resolu)
                         });
                     }
-
                     // ============================================
                     // 8. TOP TECHNICIENS (uniquement ceux avec des résolutions)
                     // ============================================
@@ -1811,22 +1810,26 @@ namespace projet0.Application.Services.Ticket
                     foreach (var technicien in techniciensList)
                     {
                         var ticketsTechnicien = ticketsList.Where(t => t.AssigneeId == technicien.Id).ToList();
-                        var ticketsResolusParTechnicien = ticketsTechnicien.Count(t => t.StatutTicket == StatutTicket.Resolu);
-                        var ticketsEnCoursParTechnicien = ticketsTechnicien.Count(t => t.StatutTicket == StatutTicket.EnCours);
-                        var totalAssignes = ticketsTechnicien.Count;
 
-                        // ✅ AJOUTER CETTE CONDITION : Ne prendre que les techniciens avec au moins 1 ticket résolu
-                        if (ticketsResolusParTechnicien > 0)
+                        var ticketsAssignesCount = ticketsTechnicien.Count(t => t.StatutTicket == StatutTicket.Assigne);
+                        var ticketsEnCoursCount = ticketsTechnicien.Count(t => t.StatutTicket == StatutTicket.EnCours);
+                        var ticketsResolusCount = ticketsTechnicien.Count(t => t.StatutTicket == StatutTicket.Resolu);
+                        var ticketsTotalCount = ticketsTechnicien.Count;
+
+                        // Ne prendre que les techniciens qui ont résolu au moins 1 ticket
+                        if (ticketsResolusCount > 0)
                         {
                             topTechniciens.Add(new TopTechnicienDTO
                             {
                                 TechnicienId = technicien.Id,
                                 Nom = technicien.Nom,
                                 Prenom = technicien.Prenom,
-                                TicketsResolus = ticketsResolusParTechnicien,
-                                TicketsEnCours = ticketsEnCoursParTechnicien,
-                                TauxResolution = totalAssignes > 0
-                                    ? Math.Round((double)ticketsResolusParTechnicien / totalAssignes * 100, 1)
+                                TicketsAssignes = ticketsAssignesCount,
+                                TicketsEnCours = ticketsEnCoursCount,
+                                TicketsResolus = ticketsResolusCount,
+                                TicketsTotal = ticketsTotalCount,
+                                TauxResolution = ticketsTotalCount > 0
+                                    ? Math.Round((double)ticketsResolusCount / ticketsTotalCount * 100, 1)
                                     : 0
                             });
                         }
@@ -1837,6 +1840,7 @@ namespace projet0.Application.Services.Ticket
                         .OrderByDescending(t => t.TicketsResolus)
                         .Take(5)
                         .ToList();
+
 
                     // ============================================
                     // 9. DASHBOARD COMPLET

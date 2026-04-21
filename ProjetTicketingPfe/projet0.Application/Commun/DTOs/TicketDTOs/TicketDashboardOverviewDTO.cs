@@ -80,6 +80,8 @@ namespace projet0.Application.Commun.DTOs.TicketDTOs
         public string NomComplet => $"{Nom} {Prenom}";
         public int TicketsResolus { get; set; }
         public int TicketsEnCours { get; set; }
+        public int TicketsAssignes { get; set; }      // ✅ NOUVEAU : tickets avec statut "Assigné"
+        public int TicketsTotal { get; set; }         // ✅ NOUVEAU : somme de tous les tickets (Assignés + En cours + Résolus)
         public double TauxResolution { get; set; }
     }
 
