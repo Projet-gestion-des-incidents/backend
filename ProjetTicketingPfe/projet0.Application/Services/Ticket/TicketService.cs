@@ -1804,7 +1804,7 @@ namespace projet0.Application.Services.Ticket
                     }
 
                     // ============================================
-                    // 8. TOP TECHNICIENS
+                    // 8. TOP TECHNICIENS (uniquement ceux avec des résolutions)
                     // ============================================
                     var topTechniciens = new List<TopTechnicienDTO>();
 
@@ -1815,18 +1815,28 @@ namespace projet0.Application.Services.Ticket
                         var ticketsEnCoursParTechnicien = ticketsTechnicien.Count(t => t.StatutTicket == StatutTicket.EnCours);
                         var totalAssignes = ticketsTechnicien.Count;
 
-                        topTechniciens.Add(new TopTechnicienDTO
+                        // ✅ AJOUTER CETTE CONDITION : Ne prendre que les techniciens avec au moins 1 ticket résolu
+                        if (ticketsResolusParTechnicien > 0)
                         {
-                            TechnicienId = technicien.Id,
-                            Nom = technicien.Nom,
-                            Prenom = technicien.Prenom,
-                            TicketsResolus = ticketsResolusParTechnicien,
-                            TicketsEnCours = ticketsEnCoursParTechnicien,
-                            TauxResolution = totalAssignes > 0 ? Math.Round((double)ticketsResolusParTechnicien / totalAssignes * 100, 1) : 0
-                        });
+                            topTechniciens.Add(new TopTechnicienDTO
+                            {
+                                TechnicienId = technicien.Id,
+                                Nom = technicien.Nom,
+                                Prenom = technicien.Prenom,
+                                TicketsResolus = ticketsResolusParTechnicien,
+                                TicketsEnCours = ticketsEnCoursParTechnicien,
+                                TauxResolution = totalAssignes > 0
+                                    ? Math.Round((double)ticketsResolusParTechnicien / totalAssignes * 100, 1)
+                                    : 0
+                            });
+                        }
                     }
 
-                    topTechniciens = topTechniciens.OrderByDescending(t => t.TicketsResolus).Take(5).ToList();
+                    // Trier par nombre de tickets résolus (décroissant) et prendre les top 5
+                    topTechniciens = topTechniciens
+                        .OrderByDescending(t => t.TicketsResolus)
+                        .Take(5)
+                        .ToList();
 
                     // ============================================
                     // 9. DASHBOARD COMPLET
