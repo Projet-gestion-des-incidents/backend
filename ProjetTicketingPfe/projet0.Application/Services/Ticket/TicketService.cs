@@ -1803,7 +1803,7 @@ namespace projet0.Application.Services.Ticket
                         });
                     }
                     // ============================================
-                    // 8. TOP TECHNICIENS (uniquement ceux avec des résolutions)
+                    // 8. TOP TECHNICIENS (tous ceux avec au moins 1 ticket assigné)
                     // ============================================
                     var topTechniciens = new List<TopTechnicienDTO>();
 
@@ -1816,8 +1816,9 @@ namespace projet0.Application.Services.Ticket
                         var ticketsResolusCount = ticketsTechnicien.Count(t => t.StatutTicket == StatutTicket.Resolu);
                         var ticketsTotalCount = ticketsTechnicien.Count;
 
-                        // Ne prendre que les techniciens qui ont résolu au moins 1 ticket
-                        if (ticketsResolusCount > 0)
+                        // ✅ Modifié : Inclure les techniciens qui ont au moins 1 ticket assigné (total > 0)
+                        // Peu importe le statut (Assigné, En cours, ou Résolu)
+                        if (ticketsTotalCount > 0)
                         {
                             topTechniciens.Add(new TopTechnicienDTO
                             {
@@ -1835,10 +1836,11 @@ namespace projet0.Application.Services.Ticket
                         }
                     }
 
-                    // Trier par nombre de tickets résolus (décroissant) et prendre les top 5
+                    // ✅ Trier par nombre de tickets résolus (décroissant) - les meilleurs en premier
+                    // ✅ Plus de limite .Take(5) - on garde TOUS les techniciens actifs
                     topTechniciens = topTechniciens
-                        .OrderByDescending(t => t.TicketsResolus)
-                        .Take(5)
+                        .OrderByDescending(t => t.TicketsResolus)  // Les plus performants d'abord
+                        .ThenByDescending(t => t.TauxResolution)   // En cas d'égalité, par taux
                         .ToList();
 
 
