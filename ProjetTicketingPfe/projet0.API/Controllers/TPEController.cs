@@ -114,5 +114,30 @@ namespace projet0.API.Controllers
                     "Erreur interne du serveur"));
             }
         }
+
+        /// <summary>
+        /// Récupère les statistiques du dashboard TPE (taux de panne par modèle et par adresse)
+        /// </summary>
+        [HttpGet("dashboard")]
+        [Authorize(Policy = "AdminOnly")]
+        public async Task<ActionResult<ApiResponse<TPEDashboardDTO>>> GetTPEDashboard()
+        {
+            try
+            {
+                _logger.LogInformation("Récupération du dashboard TPE");
+
+                var result = await _tpeService.GetTPEDashboardAsync();
+
+                if (!result.IsSuccess)
+                    return BadRequest(result);
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erreur lors de la récupération du dashboard TPE");
+                return StatusCode(500, ApiResponse<TPEDashboardDTO>.Failure("Erreur interne du serveur"));
+            }
+        }
     }
 }
