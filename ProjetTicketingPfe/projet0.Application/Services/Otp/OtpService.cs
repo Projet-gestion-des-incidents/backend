@@ -63,8 +63,8 @@ namespace projet0.Application.Services.Otp
                 {
                     // Préparer le sujet et le corps selon le purpose
                     string subject = purpose == OtpPurpose.EmailConfirmation
-                        ? "🔐 Confirmation de votre inscription - Code OTP"
-                        : "🔐 Réinitialisation de votre mot de passe - Code OTP";
+                        ? "Confirmation de votre inscription - Code OTP"
+                        : "Réinitialisation de votre mot de passe - Code OTP";
 
                     // Dans GenerateAndSendOtpAsync - Améliorez le body pour ResetPassword
                     string body;
@@ -73,29 +73,86 @@ namespace projet0.Application.Services.Otp
                         body = $@"
 Bonjour {user.Prenom} {user.Nom},
 
-Votre code de vérification pour confirmer votre inscription est : {code}
+Merci pour votre inscription sur la plateforme TicketTracker de MS Solutions Group.
 
-⏰ Ce code est valable pendant 5 minutes.
-🔒 Ne partagez ce code avec personne.
+** Votre code de confirmation : **
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ Code OTP : {code}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+** Informations importantes : **
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• Ce code est valable 5 MINUTES.
+• Ce code est à USAGE UNIQUE.
+• Ne partagez JAMAIS ce code.
+• Si vous n'avez pas créé de compte, veuillez CONTACTER notre support technique IMMÉDIATEMENT.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+** Procédure à suivre : **
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  1. Retournez sur la plateforme TicketTracker.
+  2. Saisissez ce code de confirmation.
+  3. Votre compte sera activé automatiquement.
+  4. Vous pourrez ensuite vous connecter avec vos identifiants.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+** Contact Support : **
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Pour toute assistance, n'hésitez pas à contacter notre support technique :
+
+  Email : support@mssolutionsgroup.com
+  Téléphone : +216 71 715 001
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Cordialement,
-L'équipe technique";
+L'équipe MS Solutions Group";
                     }
                     else // ResetPassword
                     {
                         body = $@"
 Bonjour {user.Prenom} {user.Nom},
 
-Nous avons reçu une demande de réinitialisation de votre mot de passe.
+Nous avons reçu une demande de réinitialisation de votre mot de passe sur la plateforme TicketTracker de MS Solutions Group.
 
-🔐 Votre code de vérification est : {code}
+** Votre code de vérification : **
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ Code OTP : {code}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-⏰ Ce code est valable pendant 5 minutes.
+** Informations importantes : **
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• Ce code est valable 5 MINUTES.
+• Ce code est à USAGE UNIQUE.
+• Ne partagez JAMAIS ce code.
+• Si vous n'êtes pas à l'origine de cette demande, veuillez CONTACTER notre support technique IMMÉDIATEMENT.
+• Votre mot de passe restera INCHANGÉ tant que vous n'aurez pas validé ce code.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Si vous n'avez pas demandé cette réinitialisation, ignorez cet email. Votre mot de passe restera inchangé.
+** Procédure à suivre : **
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  1. Retournez sur la plateforme TicketTracker.
+  2. Saisissez ce code de vérification.
+  3. Créez votre nouveau mot de passe sécurisé.
+  4. Confirmez votre nouveau mot de passe.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+** Recommandations de sécurité : **
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• Utilisez un mot de passe UNIQUE et COMPLEXE.
+• Minimum 8 caractères avec lettres majuscules, minuscules, chiffres et symboles.
+• Ne réutilisez PAS vos anciens mots de passe.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+** Contact Support : **
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Pour toute assistance ou en cas de doute, n'hésitez pas à contacter notre support technique :
+
+  Email : support@mssolutionsgroup.com
+  Téléphone : +216 71 715 001
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Cordialement,
-L'équipe technique";
+L'équipe MS Solutions Group";
                     }
 
                     // ENVOI RÉEL DE L'EMAIL
@@ -249,8 +306,8 @@ L'équipe technique";
 
                 // Envoyer l'email à l'adresse cible
                 string subject = purpose == OtpPurpose.EmailChange
-                    ? "🔐 Confirmation de changement d'email"
-                    : "🔐 Votre code OTP";
+                    ? "Confirmation de changement d'email"
+                    : "Votre code OTP";
 
                 // Code corrigé
                 string body;
@@ -259,32 +316,76 @@ L'équipe technique";
                     body = $@"
 Bonjour {user.Prenom} {user.Nom},
 
-Vous avez demandé à changer votre adresse email.
+Vous avez demandé à changer votre adresse email sur la plateforme TicketTracker de MS Solutions Group.
 
-🔐 Votre code de vérification est: {code}
+** Votre code de vérification : **
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ Code OTP : {code}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-⏰ Ce code est valable pendant 5 minutes.
+** Informations importantes : **
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• Ce code est valable 5 MINUTES.
+• Ce code est à USAGE UNIQUE.
+• Si vous n'êtes pas à l'origine de cette demande, veuillez CONTACTER notre support technique IMMÉDIATEMENT .
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.
+** Procédure à suivre : **
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  1. Retournez sur la plateforme TicketTracker.
+  2. Saisissez ce code de vérification.
+  3. Votre adresse email sera automatiquement mise à jour.
+  4. Vous devrez vous reconnecter avec votre nouvelle adresse.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+** Contact Support : **
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Pour toute assistance, n'hésitez pas à contacter notre support technique :
+
+  Email : support@mssolutionsgroup.com
+  Téléphone : +216 71 715 001
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Cordialement,
-L'équipe technique";
+L'équipe MS Solutions Group";
                 }
                 else
                 {
                     body = $@"
 Bonjour {user.Prenom} {user.Nom},
 
-Vous avez demandé à modifier votre mot de passe.
+Vous avez demandé à modifier votre mot de passe sur la plateforme TicketTracker de MS Solutions Group.
 
-🔐 Votre code de vérification est: {code}
+** Votre code de vérification : **
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ Code OTP : {code}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-⏰ Ce code est valable pendant 5 minutes.
+** Informations importantes : **
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• Ce code est valable 5 MINUTES.
+• Ce code est à USAGE UNIQUE.
+• Si vous n'êtes pas à l'origine de cette demande, veuillez CONTACTER notre support technique IMMÉDIATEMENT.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.
+** Procédure à suivre : **
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  1. Retournez sur la plateforme TicketTracker.
+  2. Saisissez ce code de vérification.
+  3. Créez votre nouveau mot de passe sécurisé.
+  4. Confirmez votre nouveau mot de passe.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+** Contact Support : **
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Pour toute assistance, n'hésitez pas à contacter notre support technique :
+
+  Email : support@mssolutionsgroup.com
+  Téléphone : +216 71 715 001
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Cordialement,
-L'équipe technique";
+L'équipe MS Solutions Group";
                 }
 
                 await _emailService.SendAsync(targetEmail, subject, body);

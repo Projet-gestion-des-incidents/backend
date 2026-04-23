@@ -13,6 +13,8 @@ namespace projet0.Application.Services.Email
     {
         private readonly EmailSettings _settings;
         private readonly ILogger<EmailService> _logger;
+        // Display name professionnel
+        private const string COMPANY_NAME = "MS Solutions Group";
 
         public EmailService(IOptions<EmailSettings> settings, ILogger<EmailService> logger)
         {
@@ -28,7 +30,7 @@ namespace projet0.Application.Services.Email
                     to, _settings.Host, _settings.Port);
 
                 var email = new MimeMessage();
-                email.From.Add(MailboxAddress.Parse(_settings.From));
+                email.From.Add(new MailboxAddress(COMPANY_NAME, _settings.From));
                 email.To.Add(MailboxAddress.Parse(to));
                 email.Subject = subject;
                 email.Body = new TextPart("plain") { Text = body };
@@ -61,30 +63,44 @@ namespace projet0.Application.Services.Email
         {
             try
             {
-                var subject = "🎉 Bienvenue sur notre plateforme - Vos identifiants de connexion";
+                var subject = "MS Solutions Group - Vos identifiants de connexion";
 
                 var body = $@"
 Bonjour {prenom} {nom},
 
-Votre compte a été créé avec succès par l'administrateur.
+Votre compte a été créé avec succès sur la plateforme TicketTracker de MS Solutions Group.
 
-🔐 **Vos identifiants de connexion :**
+** Vos identifiants de connexion : **
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📧 Email : {to}
-🔑 Mot de passe temporaire : {defaultPassword}
+ Email : {to}
+ Mot de passe temporaire : {defaultPassword}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-⚠️ **Important :**
-• Ce mot de passe est temporaire
-• Veuillez le changer dès votre première connexion
-• Ne partagez jamais votre mot de passe
+** Instructions importantes : **
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• Ce mot de passe est TEMPORAIRE.
+• Veuillez le CHANGER dès votre première connexion.
+• Ne communiquez JAMAIS vos identifiants.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-🔗 **Lien de connexion :** [URL de votre application]
+** Procédure de connexion : **
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  1. Accédez a la plateforme.
+  2. Saisissez votre email et votre mot de passe temporaire.
+  3. Créez un nouveau mot de passe sécurisé.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Pour des raisons de sécurité, ce lien expirera dans 24 heures.
+** Contact Support : **
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Pour toute assistance, n'hésitez pas à contacter notre support technique : 
+
+  Email : support@mssolutionsgroup.com
+  Téléphone : +216 71 715 001     
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 
 Cordialement,
-L'équipe d'administration
+L'équipe MS Solutions Group
 ";
 
                 await SendAsync(to, subject, body);
@@ -99,16 +115,35 @@ L'équipe d'administration
 
         public async Task SendPasswordChangeConfirmationAsync(string email)
         {
-            var subject = "🔐 Votre mot de passe a été modifié";
+            var subject = "MS Solutions Group - Confirmation de modification du mot de passe";
             var body = $@"
 Bonjour,
 
-Votre mot de passe a été changé avec succès.
+Votre mot de passe a été modifié avec succès sur la plateforme TicketTracker de MS Solutions Group.
 
-Si vous n'êtes pas à l'origine de ce changement, contactez immédiatement l'administrateur.
+** Informations importantes : **
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• Ce changement a été effectué sur votre compte.
+• Si vous ne reconnaissez PAS cette modification, veuillez CONTACTER notre support technique IMMÉDIATEMENT.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+** Recommandations de sécurité : **
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• Utilisez un mot de passe UNIQUE et COMPLEXE.
+• Ne réutilisez PAS vos anciens mots de passe.
+• Ne communiquez JAMAIS vos identifiants.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+** Contact Support : **
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Pour toute assistance ou en cas de doute, n'hésitez pas à contacter notre support technique :
+
+  Email : support@mssolutionsgroup.com
+  Téléphone : +216 71 715 001
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Cordialement,
-L'équipe technique";
+L'équipe MS Solutions Group";
 
             await SendAsync(email, subject, body);
         }
