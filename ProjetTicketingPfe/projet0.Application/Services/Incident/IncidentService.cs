@@ -23,6 +23,7 @@ namespace projet0.Application.Services.Incident
     {
         private readonly IIncidentRepository _incidentRepository;
         private readonly IUserRepository _userRepository;
+        private readonly INotificationService _notificationService;
         private readonly IEntiteImpacteeRepository _entiteImpacteeRepository;
         private readonly ILogger<IncidentService> _logger;
         private readonly IMapper _mapper;
@@ -47,7 +48,8 @@ namespace projet0.Application.Services.Incident
             ITicketRepository ticketRepository,
             IIncidentTPERepository incidentTPERepository,
             IWebHostEnvironment environment,
-            IPieceJointeRepository pieceJointeRepository,      
+            IPieceJointeRepository pieceJointeRepository,
+               INotificationService notificationService,
             ICommentaireRepository commentaireRepository)
         {
             _incidentRepository = incidentRepository;
@@ -61,6 +63,8 @@ namespace projet0.Application.Services.Incident
             _ticketRepository = ticketRepository;
             _incidentTPERepository = incidentTPERepository;
             _environment = environment;
+            _notificationService = notificationService;
+
             _pieceJointeRepository = pieceJointeRepository;
             _commentaireRepository = commentaireRepository;
         }
@@ -572,6 +576,26 @@ namespace projet0.Application.Services.Incident
                 await _incidentRepository.AddAsync(incident);
                 await _incidentRepository.SaveChangesAsync();
 
+                // ======================================================
+                // 🔔 NOTIFICATIONS POUR CRÉATION D'INCIDENT
+                // ======================================================
+
+                // 1. Notification aux ADMINS
+                var admins = await _userRepository.GetUsersByRoleAsync("Admin");
+                foreach (var admin in admins)
+                {
+                    await _notificationService.CreateIncidentNotificationAsync(
+                        admin.Id,
+                        incident.Id,
+                        TypeNotification.IncidentCree,
+                        $"Nouvel incident créé : {code}",
+                        $"Un nouvel incident de type '{dto.TypeProbleme}' a été créé par {createur.Nom} {createur.Prenom}."
+                    );
+                }
+
+              
+
+                _logger.LogInformation("Notifications envoyées pour l'incident {IncidentId}", incident.Id);
                 // 9. Gérer les pièces jointes si présentes (vérification plus robuste)
                 if (dto.PiecesJointes != null && dto.PiecesJointes.Any())
                 {
@@ -623,11 +647,40 @@ namespace projet0.Application.Services.Incident
                 _ => TypeEntiteImpactee.MachineTPE
             };
         }
+        private List<string> GetModificationsList(UpdateIncidentDTO dto, IncidentEntity incident)
+        {
+            var modifications = new List<string>();
 
+            // Description
+            if (!string.IsNullOrWhiteSpace(dto.DescriptionIncident) && dto.DescriptionIncident != incident.DescriptionIncident)
+            {
+                modifications.Add($"Description (ancien: '{incident.DescriptionIncident?.Substring(0, Math.Min(20, incident.DescriptionIncident?.Length ?? 0))}...')");
+            }
+
+            // Emplacement
+            if (!string.IsNullOrWhiteSpace(dto.Emplacement) && dto.Emplacement != incident.Emplacement)
+            {
+                modifications.Add($"Emplacement (ancien: '{incident.Emplacement}')");
+            }
+
+            // Type de problème
+            if (dto.TypeProbleme.HasValue && dto.TypeProbleme.Value != incident.TypeProbleme)
+            {
+                modifications.Add($"Type de problème (ancien: {incident.TypeProbleme})");
+            }
+
+            // Sévérité (admin seulement, mais on la détecte quand même)
+            if (dto.SeveriteIncident.HasValue && dto.SeveriteIncident.Value != incident.SeveriteIncident)
+            {
+                modifications.Add($"Sévérité (ancien: {incident.SeveriteIncident})");
+            }
+
+            return modifications;
+        }
         public async Task<ApiResponse<IncidentDTO>> UpdateIncidentAsync(
-            Guid incidentId,
-            UpdateIncidentDTO dto,
-            Guid userId)
+         Guid incidentId,
+         UpdateIncidentDTO dto,
+         Guid userId)
         {
             try
             {
@@ -643,11 +696,6 @@ namespace projet0.Application.Services.Incident
                 // RÈGLE : Si c'est un commerçant, vérifier si l'incident est modifiable
                 if (isCommercant && !isAdmin)
                 {
-                    // CORRECTION : Vérifier si l'incident est en cours (StatutIncident = 1) ou fermé (StatutIncident = 2)
-                    // "Non traité" = 0 → modifiable
-                    // "En cours" = 1 → non modifiable
-                    // "Fermé/Résolu" = 2 → non modifiable
-
                     if (incident.StatutIncident == StatutIncident.EnCours ||
                         incident.StatutIncident == StatutIncident.Ferme)
                     {
@@ -657,7 +705,6 @@ namespace projet0.Application.Services.Incident
                         );
                     }
 
-                    // Vérifier 2 : L'incident est-il lié à des tickets ?
                     var ticketsLies = await _incidentTicketRepository.GetTicketsByIncidentIdAsync(incidentId);
                     if (ticketsLies != null && ticketsLies.Any())
                     {
@@ -670,6 +717,10 @@ namespace projet0.Application.Services.Incident
                         );
                     }
                 }
+
+                // ⚠️ IMPORTANT: Calculer les modifications AVANT de modifier l'incident
+                var modifications = GetModificationsList(dto, incident);
+                _logger.LogInformation("Modifications détectées: {Modifications}", string.Join(", ", modifications));
 
                 // Gestion de la modification du TypeProbleme
                 bool typeProblemeModifie = false;
@@ -684,15 +735,12 @@ namespace projet0.Application.Services.Incident
                         incident.TypeProbleme, dto.TypeProbleme.Value);
                 }
 
-                // Mise à jour des autres champs (admin ou commerçant)
-                if (isCommercant || isAdmin)
-                {
-                    if (!string.IsNullOrWhiteSpace(dto.DescriptionIncident))
-                        incident.DescriptionIncident = dto.DescriptionIncident;
+                // Mise à jour des autres champs
+                if (!string.IsNullOrWhiteSpace(dto.DescriptionIncident))
+                    incident.DescriptionIncident = dto.DescriptionIncident;
 
-                    if (!string.IsNullOrWhiteSpace(dto.Emplacement))
-                        incident.Emplacement = dto.Emplacement;
-                }
+                if (!string.IsNullOrWhiteSpace(dto.Emplacement))
+                    incident.Emplacement = dto.Emplacement;
 
                 // Seul l'admin peut modifier la sévérité
                 if (isAdmin && dto.SeveriteIncident.HasValue)
@@ -706,21 +754,16 @@ namespace projet0.Application.Services.Incident
                 // MISE À JOUR DE L'ENTITÉ IMPACTÉE si le TypeProbleme a changé
                 if (typeProblemeModifie && nouveauTypeEntiteImpactee.HasValue)
                 {
-                    // Récupérer l'entité impactée existante (il y en a normalement une seule)
                     var entiteImpactee = incident.EntitesImpactees?.FirstOrDefault();
-
                     if (entiteImpactee != null)
                     {
-                        // Mettre à jour le type de l'entité impactée
                         entiteImpactee.TypeEntiteImpactee = nouveauTypeEntiteImpactee.Value;
                         _logger.LogInformation("Entité impactée mise à jour de {AncienType} à {NouveauType}",
                             entiteImpactee.TypeEntiteImpactee, nouveauTypeEntiteImpactee.Value);
                     }
                     else
                     {
-                        // Si pour une raison quelconque il n'y a pas d'entité impactée, on en crée une
                         _logger.LogWarning("Aucune entité impactée trouvée pour l'incident {IncidentId}, création d'une nouvelle", incidentId);
-
                         incident.EntitesImpactees ??= new List<EntiteImpactee>();
                         incident.EntitesImpactees.Add(new EntiteImpactee
                         {
@@ -732,6 +775,43 @@ namespace projet0.Application.Services.Incident
                 }
 
                 await _incidentRepository.SaveChangesAsync();
+
+                // ======================================================
+                // 🔔 NOTIFICATIONS POUR MODIFICATION D'INCIDENT
+                // ======================================================
+
+                // Si des modifications ont été faites, envoyer les notifications
+                if (modifications.Any())
+                {
+                    var admins = await _userRepository.GetUsersByRoleAsync("Admin");
+                    var modificateur = await _userRepository.GetByIdAsync(userId);
+                    string modificateurNom = modificateur != null ? $"{modificateur.Nom} {modificateur.Prenom}" : "Un utilisateur";
+                    string modificateurRole = isAdmin ? "administrateur" : "commerçant";
+
+                    _logger.LogInformation("Envoi des notifications aux admins pour les modifications: {Modifications}", string.Join(", ", modifications));
+
+                    foreach (var admin in admins)
+                    {
+                        // Exclure l'admin si c'est lui qui a fait la modification
+                        if (!(isAdmin && admin.Id == userId))
+                        {
+                            await _notificationService.CreateIncidentNotificationAsync(
+                                admin.Id,
+                                incident.Id,
+                                TypeNotification.IncidentModifie,
+                                $"Incident modifié : {incident.CodeIncident}",
+                                $"{modificateurNom} a modifié l'incident '{incident.CodeIncident}'. Modifications: {string.Join(", ", modifications)}"
+                            );
+                        }
+                    }
+
+                    _logger.LogInformation("Notifications envoyées aux admins pour la modification de l'incident {IncidentId} par {Role}",
+                        incident.Id, modificateurRole);
+                }
+                else
+                {
+                    _logger.LogInformation("Aucune modification détectée pour l'incident {IncidentId}", incident.Id);
+                }
 
                 var result = await MapToDto(incident);
                 return ApiResponse<IncidentDTO>.Success(result, "Incident mis à jour avec succès");
@@ -1287,6 +1367,43 @@ namespace projet0.Application.Services.Incident
 
                 await _incidentRepository.SaveChangesAsync();
 
+                // ======================================================
+                // 🔔 NOTIFICATION POUR RÉSOLUTION D'INCIDENT
+                // ======================================================
+
+                var technicien = await _userRepository.GetByIdAsync(userId);
+                string technicienNom = technicien != null ? $"{technicien.Nom} {technicien.Prenom}" : "Le technicien";
+
+                // 1. Notification au COMMERCANT créateur de l'incident
+                if (incident.CreatedById.HasValue)
+                {
+                    var createurIncident = await _userRepository.GetByIdAsync(incident.CreatedById.Value);
+                    if (createurIncident != null)
+                    {
+                        await _notificationService.CreateIncidentNotificationAsync(
+                            createurIncident.Id,
+                            incident.Id,
+                            TypeNotification.IncidentResolu,
+                            $"Incident résolu : {incident.CodeIncident}",
+                            $"{technicienNom} a résolu votre incident '{incident.CodeIncident}'."
+                        );
+                        _logger.LogInformation("Notification envoyée au commerçant {CommercantId}", createurIncident.Id);
+                    }
+                }
+
+                // 2. Notification aux ADMINS
+                var admins = await _userRepository.GetUsersByRoleAsync("Admin");
+                foreach (var admin in admins)
+                {
+                    await _notificationService.CreateIncidentNotificationAsync(
+                        admin.Id,
+                        incident.Id,
+                        TypeNotification.IncidentResolu,
+                        $"Incident résolu : {incident.CodeIncident}",
+                        $"{technicienNom} a résolu l'incident '{incident.CodeIncident}'."
+                    );
+                }
+                _logger.LogInformation("Notifications envoyées aux admins pour la résolution de l'incident {IncidentId}", incident.Id); 
                 // Vérifier si tous les incidents du ticket sont résolus
                 await VerifierEtCloturerTicket(ticketDuTechnicien.Id);
 
@@ -1301,7 +1418,6 @@ namespace projet0.Application.Services.Incident
                 return ApiResponse<bool>.Failure("Erreur interne");
             }
         }
-
         /// <summary>
         /// Vérifie si tous les incidents d'un ticket sont résolus et clôture le ticket si nécessaire
         /// </summary>
@@ -1311,15 +1427,53 @@ namespace projet0.Application.Services.Incident
 
             if (incidents.All(i => i.StatutIncident == StatutIncident.Ferme))
             {
-                var ticket = await _ticketRepository.GetByIdAsync(ticketId);
-                if (ticket != null)
+                var ticket = await _ticketRepository.GetTicketWithDetailsAsync(ticketId);
+                if (ticket != null && ticket.StatutTicket != StatutTicket.Resolu)
                 {
+                    var ancienStatut = ticket.StatutTicket;
                     ticket.StatutTicket = StatutTicket.Resolu;
                     ticket.DateCloture = DateTime.UtcNow;
                     await _ticketRepository.SaveChangesAsync();
 
-                    _logger.LogInformation("Ticket {TicketId} automatiquement clôturé car tous ses incidents sont résolus",
-                        ticketId);
+                    _logger.LogInformation("Ticket {TicketId} automatiquement clôturé car tous ses incidents sont résolus", ticketId);
+
+                    // ======================================================
+                    // 🔔 NOTIFICATION : Ticket résolu automatiquement
+                    // ======================================================
+
+                    // Récupérer le créateur du ticket et le technicien
+                    var createur = await _userRepository.GetByIdAsync(ticket.CreateurId);
+                    var technicien = ticket.AssigneeId.HasValue
+                        ? await _userRepository.GetByIdAsync(ticket.AssigneeId.Value)
+                        : null;
+                    string technicienNom = technicien != null ? $"{technicien.Nom} {technicien.Prenom}" : "Le technicien";
+
+                    // 1. Notification au CREATEUR du ticket
+                    if (createur != null)
+                    {
+                        await _notificationService.CreateTicketNotificationAsync(
+                            createur.Id,
+                            ticket.Id,
+                            TypeNotification.TicketCloture,
+                            $"Ticket résolu : {ticket.ReferenceTicket}",
+                            $"Tous les incidents liés à votre ticket '{ticket.TitreTicket}' ont été résolus. Le ticket est maintenant fermé."
+                        );
+                        _logger.LogInformation("Notification envoyée au créateur du ticket {CreateurId} pour clôture automatique", createur.Id);
+                    }
+
+                    // 2. Notification aux ADMINS
+                    var admins = await _userRepository.GetUsersByRoleAsync("Admin");
+                    foreach (var admin in admins)
+                    {
+                        await _notificationService.CreateTicketNotificationAsync(
+                            admin.Id,
+                            ticket.Id,
+                            TypeNotification.TicketCloture,
+                            $"Ticket résolu : {ticket.ReferenceTicket}",
+                            $"Le ticket '{ticket.TitreTicket}' a été automatiquement résolu car tous ses incidents sont résolus. Créé par {createur?.Nom} {createur?.Prenom}."
+                        );
+                    }
+                    _logger.LogInformation("Notifications envoyées aux admins pour la clôture automatique du ticket {TicketId}", ticketId);
                 }
             }
         }
@@ -1358,6 +1512,25 @@ namespace projet0.Application.Services.Incident
 
                     // Supprimer la liaison
                     var supprime = await _incidentTPERepository.DeleteLiaisonAsync(incidentId, tpeId);
+
+                    // Après la suppression réussie
+                    var utilisateur = await _userRepository.GetByIdAsync(userId);
+                    string utilisateurNom = utilisateur != null ? $"{utilisateur.Nom} {utilisateur.Prenom}" : "Un utilisateur";
+
+                    // 1. Notification aux ADMINS
+                    var admins = await _userRepository.GetUsersByRoleAsync("Admin");
+                    foreach (var admin in admins)
+                    {
+                        await _notificationService.CreateIncidentNotificationAsync(
+                            admin.Id,
+                            incidentId,
+                            TypeNotification.IncidentModifie,
+                            $"TPE retiré de l'incident {incident.CodeIncident}",
+                            $"{utilisateurNom} a retiré le TPE '{tpe.NumSerie}' de l'incident '{incident.CodeIncident}'."
+                        );
+                    }
+
+                 
 
                     if (!supprime)
                         return ApiResponse<bool>.Failure("Erreur lors de la suppression de la liaison");
@@ -1467,6 +1640,45 @@ namespace projet0.Application.Services.Incident
                     }
 
                     await _incidentTPERepository.SaveChangesAsync();
+
+                    // ======================================================
+                    // 🔔 NOTIFICATION POUR LIAISON DE TPE
+                    // ======================================================
+
+                    var utilisateur = await _userRepository.GetByIdAsync(userId);
+                    string utilisateurNom = utilisateur != null ? $"{utilisateur.Nom} {utilisateur.Prenom}" : "Un utilisateur";
+                    string tpeNoms = string.Join(", ", tpesLies.Select(t => t.NumSerie));
+
+                    // 1. Notification aux ADMINS
+                    var admins = await _userRepository.GetUsersByRoleAsync("Admin");
+                    foreach (var admin in admins)
+                    {
+                        await _notificationService.CreateIncidentNotificationAsync(
+                            admin.Id,
+                            incidentId,
+                            TypeNotification.IncidentModifie,
+                            $"TPEs liés à l'incident {incident.CodeIncident}",
+                            $"{utilisateurNom} a lié le(s) TPE(s) [{tpeNoms}] à l'incident '{incident.CodeIncident}'."
+                        );
+                    }
+
+                    // 2. Notification au COMMERCANT créateur (s'il n'est pas l'actionneur)
+                    if (incident.CreatedById.HasValue && incident.CreatedById.Value != userId)
+                    {
+                        var createurIncident = await _userRepository.GetByIdAsync(incident.CreatedById.Value);
+                        if (createurIncident != null)
+                        {
+                            await _notificationService.CreateIncidentNotificationAsync(
+                                createurIncident.Id,
+                                incidentId,
+                                TypeNotification.IncidentModifie,
+                                $"TPEs liés à votre incident {incident.CodeIncident}",
+                                $"{utilisateurNom} a lié le(s) TPE(s) [{tpeNoms}] à votre incident."
+                            );
+                        }
+                    }
+
+                    _logger.LogInformation("Notifications envoyées pour la liaison de TPEs à l'incident {IncidentId}", incidentId); 
 
                     // Construire le message
                     string message = $"{tpesLies.Count} TPE(s) lié(s) avec succès";

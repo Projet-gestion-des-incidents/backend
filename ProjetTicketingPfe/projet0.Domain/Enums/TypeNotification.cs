@@ -12,6 +12,7 @@ namespace projet0.Domain.Enums
         TicketCloture = 4,
         IncidentCree = 5,
         IncidentResolu = 6,
+        IncidentModifie = 9,
         CommentaireAjoute = 7,
         Rappel = 8
     }

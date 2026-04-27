@@ -1,10 +1,13 @@
 ﻿using AutoMapper;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore; 
 using Microsoft.Extensions.Logging;
 using projet0.Application.Common.Models.Pagination;
 using projet0.Application.Commun.DTOs.Ticket;
+using projet0.Application.Commun.DTOs.TicketDTOs;
 using projet0.Application.Commun.Ressources;
 using projet0.Application.Commun.Ressources.Pagination;
 using projet0.Application.Extensions;
@@ -13,12 +16,10 @@ using projet0.Application.Services.Incident;
 using projet0.Domain.Entities;
 using projet0.Domain.Enums;
 using System.Diagnostics;
-using System.Linq.Expressions;
-using TicketEntity = projet0.Domain.Entities.Ticket;
-using IncidentEntity = projet0.Domain.Entities.Incident;
-using Microsoft.EntityFrameworkCore; 
 using System.Linq;
-using projet0.Application.Commun.DTOs.TicketDTOs;
+using System.Linq.Expressions;
+using IncidentEntity = projet0.Domain.Entities.Incident;
+using TicketEntity = projet0.Domain.Entities.Ticket;
 
 
 
@@ -36,7 +37,7 @@ namespace projet0.Application.Services.Ticket
         private readonly IIncidentRepository _incidentRepository;
         private readonly IIncidentTicketRepository _incidentTicketRepository;  
         private readonly IIncidentService _incidentService;
-
+        private readonly INotificationService _notificationService;
         public TicketService(
             ITicketRepository ticketRepository,
             IUserRepository userRepository,
@@ -45,7 +46,8 @@ namespace projet0.Application.Services.Ticket
             IPieceJointeService pieceJointeService,
             ICommentaireService commentaireService,
             IMapper mapper, 
-            IIncidentRepository incidentRepository,  
+            IIncidentRepository incidentRepository,
+              INotificationService notificationService,
             IIncidentTicketRepository incidentTicketRepository,
             IIncidentService incidentService)
         {
@@ -59,7 +61,8 @@ namespace projet0.Application.Services.Ticket
             _incidentRepository = incidentRepository; 
             _incidentTicketRepository = incidentTicketRepository;
             _incidentService = incidentService;
-           
+            _notificationService = notificationService;
+
         }
 
         #region Private Methods
@@ -341,6 +344,11 @@ namespace projet0.Application.Services.Ticket
                 if (string.IsNullOrWhiteSpace(dto.TitreTicket))
                     return ApiResponse<TicketDTO>.Failure("Le titre est requis");
 
+                // ✅ RÉCUPÉRER L'UTILISATEUR CREATEUR
+                var createur = await _userRepository.GetByIdAsync(createurId);
+                if (createur == null)
+                    return ApiResponse<TicketDTO>.Failure("Utilisateur créateur non trouvé");
+
                 // Générer la référence unique
                 var reference = await _ticketRepository.GenerateReferenceTicketAsync();
 
@@ -372,7 +380,7 @@ namespace projet0.Application.Services.Ticket
                 {
                     Id = Guid.NewGuid(),
                     TicketId = ticket.Id,
-                    AncienStatut = statutInitial,  // Pour la création, ancien = nouveau
+                    AncienStatut = statutInitial,
                     DateChangement = DateTime.UtcNow,
                     ModifieParId = createurId
                 });
@@ -380,6 +388,55 @@ namespace projet0.Application.Services.Ticket
                 // Sauvegarder
                 await _ticketRepository.AddAsync(ticket);
                 await _ticketRepository.SaveChangesAsync();
+
+                _logger.LogInformation("Ticket sauvegardé avec ID: {TicketId}, Réf: {Reference}", ticket.Id, reference);
+
+                // ======================================================
+                // 🔔 NOTIFICATIONS
+                // ======================================================
+
+                // 1. Notification aux AUTRES ADMINS (exclure le créateur s'il est admin)
+                var admins = await _userRepository.GetUsersByRoleAsync("Admin");
+                _logger.LogInformation("Nombre d'admins trouvés: {Count}", admins.Count());
+
+                foreach (var admin in admins)
+                {
+                    // Ne pas notifier l'admin qui a créé le ticket
+                    if (admin.Id != createurId)
+                    {
+                        _logger.LogInformation("Création notification pour admin {AdminId} - {AdminName}", admin.Id, admin.Email);
+                        await _notificationService.CreateTicketNotificationAsync(
+                            admin.Id,
+                            ticket.Id,
+                            TypeNotification.TicketCree,
+                            $"Nouveau ticket créé : {ticket.ReferenceTicket}",
+                            $"Un nouveau ticket '{ticket.TitreTicket}' a été créé par {createur.Nom} {createur.Prenom}."
+                        );
+                    }
+                }
+
+                // 2. Notification au TECHNICIEN assigné (si un assigneeId est fourni)
+                if (dto.AssigneeId.HasValue)
+                {
+                    var technicien = await _userRepository.GetByIdAsync(dto.AssigneeId.Value);
+                    if (technicien != null)
+                    {
+                        _logger.LogInformation("Création notification pour technicien {TechnicienId} - {TechnicienName}",
+                            technicien.Id, technicien.Email);
+                        await _notificationService.CreateTicketNotificationAsync(
+                            dto.AssigneeId.Value,
+                            ticket.Id,
+                            TypeNotification.TicketAssigne,
+                            $"Ticket assigné : {ticket.ReferenceTicket}",
+   $"Un nouveau ticket '{ticket.TitreTicket}' a été créé par {createur.Nom} {createur.Prenom} et vous a été assigné.");
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Technicien avec ID {AssigneeId} non trouvé", dto.AssigneeId.Value);
+                    }
+                }
+
+                _logger.LogInformation("Toutes les notifications ont été créées pour le ticket {TicketId}", ticket.Id);
 
                 var result = await MapToDto(ticket);
 
@@ -393,10 +450,9 @@ namespace projet0.Application.Services.Ticket
             {
                 sw.Stop();
                 _logger.LogError(ex, "CreateTicket ERROR | Duration: {Ms} ms", sw.ElapsedMilliseconds);
-                return ApiResponse<TicketDTO>.Failure("Erreur interne du serveur");
+                return ApiResponse<TicketDTO>.Failure("Erreur interne du serveur: " + ex.Message);
             }
         }
-
         public async Task<ApiResponse<TicketDetailDTO>> GetTicketDetailAsync(Guid id, Guid userId)
         {
             _logger.LogInformation("=== TicketService.GetTicketDetailAsync ===");
@@ -1172,7 +1228,55 @@ namespace projet0.Application.Services.Ticket
                             await _incidentService.MettreAJourStatutIncident(lien.IncidentId);
                         }
                     }
+                    // Dans UpdateTicketAsync, après les modifications et la sauvegarde
+                    if (modifications.Any() && sauvegardeReussie)
+                    {
+                        var createur = await _userRepository.GetByIdAsync(ticket.CreateurId);
+                        var technicienActuel = ticket.AssigneeId.HasValue
+                            ? await _userRepository.GetByIdAsync(ticket.AssigneeId.Value)
+                            : null;
+                        string actionneur = isAdmin ? "L'administrateur" : "Le technicien";
 
+                        // Notifier les AUTRES ADMINS
+                        var admins = await _userRepository.GetUsersByRoleAsync("Admin");
+                        foreach (var admin in admins)
+                        {
+                            if (admin.Id != userId) // Exclure l'admin qui a fait la modification
+                            {
+                                await _notificationService.CreateTicketNotificationAsync(
+                                    admin.Id,
+                                    ticket.Id,
+                                    TypeNotification.TicketModifie,
+                                    $"Ticket {ticket.ReferenceTicket} - Modifié",
+                                    $"{actionneur} a modifié le ticket '{ticket.TitreTicket}'. Modifications: {string.Join(", ", modifications)}"
+                                );
+                            }
+                        }
+
+                        // Notifier le TECHNICIEN assigné (si différent de l'actionneur)
+                        if (technicienActuel != null && technicienActuel.Id != userId)
+                        {
+                            await _notificationService.CreateTicketNotificationAsync(
+                                technicienActuel.Id,
+                                ticket.Id,
+                                TypeNotification.TicketModifie,
+                                $"Ticket {ticket.ReferenceTicket} - Modifié",
+                                $"{actionneur} a modifié le ticket qui vous est assigné. Modifications: {string.Join(", ", modifications)}"
+                            );
+                        }
+
+                        // Notifier le CREATEUR (si différent de l'actionneur)
+                        if (createur != null && createur.Id != userId)
+                        {
+                            await _notificationService.CreateTicketNotificationAsync(
+                                createur.Id,
+                                ticket.Id,
+                                TypeNotification.TicketModifie,
+                                $"Ticket {ticket.ReferenceTicket} - Modifié",
+                                $"{actionneur} a modifié votre ticket '{ticket.TitreTicket}'. Modifications: {string.Join(", ", modifications)}"
+                            );
+                        }
+                    }
                     // ========================================================
                     // 8. PRÉPARER LA RÉPONSE
                     // ========================================================
@@ -1270,6 +1374,8 @@ namespace projet0.Application.Services.Ticket
                 TicketEntity ticket = null;
                 var modifications = new List<string>();
                 var erreurs = new List<string>();
+                var ancienStatut = (StatutTicket?)null;
+                var ancienAssigneeId = (Guid?)null;
 
                 try
                 {
@@ -1277,8 +1383,15 @@ namespace projet0.Application.Services.Ticket
                     if (ticket == null)
                         return ApiResponse<UpdateTicketResponseDTO>.Failure($"Ticket {id} non trouvé");
 
-                    var ancienStatut = ticket.StatutTicket;
-                    var ancienAssigneeId = ticket.AssigneeId;
+                    ancienStatut = ticket.StatutTicket;
+                    ancienAssigneeId = ticket.AssigneeId;
+
+                    // Récupérer le créateur du ticket
+                    var createur = await _userRepository.GetByIdAsync(ticket.CreateurId);
+
+                    // Récupérer le technicien actuel
+                    var technicienActuel = await _userRepository.GetByIdAsync(technicienId);
+                    string technicienNom = technicienActuel != null ? $"{technicienActuel.Nom} {technicienActuel.Prenom}" : "Le technicien";
 
                     // RÈGLE 1: Le technicien ne peut modifier que ses tickets assignés
                     if (ticket.AssigneeId != technicienId)
@@ -1314,6 +1427,27 @@ namespace projet0.Application.Services.Ticket
                                     ticket.StatutTicket = StatutTicket.Assigne;
                                     modifications.Add($"Réassigné à {newAssignee.Nom} {newAssignee.Prenom}");
                                     modifications.Add("Statut -> Assigné");
+
+                                    // 🔔 NOTIFICATION : Réassignation
+                                    await _notificationService.CreateTicketNotificationAsync(
+                                        newAssignee.Id,
+                                        ticket.Id,
+                                        TypeNotification.TicketAssigne,
+                                        $"Ticket assigné : {ticket.ReferenceTicket}",
+                                        $"Le ticket '{ticket.TitreTicket}' vous a été réassigné par {technicienNom}."
+                                    );
+
+                                    // Notifier le créateur du changement d'assignation
+                                    if (createur != null)
+                                    {
+                                        await _notificationService.CreateTicketNotificationAsync(
+                                            createur.Id,
+                                            ticket.Id,
+                                            TypeNotification.TicketModifie,
+                                            $"Ticket réassigné : {ticket.ReferenceTicket}",
+                                            $"Votre ticket a été réassigné à {newAssignee.Nom} {newAssignee.Prenom} par {technicienNom}."
+                                        );
+                                    }
                                 }
                             }
                         }
@@ -1326,10 +1460,10 @@ namespace projet0.Application.Services.Ticket
                         var statutActuel = ticket.StatutTicket;
 
                         var transitionsAutorisees = new Dictionary<StatutTicket, List<StatutTicket>>
-                {
-                    { StatutTicket.Assigne, new List<StatutTicket> { StatutTicket.EnCours } },
-                    { StatutTicket.EnCours, new List<StatutTicket> { StatutTicket.Resolu } }
-                };
+    {
+        { StatutTicket.Assigne, new List<StatutTicket> { StatutTicket.EnCours } },
+        { StatutTicket.EnCours, new List<StatutTicket> { StatutTicket.Resolu } }
+    };
 
                         bool transitionValide = statutActuel.HasValue &&
                             transitionsAutorisees.ContainsKey(statutActuel.Value) &&
@@ -1340,12 +1474,101 @@ namespace projet0.Application.Services.Ticket
                             ticket.StatutTicket = nouveauStatut;
                             modifications.Add($"Statut -> {GetStatutLibelle(nouveauStatut)}");
 
-                            // Mettre à jour les incidents liés pour TOUT changement de statut
+                            // 🔔 NOTIFICATION : Changement de statut
+                            string titreNotification = nouveauStatut == StatutTicket.Resolu
+                                ? $"Ticket {ticket.ReferenceTicket} - Résolu"
+                                : $"Ticket {ticket.ReferenceTicket} - {GetStatutLibelle(nouveauStatut)}";
+
+                            // ======================================================
+                            // 1. NOTIFICATION AU CREATEUR DU TICKET
+                            // ======================================================
+                            if (createur != null)
+                            {
+                                string messageCreateur = nouveauStatut == StatutTicket.Resolu
+                                    ? $"Le technicien {technicienNom} a résolu le traitement de votre ticket '{ticket.TitreTicket}'."
+                                    : $"Le technicien {technicienNom} a commencé le traitement de votre ticket '{ticket.TitreTicket}'.";
+
+                                await _notificationService.CreateTicketNotificationAsync(
+                                    createur.Id,
+                                    ticket.Id,
+                                    TypeNotification.TicketModifie,
+                                    titreNotification,
+                                    messageCreateur
+                                );
+                                _logger.LogInformation("Notification envoyée au créateur du ticket {CreateurId}", createur.Id);
+                            }
+
+                            // ======================================================
+                            // 2. NOTIFICATION AUX AUTRES ADMINS
+                            // ======================================================
+                            var admins = await _userRepository.GetUsersByRoleAsync("Admin");
+                            foreach (var admin in admins)
+                            {
+                                if (admin.Id != createur?.Id)
+                                {
+                                    string messageAdmin = nouveauStatut == StatutTicket.Resolu
+                                        ? $"Le technicien {technicienNom} a résolu le ticket '{ticket.TitreTicket}'. Créé par {createur?.Nom} {createur?.Prenom}."
+                                        : $"Le technicien {technicienNom} a commencé le traitement du ticket '{ticket.TitreTicket}'. Créé par {createur?.Nom} {createur?.Prenom}.";
+
+                                    await _notificationService.CreateTicketNotificationAsync(
+                                        admin.Id,
+                                        ticket.Id,
+                                        TypeNotification.TicketModifie,
+                                        titreNotification,
+                                        messageAdmin
+                                    );
+                                }
+                            }
+                            _logger.LogInformation("Notifications envoyées aux admins");
+
+                            // ======================================================
+                            // 3. NOTIFICATION AUX COMMERÇANTS (CRÉATEURS DES INCIDENTS)
+                            // ======================================================
                             if (ticket.IncidentTickets != null && ticket.IncidentTickets.Any())
                             {
                                 foreach (var lien in ticket.IncidentTickets)
                                 {
                                     await _incidentService.MettreAJourStatutIncident(lien.IncidentId);
+
+                                    var incident = await _incidentRepository.GetByIdAsync(lien.IncidentId);
+                                    if (incident != null && incident.CreatedById.HasValue)
+                                    {
+                                        var createurIncident = await _userRepository.GetByIdAsync(incident.CreatedById.Value);
+                                        if (createurIncident != null)
+                                        {
+                                            string messageCommercant;
+
+                                            if (nouveauStatut == StatutTicket.Resolu)
+                                            {
+                                                messageCommercant = 
+                                                                    $"L'incident '{incident.CodeIncident}' est maintenant résolu.";
+
+                                                await _notificationService.CreateIncidentNotificationAsync(
+                                                    createurIncident.Id,
+                                                    incident.Id,
+                                                    TypeNotification.IncidentResolu,
+                                                    $"Incident résolu : {incident.CodeIncident}",
+                                                    messageCommercant
+                                                );
+                                            }
+                                            else if (nouveauStatut == StatutTicket.EnCours)
+                                            {
+                                                messageCommercant = 
+                                                                    $"L'incident '{incident.CodeIncident}' est maintenant en cours de traitement.";
+
+                                                await _notificationService.CreateIncidentNotificationAsync(
+                                                    createurIncident.Id,
+                                                    incident.Id,
+                                                    TypeNotification.IncidentModifie,
+                                                    $"Incident en cours : {incident.CodeIncident}",
+                                                    messageCommercant
+                                                );
+                                            }
+
+                                            _logger.LogInformation("Notification envoyée au commerçant {CommercantId} pour l'incident {IncidentId}",
+                                                createurIncident.Id, incident.Id);
+                                        }
+                                    }
                                 }
                                 modifications.Add("Incidents mis à jour");
                             }
@@ -1396,6 +1619,7 @@ namespace projet0.Application.Services.Ticket
                                 return ApiResponse<UpdateTicketResponseDTO>.Failure(
                                     "Le ticket a été modifié par un autre utilisateur. Veuillez rafraîchir.");
                             }
+                            _logger.LogInformation("{Saved} modification(s) sauvegardée(s) pour le ticket {Id}", saved, id);
                         }
                         catch (DbUpdateConcurrencyException ex)
                         {
@@ -1441,7 +1665,6 @@ namespace projet0.Application.Services.Ticket
                 }
             });
         }
-
         //private async Task ReloadTicketAsync(TicketEntity ticket)
         //{
         //    if (ticket == null) return;

@@ -2,7 +2,6 @@
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -267,6 +266,8 @@ builder.Services.AddScoped<ITPERepository, TPERepository>();
 builder.Services.AddScoped<ITPEService, TPEService>();
 builder.Services.AddScoped<IIncidentTicketRepository, IncidentTicketRepository>();
 builder.Services.AddScoped<IIncidentTPERepository, IncidentTPERepository>();
+builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
 
 builder.Services.Configure<FormOptions>(options =>
 {

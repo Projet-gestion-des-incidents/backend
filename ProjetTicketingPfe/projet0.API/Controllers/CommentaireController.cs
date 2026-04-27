@@ -87,129 +87,44 @@ namespace projet0.API.Controllers
         [HttpPost]
         [Authorize(Policy = "TicketComment")]
         public async Task<ActionResult<ApiResponse<CommentaireDTO>>> AjouterCommentaire(
-    Guid ticketId,
-    [FromForm] CreateCommentaireDTO dto)
+            Guid ticketId,
+            [FromForm] CreateCommentaireDTO dto)
         {
             try
             {
                 _logger.LogInformation("=== DÉBUT AJOUT COMMENTAIRE ===");
-               
+
                 if (string.IsNullOrWhiteSpace(dto.Message) && (dto.Fichiers == null || !dto.Fichiers.Any()))
                 {
                     _logger.LogWarning("Tentative de création d'un commentaire vide");
                     return BadRequest(ApiResponse<CommentaireDTO>.Failure(
                         "Un commentaire doit contenir soit un message, soit au moins une pièce jointe, soit les deux."));
                 }
-                _logger.LogInformation("TicketId reçu: {TicketId}", ticketId);
-                _logger.LogInformation("TicketId en chaîne: {TicketIdString}", ticketId.ToString());
-                _logger.LogInformation("Message: {Message}", dto.Message);
-                _logger.LogInformation("EstInterne: {EstInterne}", dto.EstInterne);
-                _logger.LogInformation("Nombre de fichiers: {NbFichiers}", dto.Fichiers?.Count ?? 0);
 
                 var userId = GetCurrentUserId();
-                _logger.LogInformation("Utilisateur connecté: {UserId}", userId);
 
                 // Vérifier que le ticket existe
-                _logger.LogInformation("Appel de GetTicketByIdAsync avec ID: {TicketId}", ticketId);
                 var ticketResult = await _ticketService.GetTicketByIdAsync(ticketId);
-
-                _logger.LogInformation("Résultat de GetTicketByIdAsync - IsSuccess: {IsSuccess}, Data null: {DataNull}, Message: {Message}",
-                    ticketResult.IsSuccess,
-                    ticketResult.Data == null,
-                    ticketResult.Message);
-
                 if (!ticketResult.IsSuccess || ticketResult.Data == null)
                 {
                     _logger.LogWarning("Ticket {TicketId} non trouvé", ticketId);
                     return NotFound(ApiResponse<CommentaireDTO>.Failure("Ticket non trouvé"));
                 }
 
-                _logger.LogInformation("Ticket trouvé: {Reference}, Titre: {Titre}",
-                    ticketResult.Data.ReferenceTicket,
-                    ticketResult.Data.TitreTicket);
+                // ✅ Utiliser le service au lieu de créer directement
+                var commentaireDto = await _commentaireService.CreateCommentaireAsync(ticketId, dto, userId);
 
-                var commentaire = new CommentaireTicket
+                // Ajouter les URLs des pièces jointes
+                foreach (var piece in commentaireDto.PiecesJointes)
                 {
-                    Id = Guid.NewGuid(),
-                    Message = dto.Message ?? string.Empty,  // Si null, mettre chaîne vide
-                    DateCreation = DateTime.UtcNow,
-                    EstInterne = dto.EstInterne,
-                    TicketId = ticketId,
-                    AuteurId = userId,
-                    PiecesJointes = new List<PieceJointe>()
-                };
-
-                _logger.LogInformation("Création commentaire ID: {CommentaireId}", commentaire.Id);
-                await _commentaireRepository.AddAsync(commentaire);
-                _logger.LogInformation("Commentaire ajouté en base");
-
-                // Gérer les fichiers uploadés
-                if (dto.Fichiers != null && dto.Fichiers.Any())
-                {
-                    _logger.LogInformation("Traitement de {Count} fichier(s)", dto.Fichiers.Count);
-
-                    foreach (var fichier in dto.Fichiers)
-                    {
-                        try
-                        {
-                            _logger.LogInformation("Traitement fichier: {FileName}, Taille: {Length}, ContentType: {ContentType}",
-                                fichier.FileName, fichier.Length, fichier.ContentType);
-                            _logger.LogInformation("Nom du fichier avant sauvegarde: {FileName}", fichier.FileName);
-
-
-                            var pieceDto = new CreatePieceJointeDTO
-                            {
-                                NomFichier = fichier.FileName,
-                                Fichier = fichier,
-
-                            };
-                            _logger.LogInformation("PieceDto.NomFichier après création: {NomFichier}", pieceDto.NomFichier);
-
-                            var pieceJointe = await _pieceJointeService.SauvegarderFichierPourCommentaireAsync(
-    pieceDto, commentaire.Id, userId);
-
-                            _logger.LogInformation("Fichier sauvegardé avec ID: {PieceJointeId}", pieceJointe.Id);
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogError(ex, "Erreur lors de la sauvegarde du fichier {FileName}", fichier.FileName);
-                            throw;
-                        }
-                    }
+                    piece.Url = $"{Request.Scheme}://{Request.Host}/api/pieces-jointes/{piece.Id}";
                 }
 
-                await _commentaireRepository.SaveChangesAsync();
-                _logger.LogInformation("Commentaire sauvegardé avec succès");
-
-                // Recharger avec les relations
-                var commentaireComplet = await _commentaireRepository.GetCommentaireWithPiecesJointesAsync(commentaire.Id);
-
-                var result = new CommentaireDTO
-                {
-                    Id = commentaireComplet.Id,
-                    Message = commentaireComplet.Message,
-                    DateCreation = commentaireComplet.DateCreation,
-                    EstInterne = commentaireComplet.EstInterne,
-                    AuteurId = commentaireComplet.AuteurId,
-                    AuteurNom = commentaireComplet.Auteur != null ? $"{commentaireComplet.Auteur.Nom} {commentaireComplet.Auteur.Prenom}" : "Inconnu",
-                    TicketId = commentaireComplet.TicketId,  
-                    TicketReference = commentaireComplet.Ticket?.ReferenceTicket,  
-                    PiecesJointes = commentaireComplet.PiecesJointes?.Select(p => new PieceJointeDTO
-                    {
-                        Id = p.Id,
-                        NomFichier = p.NomFichier,
-                        ContentType = p.ContentType,  
-                        DateAjout = p.DateAjout,
-                        Url = $"{Request.Scheme}://{Request.Host}/api/pieces-jointes/{p.Id}"
-                    }).ToList() ?? new()
-                };
-
-                return Ok(ApiResponse<CommentaireDTO>.Success(result, "Commentaire ajouté avec succès"));
+                return Ok(ApiResponse<CommentaireDTO>.Success(commentaireDto, "Commentaire ajouté avec succès"));
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "ERREUR DÉTAILLÉE: {Message}, InnerException: {InnerException}, StackTrace: {StackTrace}",
-                    ex.Message, ex.InnerException?.Message, ex.StackTrace);
+                _logger.LogError(ex, "ERREUR DÉTAILLÉE: {Message}", ex.Message);
                 return StatusCode(500, ApiResponse<CommentaireDTO>.Failure($"Erreur interne: {ex.Message}"));
             }
         }

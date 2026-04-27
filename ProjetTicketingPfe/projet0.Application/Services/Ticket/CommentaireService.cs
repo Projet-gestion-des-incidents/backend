@@ -25,17 +25,23 @@ namespace projet0.Application.Services.Ticket
         private readonly ICommentaireRepository _commentaireRepository;
         private readonly IPieceJointeService _pieceJointeService;
         private readonly IUserRepository _userRepository;
+        private readonly ITicketRepository _ticketRepository;  // Ajouter
+        private readonly INotificationService _notificationService;  // Ajouter
         private readonly ILogger<CommentaireService> _logger;
 
         public CommentaireService(
             ICommentaireRepository commentaireRepository,
             IPieceJointeService pieceJointeService,
             IUserRepository userRepository,
+            ITicketRepository ticketRepository,  // Ajouter
+            INotificationService notificationService,  // Ajouter
             ILogger<CommentaireService> logger)
         {
             _commentaireRepository = commentaireRepository;
             _pieceJointeService = pieceJointeService;
             _userRepository = userRepository;
+            _ticketRepository = ticketRepository;  // Ajouter
+            _notificationService = notificationService;  // Ajouter
             _logger = logger;
         }
 
@@ -259,7 +265,25 @@ namespace projet0.Application.Services.Ticket
         {
             _logger.LogInformation("Création commentaire pour ticket {TicketId}", ticketId);
 
-            // 1. Créer le commentaire
+            // 1. Récupérer le ticket et l'utilisateur
+            var ticket = await _ticketRepository.GetByIdAsync(ticketId);
+            if (ticket == null)
+            {
+                _logger.LogWarning("Ticket {TicketId} non trouvé", ticketId);
+                throw new Exception("Ticket non trouvé");
+            }
+
+            // 2. Récupérer le rôle de l'utilisateur
+            var userRoles = await _userRepository.GetUserRolesAsync(userId);
+            var isAdmin = userRoles.Contains("Admin");
+            var isTechnicien = userRoles.Contains("Technicien");
+            var isCommercant = userRoles.Contains("Commercant");
+
+            // 3. Récupérer l'auteur
+            var auteur = await _userRepository.GetByIdAsync(userId);
+            string auteurNom = auteur != null ? $"{auteur.Nom} {auteur.Prenom}" : "Un utilisateur";
+
+            // 4. Créer le commentaire
             var commentaire = new CommentaireTicket
             {
                 Id = Guid.NewGuid(),
@@ -273,33 +297,91 @@ namespace projet0.Application.Services.Ticket
 
             await _commentaireRepository.AddAsync(commentaire);
 
-            // 2. Ajouter les fichiers si présents
+            // 5. Ajouter les fichiers si présents
             if (dto.Fichiers != null && dto.Fichiers.Any())
             {
                 _logger.LogInformation("Ajout de {Count} fichier(s) au commentaire", dto.Fichiers.Count);
 
                 foreach (var fichier in dto.Fichiers)
                 {
-                    var base64Data = await ConvertirFichierEnBase64(fichier);
-
                     var pieceDto = new CreatePieceJointeDTO
                     {
-                        NomFichier = fichier.FileName,                                                                    
-                        ContenuBase64 = base64Data
+                        NomFichier = fichier.FileName,
+                        Fichier = fichier
                     };
 
-                    var pieceJointe = await _pieceJointeService.SauvegarderFichierAsync(
+                    var pieceJointe = await _pieceJointeService.SauvegarderFichierPourCommentaireAsync(
                         pieceDto, commentaire.Id, userId);
                 }
             }
 
             await _commentaireRepository.SaveChangesAsync();
 
-            // 3. Retourner le DTO
+            // ======================================================
+            // 🔔 NOTIFICATIONS POUR COMMENTAIRE
+            // ======================================================
+
+            string messageCourt = dto.Message?.Length > 50 ? dto.Message.Substring(0, 50) + "..." : dto.Message ?? "(pièce jointe uniquement)";
+            bool aDesPieces = dto.Fichiers != null && dto.Fichiers.Any();
+            string typeMessage = aDesPieces ? (string.IsNullOrWhiteSpace(dto.Message) ? "a ajouté une pièce jointe" : "a commenté") : "a commenté";
+
+            // 1. Si l'auteur est ADMIN -> notifier le TECHNICIEN assigné
+            if (isAdmin)
+            {
+                if (ticket.AssigneeId.HasValue && ticket.AssigneeId.Value != userId)
+                {
+                    await _notificationService.CreateCommentNotificationAsync(
+                        ticket.AssigneeId.Value,
+                        commentaire.Id,
+                        ticketId,
+                        $"Nouveau commentaire sur le ticket {ticket.ReferenceTicket}",
+                        $"L'administrateur {auteurNom} {typeMessage} sur le ticket '{ticket.TitreTicket}': \"{messageCourt}\""
+                    );
+                    _logger.LogInformation("Notification envoyée au technicien {TechnicienId}", ticket.AssigneeId.Value);
+                }
+            }
+            // 2. Si l'auteur est TECHNICIEN -> notifier le CREATEUR du ticket
+            else if (isTechnicien)
+            {
+                if (ticket.CreateurId != userId)
+                {
+                    await _notificationService.CreateCommentNotificationAsync(
+                        ticket.CreateurId,
+                        commentaire.Id,
+                        ticketId,
+                        $"Nouveau commentaire sur le ticket {ticket.ReferenceTicket}",
+                        $"Le technicien {auteurNom} {typeMessage} sur votre ticket '{ticket.TitreTicket}': \"{messageCourt}\""
+                    );
+                    _logger.LogInformation("Notification envoyée au créateur {CreateurId} du ticket", ticket.CreateurId);
+                }
+            }
+
+            // 3. Si le commentaire est interne et que l'auteur n'est pas admin, notifier les ADMINS
+            if (dto.EstInterne && !isAdmin)
+            {
+                var admins = await _userRepository.GetUsersByRoleAsync("Admin");
+                foreach (var admin in admins)
+                {
+                    if (admin.Id != userId)
+                    {
+                        await _notificationService.CreateCommentNotificationAsync(
+                            admin.Id,
+                            commentaire.Id,
+                            ticketId,
+                            $"Commentaire interne sur le ticket {ticket.ReferenceTicket}",
+                            $"{auteurNom} a ajouté un commentaire interne sur le ticket '{ticket.TitreTicket}'"
+                        );
+                    }
+                }
+                _logger.LogInformation("Notifications internes envoyées aux admins");
+            }
+
+            _logger.LogInformation("Notifications envoyées pour le commentaire {CommentaireId}", commentaire.Id);
+
+            // 6. Retourner le DTO
             var commentaireComplet = await _commentaireRepository.GetCommentaireWithPiecesJointesAsync(commentaire.Id);
             return MapToDto(commentaireComplet);
         }
-
         private async Task<string> ConvertirFichierEnBase64(IFormFile fichier)
         {
             using var memoryStream = new MemoryStream();
