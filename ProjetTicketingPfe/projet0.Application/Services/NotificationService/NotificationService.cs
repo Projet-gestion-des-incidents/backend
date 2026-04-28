@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using Microsoft.Extensions.Logging;
 using projet0.Application.Commun.DTOs;
 using projet0.Application.Interfaces;
 using projet0.Domain.Entities;
@@ -13,11 +14,15 @@ namespace projet0.Application.Services
     {
         private readonly INotificationRepository _notificationRepository;
         private readonly IMapper _mapper;
+        private readonly ILogger<NotificationService> _logger;
 
-        public NotificationService(INotificationRepository notificationRepository, IMapper mapper)
+
+        public NotificationService(INotificationRepository notificationRepository, IMapper mapper, ILogger<NotificationService> logger)
+
         {
             _notificationRepository = notificationRepository;
             _mapper = mapper;
+            _logger = logger;
         }
 
         public async Task<NotificationDto> GetByIdAsync(Guid id)
@@ -157,16 +162,35 @@ namespace projet0.Application.Services
 
         public async Task DeleteNotificationAsync(Guid id, Guid userId)
         {
+            _logger.LogInformation($"DeleteNotificationAsync - Tentative de suppression ID: {id}, UserId: {userId}");
+
             var notification = await _notificationRepository.GetByIdAsync(id);
-            if (notification != null && notification.DestinataireId == userId)
+            if (notification != null)
             {
-                await _notificationRepository.DeleteAsync(notification);  // ← CORRIGÉ : passe l'entité notification
+                _logger.LogInformation($"Notification trouvée - DestinataireId: {notification.DestinataireId}, UserId: {userId}");
+
+                if (notification.DestinataireId == userId)
+                {
+                    await _notificationRepository.DeleteAsync(notification);
+                    var saved = await _notificationRepository.SaveChangesAsync();
+                    _logger.LogInformation($"SaveChangesAsync a retourné: {saved} modifications");
+                }
+                else
+                {
+                    _logger.LogWarning($"Accès non autorisé - Utilisateur {userId} tente de supprimer une notification destinée à {notification.DestinataireId}");
+                }
+            }
+            else
+            {
+                _logger.LogWarning($"Notification {id} non trouvée");
             }
         }
 
         public async Task DeleteOldNotificationsAsync(int daysToKeep)
         {
             await _notificationRepository.DeleteOldNotificationsAsync(daysToKeep);
+            await _notificationRepository.SaveChangesAsync();
+
         }
     }
 }
