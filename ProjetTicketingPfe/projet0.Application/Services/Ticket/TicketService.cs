@@ -1245,43 +1245,52 @@ namespace projet0.Application.Services.Ticket
                             : null;
                         string actionneur = isAdmin ? "L'administrateur" : "Le technicien";
 
+                        // ✅ Déterminer le type de notification
+                        TypeNotification typeNotif = modifications.Contains("Statut -> En cours")
+                            ? TypeNotification.TicketEnCours
+                            : TypeNotification.TicketModifie;
+
+                        string titreNotification = typeNotif == TypeNotification.TicketEnCours
+                            ? $"Ticket {ticket.ReferenceTicket} - En cours"
+                            : $"Ticket {ticket.ReferenceTicket} - Modifié";
+
                         // Notifier les AUTRES ADMINS
                         var admins = await _userRepository.GetUsersByRoleAsync("Admin");
                         foreach (var admin in admins)
                         {
-                            if (admin.Id != userId) // Exclure l'admin qui a fait la modification
+                            if (admin.Id != userId)
                             {
                                 await _notificationService.CreateTicketNotificationAsync(
                                     admin.Id,
                                     ticket.Id,
-                                    TypeNotification.TicketModifie,
-                                    $"Ticket {ticket.ReferenceTicket} - Modifié",
-                                    $"{actionneur} a modifié le ticket '{ticket.TitreTicket}'. Modifications: {string.Join(", ", modifications)}"
+                                    typeNotif,
+                                    titreNotification,
+                                    $"{actionneur} a {(typeNotif == TypeNotification.TicketEnCours ? "commencé le traitement du" : "modifié le")} ticket '{ticket.TitreTicket}'. Modifications: {string.Join(", ", modifications)}"
                                 );
                             }
                         }
 
-                        // Notifier le TECHNICIEN assigné (si différent de l'actionneur)
+                        // Notifier le TECHNICIEN assigné
                         if (technicienActuel != null && technicienActuel.Id != userId)
                         {
                             await _notificationService.CreateTicketNotificationAsync(
                                 technicienActuel.Id,
                                 ticket.Id,
-                                TypeNotification.TicketModifie,
-                                $"Ticket {ticket.ReferenceTicket} - Modifié",
-                                $"{actionneur} a modifié le ticket qui vous est assigné. Modifications: {string.Join(", ", modifications)}"
+                                typeNotif,
+                                titreNotification,
+                                $"{actionneur} a {(typeNotif == TypeNotification.TicketEnCours ? "commencé le traitement du ticket qui vous est assigné" : "modifié le ticket qui vous est assigné")}. Modifications: {string.Join(", ", modifications)}"
                             );
                         }
 
-                        // Notifier le CREATEUR (si différent de l'actionneur)
+                        // Notifier le CREATEUR
                         if (createur != null && createur.Id != userId)
                         {
                             await _notificationService.CreateTicketNotificationAsync(
                                 createur.Id,
                                 ticket.Id,
-                                TypeNotification.TicketModifie,
-                                $"Ticket {ticket.ReferenceTicket} - Modifié",
-                                $"{actionneur} a modifié votre ticket '{ticket.TitreTicket}'. Modifications: {string.Join(", ", modifications)}"
+                                typeNotif,
+                                titreNotification,
+                                $"{actionneur} a {(typeNotif == TypeNotification.TicketEnCours ? "commencé le traitement de votre ticket" : "modifié votre ticket")} '{ticket.TitreTicket}'. Modifications: {string.Join(", ", modifications)}"
                             );
                         }
                     }
@@ -1487,6 +1496,21 @@ namespace projet0.Application.Services.Ticket
                                 ? $"Ticket {ticket.ReferenceTicket} - Résolu"
                                 : $"Ticket {ticket.ReferenceTicket} - {GetStatutLibelle(nouveauStatut)}";
 
+                            // ✅ Déterminer le type de notification selon le nouveau statut
+                            TypeNotification typeNotif;
+                            if (nouveauStatut == StatutTicket.Resolu)
+                            {
+                                typeNotif = TypeNotification.TicketCloture;
+                            }
+                            else if (nouveauStatut == StatutTicket.EnCours)
+                            {
+                                typeNotif = TypeNotification.TicketEnCours;  // ✅ Utiliser le nouveau type
+                            }
+                            else
+                            {
+                                typeNotif = TypeNotification.TicketModifie;
+                            }
+
                             // ======================================================
                             // 1. NOTIFICATION AU CREATEUR DU TICKET
                             // ======================================================
@@ -1499,7 +1523,7 @@ namespace projet0.Application.Services.Ticket
                                 await _notificationService.CreateTicketNotificationAsync(
                                     createur.Id,
                                     ticket.Id,
-                                    TypeNotification.TicketModifie,
+                                    typeNotif,  // ✅ Utiliser le type dynamique
                                     titreNotification,
                                     messageCreateur
                                 );
@@ -1521,7 +1545,7 @@ namespace projet0.Application.Services.Ticket
                                     await _notificationService.CreateTicketNotificationAsync(
                                         admin.Id,
                                         ticket.Id,
-                                        TypeNotification.TicketModifie,
+                                        typeNotif,  // ✅ Utiliser le type dynamique
                                         titreNotification,
                                         messageAdmin
                                     );
@@ -1545,36 +1569,31 @@ namespace projet0.Application.Services.Ticket
                                         if (createurIncident != null)
                                         {
                                             string messageCommercant;
+                                            TypeNotification typeIncidentNotif;
 
                                             if (nouveauStatut == StatutTicket.Resolu)
                                             {
-                                                messageCommercant = 
-                                                                    $"L'incident '{incident.CodeIncident}' est maintenant résolu.";
-
-                                                await _notificationService.CreateIncidentNotificationAsync(
-                                                    createurIncident.Id,
-                                                    incident.Id,
-                                                    TypeNotification.IncidentResolu,
-                                                    $"Incident résolu : {incident.CodeIncident}",
-                                                    messageCommercant
-                                                );
+                                                messageCommercant = $"L'incident '{incident.CodeIncident}' est maintenant résolu.";
+                                                typeIncidentNotif = TypeNotification.IncidentResolu;
                                             }
                                             else if (nouveauStatut == StatutTicket.EnCours)
                                             {
-                                                messageCommercant = 
-                                                                    $"L'incident '{incident.CodeIncident}' est maintenant en cours de traitement.";
-
-                                                await _notificationService.CreateIncidentNotificationAsync(
-                                                    createurIncident.Id,
-                                                    incident.Id,
-                                                    TypeNotification.IncidentModifie,
-                                                    $"Incident en cours : {incident.CodeIncident}",
-                                                    messageCommercant
-                                                );
+                                                messageCommercant = $"L'incident '{incident.CodeIncident}' est maintenant en cours de traitement.";
+                                                typeIncidentNotif = TypeNotification.IncidentEnCours;  // ✅ Utiliser le nouveau type
+                                            }
+                                            else
+                                            {
+                                                messageCommercant = $"L'incident '{incident.CodeIncident}' a été modifié.";
+                                                typeIncidentNotif = TypeNotification.IncidentModifie;
                                             }
 
-                                            _logger.LogInformation("Notification envoyée au commerçant {CommercantId} pour l'incident {IncidentId}",
-                                                createurIncident.Id, incident.Id);
+                                            await _notificationService.CreateIncidentNotificationAsync(
+                                                createurIncident.Id,
+                                                incident.Id,
+                                                typeIncidentNotif,  // ✅ Utiliser le type dynamique
+                                                $"Incident {incident.CodeIncident} - {(nouveauStatut == StatutTicket.Resolu ? "Résolu" : "En cours")}",
+                                                messageCommercant
+                                            );
                                         }
                                     }
                                 }
