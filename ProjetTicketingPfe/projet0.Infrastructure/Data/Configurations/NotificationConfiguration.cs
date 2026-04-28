@@ -42,7 +42,7 @@ namespace projet0.Infrastructure.Data.Configurations
                 .OnDelete(DeleteBehavior.Restrict);
 
             builder.HasOne(n => n.TPE)
-          .WithMany()
+          .WithMany(t => t.Notifications) // ✅ OBLIGATOIRE
           .HasForeignKey(n => n.TPEId)
           .OnDelete(DeleteBehavior.Restrict);
         }

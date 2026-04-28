@@ -12,8 +12,8 @@ using projet0.Infrastructure.Data;
 namespace projet0.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260428075518_notificationTPE1")]
-    partial class notificationTPE1
+    [Migration("20260428103131_fixNotif")]
+    partial class fixNotif
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -461,9 +461,6 @@ namespace projet0.Infrastructure.Migrations
                     b.Property<Guid?>("TPEId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid?>("TPEId1")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<Guid?>("TicketId")
                         .HasColumnType("uniqueidentifier");
 
@@ -484,8 +481,6 @@ namespace projet0.Infrastructure.Migrations
                     b.HasIndex("IncidentId");
 
                     b.HasIndex("TPEId");
-
-                    b.HasIndex("TPEId1");
 
                     b.HasIndex("TicketId");
 
@@ -837,13 +832,9 @@ namespace projet0.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("projet0.Domain.Entities.TPE", "TPE")
-                        .WithMany()
+                        .WithMany("Notifications")
                         .HasForeignKey("TPEId")
                         .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("projet0.Domain.Entities.TPE", null)
-                        .WithMany("Notifications")
-                        .HasForeignKey("TPEId1");
 
                     b.HasOne("projet0.Domain.Entities.Ticket", "Ticket")
                         .WithMany("Notifications")
