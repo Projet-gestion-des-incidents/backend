@@ -17,7 +17,7 @@ namespace projet0.Domain.Entities
 
         public DateTime DateCreation { get; set; }
         public DateTime? DateCloture { get; set; }
-        public DateTime? DateLimite { get; set; }
+        public DateTime DateLimite { get; set; }
 
 
         // Foreign Keys

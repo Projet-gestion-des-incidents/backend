@@ -349,6 +349,10 @@ namespace projet0.Application.Services.Ticket
                 if (createur == null)
                     return ApiResponse<TicketDTO>.Failure("Utilisateur créateur non trouvé");
 
+                if (dto.DateLimite <= DateTime.UtcNow)
+                {
+                    return ApiResponse<TicketDTO>.Failure("La date limite doit être dans le futur");
+                }
                 // Générer la référence unique
                 var reference = await _ticketRepository.GenerateReferenceTicketAsync();
 
@@ -930,7 +934,6 @@ namespace projet0.Application.Services.Ticket
                         var tentatives = new List<string>();
                         if (!string.IsNullOrWhiteSpace(dto.TitreTicket)) tentatives.Add("titre");
                         if (dto.DescriptionTicket != null) tentatives.Add("description");
-                        if (dto.DateLimite.HasValue) tentatives.Add("date limite");
 
                         if (tentatives.Any())
                         {
@@ -959,7 +962,7 @@ namespace projet0.Application.Services.Ticket
                             modifications.Add("Description");
                         }
 
-                        if (dto.DateLimite.HasValue && dto.DateLimite != ticket.DateLimite)
+                        if (dto.DateLimite != ticket.DateLimite)
                         {
                             _logger.LogWarning("Admin modifie DateLimite: '{Ancien}' -> '{Nouveau}'",
                                 ticket.DateLimite, dto.DateLimite);
@@ -1177,8 +1180,13 @@ namespace projet0.Application.Services.Ticket
                                     ticket.TitreTicket = dto.TitreTicket;
                                 if (dto.DescriptionTicket != null)
                                     ticket.DescriptionTicket = dto.DescriptionTicket;
-                                if (dto.DateLimite.HasValue)
-                                    ticket.DateLimite = dto.DateLimite;
+                                if (dto.DateLimite <= DateTime.UtcNow && ticket.StatutTicket != StatutTicket.Resolu)
+                                {
+                                    return ApiResponse<UpdateTicketResponseDTO>.Failure(
+                                        "La date limite doit être dans le futur.",
+                                        resultCode: 81
+                                    );
+                                }
                             }
 
                             // Gestion de l'assignation APRÈS rechargement
@@ -2166,17 +2174,13 @@ namespace projet0.Application.Services.Ticket
                     tempsResolution.Add(temps);
 
                     // Vérifier le respect de la date limite
-                    if (ticket.DateLimite.HasValue)
-                    {
-                        if (ticket.DateCloture.Value <= ticket.DateLimite.Value)
+                    
+                        if (ticket.DateCloture.Value <= ticket.DateLimite)
                             avantDelai++;
                         else
                             apresDelai++;
-                    }
-                    else
-                    {
-                        sansDelai++;
-                    }
+                   
+                    
                 }
             }
 
@@ -2236,13 +2240,12 @@ namespace projet0.Application.Services.Ticket
                         var temps = (ticket.DateCloture.Value - ticket.DateCreation).TotalHours;
                         tempsResolution.Add(temps);
 
-                        if (ticket.DateLimite.HasValue)
-                        {
-                            if (ticket.DateCloture.Value <= ticket.DateLimite.Value)
+                        
+                            if (ticket.DateCloture.Value <= ticket.DateLimite)
                                 avantDelai++;
                             else
                                 apresDelai++;
-                        }
+                        
                     }
                 }
 

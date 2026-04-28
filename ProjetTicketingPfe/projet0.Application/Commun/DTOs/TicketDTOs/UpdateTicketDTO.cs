@@ -20,7 +20,7 @@ namespace projet0.Application.Commun.DTOs.Ticket
 
         // Propriété calculée pour savoir si AssigneeId a été explicitement fourni
         public bool IsAssigneeIdSpecified => AssigneeId.HasValue;
-        public DateTime? DateLimite { get; set; }
+        public DateTime DateLimite { get; set; }
 
     }
 }

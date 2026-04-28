@@ -13,8 +13,8 @@ namespace projet0.Application.Commun.DTOs.Ticket
         [StringLength(2000, ErrorMessage = "La description ne peut pas dépasser 2000 caractères")]
         public string DescriptionTicket { get; set; }
 
-        public DateTime? DateLimite { get; set; }
-
+        [Required(ErrorMessage = "La date limite est obligatoire")]
+        public DateTime DateLimite { get; set; }
         public Guid? AssigneeId { get; set; }
     }
 }
