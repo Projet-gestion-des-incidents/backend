@@ -25,6 +25,8 @@ namespace projet0.Domain.Entities
 
         // Relation Many-to-Many avec Incident
         public virtual ICollection<IncidentTPE> IncidentTPEs { get; set; }
+        public virtual ICollection<Notification> Notifications { get; set; }
+
 
         // Navigation properties pour les utilisateurs
         public virtual ApplicationUser? CreatedBy { get; set; }

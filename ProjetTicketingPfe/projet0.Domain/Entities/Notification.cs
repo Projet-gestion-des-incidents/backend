@@ -20,10 +20,12 @@ namespace projet0.Domain.Entities
         public Guid? TicketId { get; set; }
         public Guid? IncidentId { get; set; }
         public Guid? CommentaireId { get; set; }
+        public Guid? TPEId { get; set; }
 
         // Navigation Properties
         public virtual ApplicationUser Destinataire { get; set; }
         public virtual Ticket Ticket { get; set; }
+        public virtual TPE TPE { get; set; }
         public virtual Incident Incident { get; set; }
         public virtual CommentaireTicket Commentaire { get; set; }
     }

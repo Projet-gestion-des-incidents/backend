@@ -68,7 +68,23 @@ namespace projet0.Application.Services
             await _notificationRepository.AddAsync(notification);
             return _mapper.Map<NotificationDto>(notification);
         }
+        public async Task CreateTPENotificationAsync(Guid userId, Guid tpeId, TypeNotification type, string titre, string message)
+        {
+            var notification = new Notification
+            {
+                Id = Guid.NewGuid(),
+                DestinataireId = userId,
+                TypeNotification = type,
+                Titre = titre,
+                Message = message,
+                DateEnvoi = DateTime.UtcNow,
+                EstLu = false,
+                TPEId = tpeId  // Ajouter cette propriété à l'entité Notification
+            };
 
+            await _notificationRepository.AddAsync(notification);
+            await _notificationRepository.SaveChangesAsync();
+        }
         public async Task CreateTicketNotificationAsync(Guid userId, Guid ticketId, TypeNotification type, string titre, string message)
         {
             var notification = new Notification

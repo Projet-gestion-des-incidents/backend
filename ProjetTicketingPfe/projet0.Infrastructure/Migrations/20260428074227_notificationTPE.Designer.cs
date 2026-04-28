@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using projet0.Infrastructure.Data;
 
@@ -11,9 +12,11 @@ using projet0.Infrastructure.Data;
 namespace projet0.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260428074227_notificationTPE")]
+    partial class notificationTPE
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -458,9 +461,6 @@ namespace projet0.Infrastructure.Migrations
                     b.Property<Guid?>("TPEId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid?>("TPEId1")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<Guid?>("TicketId")
                         .HasColumnType("uniqueidentifier");
 
@@ -481,8 +481,6 @@ namespace projet0.Infrastructure.Migrations
                     b.HasIndex("IncidentId");
 
                     b.HasIndex("TPEId");
-
-                    b.HasIndex("TPEId1");
 
                     b.HasIndex("TicketId");
 
@@ -835,12 +833,7 @@ namespace projet0.Infrastructure.Migrations
 
                     b.HasOne("projet0.Domain.Entities.TPE", "TPE")
                         .WithMany()
-                        .HasForeignKey("TPEId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("projet0.Domain.Entities.TPE", null)
-                        .WithMany("Notifications")
-                        .HasForeignKey("TPEId1");
+                        .HasForeignKey("TPEId");
 
                     b.HasOne("projet0.Domain.Entities.Ticket", "Ticket")
                         .WithMany("Notifications")
@@ -976,8 +969,6 @@ namespace projet0.Infrastructure.Migrations
             modelBuilder.Entity("projet0.Domain.Entities.TPE", b =>
                 {
                     b.Navigation("IncidentTPEs");
-
-                    b.Navigation("Notifications");
                 });
 
             modelBuilder.Entity("projet0.Domain.Entities.Ticket", b =>

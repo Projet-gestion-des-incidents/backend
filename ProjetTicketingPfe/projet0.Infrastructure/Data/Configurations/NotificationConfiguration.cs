@@ -40,6 +40,11 @@ namespace projet0.Infrastructure.Data.Configurations
                 .WithMany()
                 .HasForeignKey(n => n.CommentaireId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasOne(n => n.TPE)
+          .WithMany()
+          .HasForeignKey(n => n.TPEId)
+          .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

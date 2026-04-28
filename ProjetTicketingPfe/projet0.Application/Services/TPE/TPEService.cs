@@ -21,21 +21,23 @@ namespace projet0.Application.Services.TPEService
     {
         private readonly ITPERepository _tpeRepository;
         private readonly IUserRepository _userRepository;
+        private readonly IIncidentTPERepository _incidentTPERepository;
+        private readonly INotificationService _notificationService;  // Ajouter
         private readonly ILogger<TPEService> _logger;
-        private readonly IIncidentTPERepository _incidentTPERepository;  // ✅ AJOUTER
-
 
         public TPEService(
             ITPERepository tpeRepository,
             IUserRepository userRepository,
-            IIncidentTPERepository incidentTPERepository,  // ✅ AJOUTER
+            IIncidentTPERepository incidentTPERepository,
+            INotificationService notificationService,  // Ajouter
             ILogger<TPEService> logger)
         {
             _tpeRepository = tpeRepository;
             _userRepository = userRepository;
-            _logger = logger;
-            _incidentTPERepository = incidentTPERepository;  // ✅ AJOUTER
 
+            _incidentTPERepository = incidentTPERepository;
+            _notificationService = notificationService;  // Ajouter
+            _logger = logger;
         }
 
         private async Task<T> MeasureAsync<T>(string actionName, object input, Func<Task<T>> action)
@@ -115,6 +117,22 @@ namespace projet0.Application.Services.TPEService
 
                 await _tpeRepository.AddAsync(tpe);
                 await _tpeRepository.SaveChangesAsync();
+
+                // ======================================================
+                // 🔔 NOTIFICATION POUR LE COMMERCANT PROPRIÉTAIRE
+                // ======================================================
+
+                // Notification au commerçant propriétaire
+                await _notificationService.CreateTPENotificationAsync(
+                    dto.CommercantId,
+                    tpe.Id,
+                    TypeNotification.TPECree,
+                    $"Nouveau TPE ajouté : {numSerieComplet}",
+                    $"Un nouveau TPE de modèle '{dto.Modele}' (Série: {numSerieComplet}) a été ajouté à votre compte par l'administrateur {admin?.Nom} {admin?.Prenom}."
+                );
+
+                _logger.LogInformation("Notification envoyée au commerçant {CommercantId} pour le TPE {TPEId}",
+                    dto.CommercantId, tpe.Id);
 
                 // 7. Mapper vers DTO
                 var tpeDto = new TPEDto

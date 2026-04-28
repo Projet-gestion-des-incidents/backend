@@ -12,6 +12,7 @@ namespace projet0.Application.Interfaces
         Task<IEnumerable<NotificationDto>> GetByUserIdAsync(Guid userId);
         Task<IEnumerable<NotificationDto>> GetUnreadByUserIdAsync(Guid userId);
         Task<int> GetUnreadCountAsync(Guid userId);
+        Task CreateTPENotificationAsync(Guid userId, Guid tpeId, TypeNotification type, string titre, string message);
         Task<IEnumerable<NotificationDto>> GetByTypeAsync(Guid userId, TypeNotification type);
         Task<NotificationDto> CreateNotificationAsync(CreateNotificationDto createDto);
         Task CreateTicketNotificationAsync(Guid userId, Guid ticketId, TypeNotification type, string titre, string message);

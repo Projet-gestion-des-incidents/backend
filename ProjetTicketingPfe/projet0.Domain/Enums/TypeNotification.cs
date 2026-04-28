@@ -14,6 +14,8 @@ namespace projet0.Domain.Enums
         IncidentResolu = 6,
         IncidentModifie = 9,
         CommentaireAjoute = 7,
+        TPECree = 10,
         Rappel = 8
+
     }
 }
