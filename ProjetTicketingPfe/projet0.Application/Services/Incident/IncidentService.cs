@@ -1488,14 +1488,16 @@ namespace projet0.Application.Services.Incident
                     if (incident == null)
                         return ApiResponse<bool>.Failure($"Incident {incidentId} non trouvé");
 
-                    // RÈGLE : Ne peut supprimer la liaison que si l'incident n'a PAS de statut (null)
-                    if (incident.StatutIncident.HasValue)
+                    // ✅ CORRECTION : Autoriser la suppression si l'incident est "Non traité" (valeur 0)
+                    // Ne bloquer que si l'incident est "En cours" ou "Fermé"
+                    if (incident.StatutIncident == StatutIncident.EnCours ||
+                        incident.StatutIncident == StatutIncident.Ferme)
                     {
                         _logger.LogWarning("Tentative de suppression liaison TPE pour incident avec statut {Statut} | IncidentId: {IncidentId}",
                             incident.StatutIncident, incidentId);
 
                         return ApiResponse<bool>.Failure(
-                            "Impossible de supprimer la liaison TPE : l'incident a déjà un statut (en cours ou fermé).",
+                            "Impossible de supprimer la liaison TPE : l'incident est en cours ou fermé.",
                             resultCode: 91
                         );
                     }
@@ -1516,6 +1518,11 @@ namespace projet0.Application.Services.Incident
                     // Après la suppression réussie
                     var utilisateur = await _userRepository.GetByIdAsync(userId);
                     string utilisateurNom = utilisateur != null ? $"{utilisateur.Nom} {utilisateur.Prenom}" : "Un utilisateur";
+                    string tpeNom = tpe.NumSerieComplet ?? tpe.NumSerie ?? "TPE";
+
+                    // ======================================================
+                    // 🔔 NOTIFICATIONS POUR DÉLIAISON DE TPE
+                    // ======================================================
 
                     // 1. Notification aux ADMINS
                     var admins = await _userRepository.GetUsersByRoleAsync("Admin");
@@ -1526,11 +1533,27 @@ namespace projet0.Application.Services.Incident
                             incidentId,
                             TypeNotification.IncidentModifie,
                             $"TPE retiré de l'incident {incident.CodeIncident}",
-                            $"{utilisateurNom} a retiré le TPE '{tpe.NumSerie}' de l'incident '{incident.CodeIncident}'."
+                            $"{utilisateurNom} a retiré le TPE '{tpeNom}' de l'incident '{incident.CodeIncident}'."
                         );
                     }
 
-                 
+                    // 2. Notification au COMMERCANT créateur de l'incident (s'il n'est pas l'actionneur)
+                    if (incident.CreatedById.HasValue && incident.CreatedById.Value != userId)
+                    {
+                        var createurIncident = await _userRepository.GetByIdAsync(incident.CreatedById.Value);
+                        if (createurIncident != null)
+                        {
+                            await _notificationService.CreateIncidentNotificationAsync(
+                                createurIncident.Id,
+                                incidentId,
+                                TypeNotification.IncidentModifie,
+                                $"TPE retiré de votre incident {incident.CodeIncident}",
+                                $"{utilisateurNom} a retiré le TPE '{tpeNom}' de votre incident '{incident.CodeIncident}'."
+                            );
+                        }
+                    }
+
+                    _logger.LogInformation("Notifications envoyées pour la déliaison du TPE {TPEId} de l'incident {IncidentId}", tpeId, incidentId);
 
                     if (!supprime)
                         return ApiResponse<bool>.Failure("Erreur lors de la suppression de la liaison");
@@ -1580,9 +1603,10 @@ namespace projet0.Application.Services.Incident
                             return ApiResponse<List<IncidentTPEDTO>>.Failure(
                                 "Vous ne pouvez modifier que vos propres incidents.", resultCode: 75);
 
-                        if (incident.StatutIncident.HasValue)
+                        // ✅ Autoriser la modification si le statut est "Non traité" (valeur 0)
+                        if (incident.StatutIncident.HasValue && incident.StatutIncident != StatutIncident.NonTraite)
                             return ApiResponse<List<IncidentTPEDTO>>.Failure(
-                                "Vous ne pouvez pas ajouter de TPE à un incident qui a déjà un statut.", resultCode: 76);
+                                "Vous ne pouvez pas ajouter de TPE à un incident qui a déjà un statut (en cours ou fermé).", resultCode: 76);
                     }
 
                     var tpesLies = new List<IncidentTPEDTO>();
