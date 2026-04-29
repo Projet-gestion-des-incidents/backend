@@ -186,11 +186,26 @@ namespace projet0.Application.Services
             }
         }
 
-        public async Task DeleteOldNotificationsAsync(int daysToKeep)
+        public async Task DeleteAllUserNotificationsAsync(Guid userId)
         {
-            await _notificationRepository.DeleteOldNotificationsAsync(daysToKeep);
-            await _notificationRepository.SaveChangesAsync();
+            _logger.LogInformation($"DeleteAllUserNotificationsAsync - Suppression de toutes les notifications pour l'utilisateur {userId}");
 
+            var notifications = await _notificationRepository.GetByUserIdAsync(userId);
+
+            if (notifications != null && notifications.Any())
+            {
+                foreach (var notification in notifications)
+                {
+                    await _notificationRepository.DeleteAsync(notification);
+                }
+
+                var saved = await _notificationRepository.SaveChangesAsync();
+                _logger.LogInformation($"DeleteAllUserNotificationsAsync - {saved} notifications supprimées pour l'utilisateur {userId}");
+            }
+            else
+            {
+                _logger.LogInformation($"DeleteAllUserNotificationsAsync - Aucune notification trouvée pour l'utilisateur {userId}");
+            }
         }
     }
 }

@@ -153,11 +153,15 @@ namespace projet0.API.Controllers
         /// Delete all read notifications (Admin only)
         /// </summary>
         [HttpDelete("cleanup")]
-        [Authorize(Policy = "AdminOnly")]
-        public async Task<IActionResult> CleanupOldNotifications([FromQuery] int daysToKeep = 30)
+        [Authorize] // Tous les utilisateurs authentifiés, pas seulement Admin
+        public async Task<IActionResult> DeleteAllMyNotifications()
         {
-            await _notificationService.DeleteOldNotificationsAsync(daysToKeep);
-            return Ok(new { message = $"Notifications plus vieilles que {daysToKeep} jours supprimées" });
+            var userId = await GetCurrentUserIdAsync();
+            if (userId == Guid.Empty)
+                return Unauthorized();
+
+            await _notificationService.DeleteAllUserNotificationsAsync(userId);
+            return Ok(new { message = "Toutes vos notifications ont été supprimées avec succès" });
         }
     }
 }

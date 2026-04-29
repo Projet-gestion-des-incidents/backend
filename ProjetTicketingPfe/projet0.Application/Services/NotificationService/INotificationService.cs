@@ -21,6 +21,6 @@ namespace projet0.Application.Interfaces
         Task MarkAsReadAsync(Guid notificationId, Guid userId);
         Task MarkAllAsReadAsync(Guid userId);
         Task DeleteNotificationAsync(Guid id, Guid userId);
-        Task DeleteOldNotificationsAsync(int daysToKeep);
+        Task DeleteAllUserNotificationsAsync(Guid userId);
     }
 }
