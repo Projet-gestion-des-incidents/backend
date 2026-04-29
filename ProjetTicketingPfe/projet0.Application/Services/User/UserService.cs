@@ -1217,7 +1217,8 @@ namespace projet0.Application.Services.User
                         PhoneNumber = c.PhoneNumber,
                         Adresse = c.Adresse,
                         Statut = c.Statut,
-                        
+                        Image = c.Image
+
                     }).ToList();
 
                     // 8. Créer le résultat paginé
