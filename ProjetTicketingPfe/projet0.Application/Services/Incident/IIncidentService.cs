@@ -37,5 +37,22 @@ namespace projet0.Application.Services.Incident
         Task<ApiResponse<List<IncidentTPEDTO>>> LierTPEsAsync(Guid incidentId, List<Guid> tpeIds, Guid userId);
         Task<ApiResponse<PagedResult<IncidentDTO>>> GetMyIncidentsPagedAsync(IncidentSearchRequest request, Guid userId);
         Task<ApiResponse<IncidentDashboardDTO>> GetIncidentDashboardAsync();
+
+        // ================= ARCHIVAGE =================
+
+        /// <summary>
+        /// Archive un incident résolu
+        /// </summary>
+        Task<ApiResponse<IncidentArchiveDTO>> ArchiverIncidentAsync(Guid incidentId, Guid userId);
+
+        /// <summary>
+        /// Restaure un incident archivé
+        /// </summary>
+        Task<ApiResponse<IncidentArchiveDTO>> RestaurerIncidentAsync(Guid incidentId, Guid userId);
+
+        /// <summary>
+        /// Récupère les incidents archivés avec pagination
+        /// </summary>
+        Task<ApiResponse<PagedResult<IncidentDTO>>> GetIncidentsArchivesPagedAsync(IncidentSearchRequest request);
     }
 }

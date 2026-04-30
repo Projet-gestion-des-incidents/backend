@@ -363,6 +363,196 @@ namespace projet0.Application.Services.Incident
             };
         }
 
+        // Application/Services/Incident/IncidentService.cs
+
+        /// <summary>
+        /// Archive un incident résolu
+        /// </summary>
+        public async Task<ApiResponse<IncidentArchiveDTO>> ArchiverIncidentAsync(Guid incidentId, Guid userId)
+        {
+            return await MeasureAsync(nameof(ArchiverIncidentAsync), new { incidentId }, async () =>
+            {
+                try
+                {
+                    var incident = await _incidentRepository.GetIncidentWithDetailsAsync(incidentId);
+                    if (incident == null)
+                        return ApiResponse<IncidentArchiveDTO>.Failure("Incident non trouvé");
+
+                    // Vérifier que l'incident est résolu (FERME)
+                    if (incident.StatutIncident != StatutIncident.Ferme)
+                    {
+                        return ApiResponse<IncidentArchiveDTO>.Failure(
+                            "Seuls les incidents résolus (statut FERME) peuvent être archivés.",
+                            resultCode: 80
+                        );
+                    }
+
+                    // Vérifier les permissions
+                    var userRoles = await _userRepository.GetUserRolesAsync(userId);
+                    var isAdmin = userRoles.Contains("Admin");
+                    var isCommercant = userRoles.Contains("Commercant");
+
+                    if (isCommercant && !isAdmin)
+                    {
+                        // Le commerçant ne peut archiver que ses propres incidents
+                        if (incident.CreatedById != userId)
+                        {
+                            return ApiResponse<IncidentArchiveDTO>.Failure(
+                                "Vous ne pouvez archiver que vos propres incidents.",
+                                resultCode: 81
+                            );
+                        }
+                    }
+
+                    // Archiver l'incident
+                    incident.EstArchive = true;
+                    incident.DateArchivage = DateTime.UtcNow;
+                    incident.ArchiveParId = userId;
+
+                    await _incidentRepository.SaveChangesAsync();
+
+                    // Récupérer le nom de l'archiveur
+                    var archiveur = await _userRepository.GetByIdAsync(userId);
+                    string archiveurNom = archiveur != null ? $"{archiveur.Nom} {archiveur.Prenom}" : "Inconnu";
+
+                    var dto = new IncidentArchiveDTO
+                    {
+                        IncidentId = incident.Id,
+                        CodeIncident = incident.CodeIncident,
+                        EstArchive = true,
+                        DateArchivage = incident.DateArchivage,
+                        ArchivePar = archiveurNom
+                    };
+
+                    _logger.LogInformation("Incident {CodeIncident} archivé par {Archiveur}",
+                        incident.CodeIncident, archiveurNom);
+
+                    return ApiResponse<IncidentArchiveDTO>.Success(dto, "Incident archivé avec succès");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Erreur lors de l'archivage de l'incident {IncidentId}", incidentId);
+                    return ApiResponse<IncidentArchiveDTO>.Failure("Erreur interne du serveur");
+                }
+            });
+        }
+
+        /// <summary>
+        /// Restaure un incident archivé
+        /// </summary>
+        public async Task<ApiResponse<IncidentArchiveDTO>> RestaurerIncidentAsync(Guid incidentId, Guid userId)
+        {
+            return await MeasureAsync(nameof(RestaurerIncidentAsync), new { incidentId }, async () =>
+            {
+                try
+                {
+                    var incident = await _incidentRepository.GetByIdAsync(incidentId);
+                    if (incident == null)
+                        return ApiResponse<IncidentArchiveDTO>.Failure("Incident non trouvé");
+
+                    // Vérifier les permissions
+                    var userRoles = await _userRepository.GetUserRolesAsync(userId);
+                    var isAdmin = userRoles.Contains("Admin");
+                    var isCommercant = userRoles.Contains("Commercant");
+
+                    if (isCommercant && !isAdmin)
+                    {
+                        if (incident.CreatedById != userId)
+                        {
+                            return ApiResponse<IncidentArchiveDTO>.Failure(
+                                "Vous ne pouvez restaurer que vos propres incidents.",
+                                resultCode: 82
+                            );
+                        }
+                    }
+
+                    // Restaurer l'incident
+                    incident.EstArchive = false;
+                    incident.DateArchivage = null;
+                    incident.ArchiveParId = null;
+
+                    await _incidentRepository.SaveChangesAsync();
+
+                    var dto = new IncidentArchiveDTO
+                    {
+                        IncidentId = incident.Id,
+                        CodeIncident = incident.CodeIncident,
+                        EstArchive = false,
+                        DateArchivage = null,
+                        ArchivePar = null
+                    };
+
+                    _logger.LogInformation("Incident {CodeIncident} restauré", incident.CodeIncident);
+
+                    return ApiResponse<IncidentArchiveDTO>.Success(dto, "Incident restauré avec succès");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Erreur lors de la restauration de l'incident {IncidentId}", incidentId);
+                    return ApiResponse<IncidentArchiveDTO>.Failure("Erreur interne du serveur");
+                }
+            });
+        }
+
+        /// <summary>
+        /// Récupère les incidents archivés (avec pagination optionnelle)
+        /// </summary>
+        public async Task<ApiResponse<PagedResult<IncidentDTO>>> GetIncidentsArchivesPagedAsync(IncidentSearchRequest request)
+        {
+            return await MeasureAsync(nameof(GetIncidentsArchivesPagedAsync), request, async () =>
+            {
+                try
+                {
+                    var query = _incidentRepository.QueryWithDetails();
+                    query = query.Where(i => i.EstArchive == true);
+
+                    // Appliquer les filtres
+                    List<Guid> matchedUserIds = new();
+                    if (!string.IsNullOrWhiteSpace(request.SearchTerm))
+                    {
+                        var userSearchRequest = new UserSearchRequest
+                        {
+                            SearchTerm = request.SearchTerm,
+                            Page = 1,
+                            PageSize = 1000
+                        };
+                        var (users, _) = await _userRepository.SearchUsersAsync(userSearchRequest);
+                        matchedUserIds = users.Select(u => u.Id).ToList();
+                    }
+
+                    query = ApplySearchFilters(query, request, matchedUserIds);
+                    var totalCount = await query.CountAsync();
+
+                    query = ApplySorting(query, request.SortBy, request.SortDescending);
+
+                    var pagedIncidents = await query
+                        .Skip((request.Page - 1) * request.PageSize)
+                        .Take(request.PageSize)
+                        .ToListAsync();
+
+                    var dtos = new List<IncidentDTO>();
+                    foreach (var incident in pagedIncidents)
+                    {
+                        dtos.Add(await MapToDto(incident));
+                    }
+
+                    var result = new PagedResult<IncidentDTO>
+                    {
+                        Items = dtos,
+                        TotalCount = totalCount,
+                        Page = request.Page,
+                        PageSize = request.PageSize
+                    };
+
+                    return ApiResponse<PagedResult<IncidentDTO>>.Success(result);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Erreur lors de la récupération des incidents archivés");
+                    return ApiResponse<PagedResult<IncidentDTO>>.Failure("Erreur interne du serveur");
+                }
+            });
+        }
         #endregion
 
         #region CRUD Operations

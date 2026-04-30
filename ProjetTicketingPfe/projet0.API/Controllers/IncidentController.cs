@@ -578,6 +578,85 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
             }
         }
 
+
+        // API/Controllers/IncidentController.cs
+
+        /// <summary>
+        /// Archive un incident résolu
+        /// </summary>
+        [HttpPost("{id}/archiver")]
+        [Authorize(Policy = "IncidentUpdate")]
+        public async Task<ActionResult<ApiResponse<IncidentArchiveDTO>>> ArchiverIncident(Guid id)
+        {
+            try
+            {
+                var userId = GetCurrentUserId();
+                var result = await _incidentService.ArchiverIncidentAsync(id, userId);
+
+                if (!result.IsSuccess)
+                    return BadRequest(result);
+
+                return Ok(result);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(ApiResponse<IncidentArchiveDTO>.Failure(ex.Message));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erreur lors de l'archivage de l'incident {IncidentId}", id);
+                return StatusCode(500, ApiResponse<IncidentArchiveDTO>.Failure("Erreur interne"));
+            }
+        }
+
+        /// <summary>
+        /// Restaure un incident archivé
+        /// </summary>
+        [HttpPost("{id}/restaurer")]
+        [Authorize(Policy = "IncidentUpdate")]
+        public async Task<ActionResult<ApiResponse<IncidentArchiveDTO>>> RestaurerIncident(Guid id)
+        {
+            try
+            {
+                var userId = GetCurrentUserId();
+                var result = await _incidentService.RestaurerIncidentAsync(id, userId);
+
+                if (!result.IsSuccess)
+                    return BadRequest(result);
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erreur lors de la restauration de l'incident {IncidentId}", id);
+                return StatusCode(500, ApiResponse<IncidentArchiveDTO>.Failure("Erreur interne"));
+            }
+        }
+
+        /// <summary>
+        /// Récupère les incidents archivés (paginated)
+        /// </summary>
+        [HttpGet("archives")]
+        [Authorize(Policy = "IncidentRead")]
+        public async Task<ActionResult<ApiResponse<PagedResult<IncidentDTO>>>> GetIncidentsArchives(
+            [FromQuery] IncidentSearchRequest request)
+        {
+            try
+            {
+                var result = await _incidentService.GetIncidentsArchivesPagedAsync(request);
+
+                if (!result.IsSuccess)
+                    return BadRequest(result);
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erreur lors de la récupération des incidents archivés");
+                return StatusCode(500, ApiResponse<PagedResult<IncidentDTO>>.Failure("Erreur interne"));
+            }
+        }
+        //////////commmm
         #endregion
 
     }

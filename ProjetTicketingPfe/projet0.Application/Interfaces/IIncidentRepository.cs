@@ -23,5 +23,8 @@ namespace projet0.Application.Interfaces
         Task<Incident> GetIncidentWithDetailsAsync(Guid id);
         Task<List<Incident>> GetAllWithDetailsAsync();
         Task<List<Incident>> GetIncidentsByCreatedByAsync(Guid createdById);
+        // Application/Interfaces/IIncidentRepository.cs
+        Task<List<Incident>> GetIncidentsArchivesAsync();
+        Task<List<Incident>> GetIncidentsNonArchivesAsync();
     }
 }

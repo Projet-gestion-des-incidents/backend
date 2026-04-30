@@ -28,6 +28,12 @@ namespace projet0.Infrastructure.Data.Configurations
             builder.Property(i => i.SeveriteIncident).HasConversion<int>();
             builder.Property(i => i.StatutIncident).HasConversion<int>();
 
+            builder.Property(i => i.EstArchive)
+                .HasDefaultValue(false);
+
+            builder.Property(i => i.DateArchivage)
+                .IsRequired(false);
+
             // Relations
             builder.HasMany(i => i.IncidentTickets)
                 .WithOne(it => it.Incident)

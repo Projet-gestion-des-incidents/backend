@@ -159,5 +159,25 @@ namespace projet0.Infrastructure.Repositories
                 .OrderByDescending(i => i.DateDetection)
                 .ToListAsync();
         }
+
+
+        // Infrastructure/Repositories/IncidentRepository.cs
+        public async Task<List<Incident>> GetIncidentsArchivesAsync()
+        {
+            return await _context.Incidents
+                .Include(i => i.EntitesImpactees)
+                .Where(i => i.EstArchive == true)
+                .OrderByDescending(i => i.DateArchivage)
+                .ToListAsync();
+        }
+
+        public async Task<List<Incident>> GetIncidentsNonArchivesAsync()
+        {
+            return await _context.Incidents
+                .Include(i => i.EntitesImpactees)
+                .Where(i => i.EstArchive == false)
+                .OrderByDescending(i => i.DateDetection)
+                .ToListAsync();
+        }
     }
 }
