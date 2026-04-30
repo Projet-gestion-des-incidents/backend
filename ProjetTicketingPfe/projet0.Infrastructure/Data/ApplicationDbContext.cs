@@ -27,7 +27,7 @@ namespace projet0.Infrastructure.Data
         public DbSet<EntiteImpactee> EntitesImpactees { get; set; }
         public DbSet<TPE> TPEs { get; set; }
         public DbSet<IncidentTPE> IncidentTPEs { get; set; }
-
+        public DbSet<IncidentArchive> IncidentArchives { get; set; }  // AJOUTER CETTE LIGNE
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);

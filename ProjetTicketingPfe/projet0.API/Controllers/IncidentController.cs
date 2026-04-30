@@ -34,22 +34,23 @@ namespace projet0.API.Controllers
             _incidentTicketRepository = incidentTicketRepository;  
         }
 
-[HttpGet("all")]
-[Authorize(Policy = "IncidentRead")]
-public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents()
-{
-    try
-    {
-        var result = await _incidentService.GetAllIncidentsAsync();
-        return Ok(result);
-    }
-    catch (Exception ex)
-    {
-        _logger.LogError(ex, "Erreur lors de la récupération de tous les incidents");
-        return StatusCode(500, ApiResponse<List<IncidentDTO>>.Failure(
-            "Erreur interne du serveur"));
-    }
-}
+        [HttpGet("all")]
+        [Authorize(Policy = "IncidentRead")]
+        public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents()
+        {
+            try
+            {
+                var userId = GetCurrentUserId();
+                // Passer l'userId pour filtrer les archives
+                var result = await _incidentService.GetAllIncidentsAsync(userId);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erreur lors de la récupération de tous les incidents");
+                return StatusCode(500, ApiResponse<List<IncidentDTO>>.Failure("Erreur interne du serveur"));
+            }
+        }
         private Guid GetCurrentUserId()
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
@@ -62,7 +63,7 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
         #region CRUD Operations
 
         [HttpGet("withFilters")]
-        [Authorize(Policy = "IncidentRead")]     
+        [Authorize(Policy = "IncidentRead")]
         public async Task<ActionResult<ApiResponse<PagedResult<IncidentDTO>>>> SearchIncidents(
             [FromQuery] IncidentSearchRequest request)
         {
@@ -71,7 +72,8 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
                 if (!ModelState.IsValid)
                     return BadRequest(ModelState);
 
-                var result = await _incidentService.SearchIncidentsAsync(request);
+                var userId = GetCurrentUserId();  // Récupérer l'utilisateur connecté
+                var result = await _incidentService.SearchIncidentsAsync(request, userId);
 
                 if (!result.IsSuccess)
                     return BadRequest(result);
@@ -85,7 +87,6 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
                     "Erreur interne du serveur lors de la recherche d'incidents"));
             }
         }
-
         [HttpGet("{id}")]
         [Authorize(Policy = "IncidentRead")]   
         public async Task<ActionResult<ApiResponse<IncidentDTO>>> GetById(Guid id)
@@ -636,6 +637,8 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
         /// <summary>
         /// Récupère les incidents archivés (paginated)
         /// </summary>
+        // API/Controllers/IncidentController.cs
+
         [HttpGet("archives")]
         [Authorize(Policy = "IncidentRead")]
         public async Task<ActionResult<ApiResponse<PagedResult<IncidentDTO>>>> GetIncidentsArchives(
@@ -643,11 +646,8 @@ public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetAllIncidents(
         {
             try
             {
-                var result = await _incidentService.GetIncidentsArchivesPagedAsync(request);
-
-                if (!result.IsSuccess)
-                    return BadRequest(result);
-
+                var userId = GetCurrentUserId();  // Récupérer l'utilisateur connecté
+                var result = await _incidentService.GetIncidentsArchivesPagedAsync(request, userId);
                 return Ok(result);
             }
             catch (Exception ex)

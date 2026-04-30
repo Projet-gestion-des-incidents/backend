@@ -35,9 +35,8 @@ namespace projet0.Domain.Entities
 
         // Relation avec les pièces jointes 
         public virtual ICollection<PieceJointe> PiecesJointes { get; set; }
-        public bool EstArchive { get; set; } = false;  // Nouveau champ
-        public DateTime? DateArchivage { get; set; }   // Date d'archivage
-        public Guid? ArchiveParId { get; set; }
+        // Domain/Entities/Incident.cs
+        public virtual ICollection<IncidentArchive> IncidentArchives { get; set; }
     }
 }
 

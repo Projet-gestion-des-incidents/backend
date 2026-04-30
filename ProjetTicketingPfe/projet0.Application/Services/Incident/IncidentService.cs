@@ -35,6 +35,7 @@ namespace projet0.Application.Services.Incident
         private readonly IWebHostEnvironment _environment;
         private readonly ICommentaireRepository _commentaireRepository;
         private readonly IPieceJointeRepository _pieceJointeRepository;
+        private readonly IIncidentArchiveRepository _incidentArchiveRepository;
 
         public IncidentService(
             IIncidentRepository incidentRepository,
@@ -49,8 +50,10 @@ namespace projet0.Application.Services.Incident
             IIncidentTPERepository incidentTPERepository,
             IWebHostEnvironment environment,
             IPieceJointeRepository pieceJointeRepository,
-               INotificationService notificationService,
-            ICommentaireRepository commentaireRepository)
+            INotificationService notificationService,
+            ICommentaireRepository commentaireRepository,
+            IIncidentArchiveRepository incidentArchiveRepository  // Ajouter ceci
+)
         {
             _incidentRepository = incidentRepository;
             _userRepository = userRepository;
@@ -64,6 +67,7 @@ namespace projet0.Application.Services.Incident
             _incidentTPERepository = incidentTPERepository;
             _environment = environment;
             _notificationService = notificationService;
+            _incidentArchiveRepository = incidentArchiveRepository;
 
             _pieceJointeRepository = pieceJointeRepository;
             _commentaireRepository = commentaireRepository;
@@ -364,6 +368,10 @@ namespace projet0.Application.Services.Incident
         }
 
         // Application/Services/Incident/IncidentService.cs
+        /// <summary>
+        /// Archive un incident résolu
+        /// </summary>
+        // Application/Services/Incident/IncidentService.cs
 
         /// <summary>
         /// Archive un incident résolu
@@ -387,31 +395,28 @@ namespace projet0.Application.Services.Incident
                         );
                     }
 
-                    // Vérifier les permissions
-                    var userRoles = await _userRepository.GetUserRolesAsync(userId);
-                    var isAdmin = userRoles.Contains("Admin");
-                    var isCommercant = userRoles.Contains("Commercant");
-
-                    if (isCommercant && !isAdmin)
+                    // Vérifier si l'utilisateur a déjà archivé cet incident
+                    var dejaArchive = await _incidentArchiveRepository.ExistsAsync(incidentId, userId);
+                    if (dejaArchive)
                     {
-                        // Le commerçant ne peut archiver que ses propres incidents
-                        if (incident.CreatedById != userId)
-                        {
-                            return ApiResponse<IncidentArchiveDTO>.Failure(
-                                "Vous ne pouvez archiver que vos propres incidents.",
-                                resultCode: 81
-                            );
-                        }
+                        return ApiResponse<IncidentArchiveDTO>.Failure(
+                            "Vous avez déjà archivé cet incident.",
+                            resultCode: 81
+                        );
                     }
 
-                    // Archiver l'incident
-                    incident.EstArchive = true;
-                    incident.DateArchivage = DateTime.UtcNow;
-                    incident.ArchiveParId = userId;
+                    // Créer l'archive
+                    var archive = new IncidentArchive
+                    {
+                        Id = Guid.NewGuid(),
+                        IncidentId = incidentId,
+                        ArchiveParId = userId,
+                        DateArchivage = DateTime.UtcNow
+                    };
 
-                    await _incidentRepository.SaveChangesAsync();
+                    await _incidentArchiveRepository.AddAsync(archive);
+                    await _incidentArchiveRepository.SaveChangesAsync();
 
-                    // Récupérer le nom de l'archiveur
                     var archiveur = await _userRepository.GetByIdAsync(userId);
                     string archiveurNom = archiveur != null ? $"{archiveur.Nom} {archiveur.Prenom}" : "Inconnu";
 
@@ -420,7 +425,7 @@ namespace projet0.Application.Services.Incident
                         IncidentId = incident.Id,
                         CodeIncident = incident.CodeIncident,
                         EstArchive = true,
-                        DateArchivage = incident.DateArchivage,
+                        DateArchivage = archive.DateArchivage,
                         ArchivePar = archiveurNom
                     };
 
@@ -438,7 +443,19 @@ namespace projet0.Application.Services.Incident
         }
 
         /// <summary>
+        /// Restaure un incident archivé (supprime l'archive)
+        /// </summary>
+
+
+        /// <summary>
+        /// Récupère les incidents archivés par l'utilisateur connecté
+        /// </summary>
+
+        /// <summary>
         /// Restaure un incident archivé
+        /// </summary>
+        /// <summary>
+        /// Restaure un incident archivé (supprime l'archive de la table IncidentArchives)
         /// </summary>
         public async Task<ApiResponse<IncidentArchiveDTO>> RestaurerIncidentAsync(Guid incidentId, Guid userId)
         {
@@ -446,43 +463,30 @@ namespace projet0.Application.Services.Incident
             {
                 try
                 {
-                    var incident = await _incidentRepository.GetByIdAsync(incidentId);
-                    if (incident == null)
-                        return ApiResponse<IncidentArchiveDTO>.Failure("Incident non trouvé");
+                    // Récupérer l'archive dans la table IncidentArchives
+                    var archive = await _incidentArchiveRepository.GetByIncidentAndUserAsync(incidentId, userId);
 
-                    // Vérifier les permissions
-                    var userRoles = await _userRepository.GetUserRolesAsync(userId);
-                    var isAdmin = userRoles.Contains("Admin");
-                    var isCommercant = userRoles.Contains("Commercant");
-
-                    if (isCommercant && !isAdmin)
+                    if (archive == null)
                     {
-                        if (incident.CreatedById != userId)
-                        {
-                            return ApiResponse<IncidentArchiveDTO>.Failure(
-                                "Vous ne pouvez restaurer que vos propres incidents.",
-                                resultCode: 82
-                            );
-                        }
+                        return ApiResponse<IncidentArchiveDTO>.Failure(
+                            "Cet incident n'est pas archivé par vous.",
+                            resultCode: 83
+                        );
                     }
 
-                    // Restaurer l'incident
-                    incident.EstArchive = false;
-                    incident.DateArchivage = null;
-                    incident.ArchiveParId = null;
-
-                    await _incidentRepository.SaveChangesAsync();
+                    // Supprimer l'archive de la table
+                    await _incidentArchiveRepository.DeleteAsync(archive);
+                    await _incidentArchiveRepository.SaveChangesAsync();
 
                     var dto = new IncidentArchiveDTO
                     {
-                        IncidentId = incident.Id,
-                        CodeIncident = incident.CodeIncident,
+                        IncidentId = incidentId,
                         EstArchive = false,
                         DateArchivage = null,
                         ArchivePar = null
                     };
 
-                    _logger.LogInformation("Incident {CodeIncident} restauré", incident.CodeIncident);
+                    _logger.LogInformation("Incident {IncidentId} restauré par {UserId}", incidentId, userId);
 
                     return ApiResponse<IncidentArchiveDTO>.Success(dto, "Incident restauré avec succès");
                 }
@@ -493,20 +497,32 @@ namespace projet0.Application.Services.Incident
                 }
             });
         }
-
         /// <summary>
-        /// Récupère les incidents archivés (avec pagination optionnelle)
+        /// Récupère les incidents archivés par l'utilisateur connecté (paginated)
+        /// Chaque utilisateur ne voit que ses propres archives
         /// </summary>
-        public async Task<ApiResponse<PagedResult<IncidentDTO>>> GetIncidentsArchivesPagedAsync(IncidentSearchRequest request)
+        public async Task<ApiResponse<PagedResult<IncidentDTO>>> GetMyArchivesPagedAsync(
+       IncidentSearchRequest request,
+       Guid userId)
         {
-            return await MeasureAsync(nameof(GetIncidentsArchivesPagedAsync), request, async () =>
+            return await MeasureAsync(nameof(GetMyArchivesPagedAsync), request, async () =>
             {
                 try
                 {
-                    var query = _incidentRepository.QueryWithDetails();
-                    query = query.Where(i => i.EstArchive == true);
+                    // Récupérer les IDs des incidents que l'utilisateur a archivés
+                    var archivedIncidentIds = await _incidentArchiveRepository
+                        .GetArchivedIncidentIdsByUserAsync(userId);
 
-                    // Appliquer les filtres
+                    if (!archivedIncidentIds.Any())
+                    {
+                        return ApiResponse<PagedResult<IncidentDTO>>.Success(
+                            new PagedResult<IncidentDTO> { Items = new List<IncidentDTO>(), TotalCount = 0 });
+                    }
+
+                    var query = _incidentRepository.QueryWithDetails();
+                    query = query.Where(i => archivedIncidentIds.Contains(i.Id));
+
+                    // Appliquer les autres filtres...
                     List<Guid> matchedUserIds = new();
                     if (!string.IsNullOrWhiteSpace(request.SearchTerm))
                     {
@@ -548,7 +564,81 @@ namespace projet0.Application.Services.Incident
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Erreur lors de la récupération des incidents archivés");
+                    _logger.LogError(ex, "Erreur lors de la récupération des archives pour l'utilisateur {UserId}", userId);
+                    return ApiResponse<PagedResult<IncidentDTO>>.Failure("Erreur interne du serveur");
+                }
+            });
+        }
+
+        /// <summary>
+        /// Récupère les incidents archivés par l'utilisateur connecté
+        /// </summary>
+        /// <summary>
+        /// Récupère les incidents archivés par l'utilisateur connecté
+        /// </summary>
+        public async Task<ApiResponse<PagedResult<IncidentDTO>>> GetIncidentsArchivesPagedAsync(
+            IncidentSearchRequest request,
+            Guid userId)
+        {
+            return await MeasureAsync(nameof(GetIncidentsArchivesPagedAsync), request, async () =>
+            {
+                try
+                {
+                    // Récupérer les IDs des incidents que l'utilisateur a archivés
+                    var archivedIncidentIds = await _incidentArchiveRepository
+                        .GetArchivedIncidentIdsByUserAsync(userId);
+
+                    if (!archivedIncidentIds.Any())
+                    {
+                        return ApiResponse<PagedResult<IncidentDTO>>.Success(
+                            new PagedResult<IncidentDTO> { Items = new List<IncidentDTO>(), TotalCount = 0 });
+                    }
+
+                    var query = _incidentRepository.QueryWithDetails();
+                    query = query.Where(i => archivedIncidentIds.Contains(i.Id));
+
+                    // Appliquer les filtres
+                    List<Guid> matchedUserIds = new();
+                    if (!string.IsNullOrWhiteSpace(request.SearchTerm))
+                    {
+                        var userSearchRequest = new UserSearchRequest
+                        {
+                            SearchTerm = request.SearchTerm,
+                            Page = 1,
+                            PageSize = 1000
+                        };
+                        var (users, _) = await _userRepository.SearchUsersAsync(userSearchRequest);
+                        matchedUserIds = users.Select(u => u.Id).ToList();
+                    }
+
+                    query = ApplySearchFilters(query, request, matchedUserIds);
+                    var totalCount = await query.CountAsync();
+                    query = ApplySorting(query, request.SortBy, request.SortDescending);
+
+                    var pagedIncidents = await query
+                        .Skip((request.Page - 1) * request.PageSize)
+                        .Take(request.PageSize)
+                        .ToListAsync();
+
+                    var dtos = new List<IncidentDTO>();
+                    foreach (var incident in pagedIncidents)
+                    {
+                        dtos.Add(await MapToDto(incident));
+                    }
+
+                    var result = new PagedResult<IncidentDTO>
+                    {
+                        Items = dtos,
+                        TotalCount = totalCount,
+                        Page = request.Page,
+                        PageSize = request.PageSize
+                    };
+
+                    return ApiResponse<PagedResult<IncidentDTO>>.Success(result);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Erreur lors de la récupération des archives pour l'utilisateur {UserId}", userId);
                     return ApiResponse<PagedResult<IncidentDTO>>.Failure("Erreur interne du serveur");
                 }
             });
@@ -600,16 +690,32 @@ namespace projet0.Application.Services.Incident
             });
         }
 
-        public async Task<ApiResponse<List<IncidentDTO>>> GetAllIncidentsAsync()
+        // Dans IncidentService.cs - UNE SEULE MÉTHODE
+        public async Task<ApiResponse<List<IncidentDTO>>> GetAllIncidentsAsync(Guid? userId = null)
         {
             return await MeasureAsync(nameof(GetAllIncidentsAsync), null, async () =>
             {
                 try
                 {
                     var incidents = await _incidentRepository.GetAllAsync();
-                    var dtos = new List<IncidentDTO>();
+                    var incidentsList = incidents.ToList();
 
-                    foreach (var incident in incidents)
+                    // Si un userId est fourni, filtrer les incidents archivés par cet utilisateur
+                    if (userId.HasValue)
+                    {
+                        var archivedIncidentIds = await _incidentArchiveRepository
+                            .GetArchivedIncidentIdsByUserAsync(userId.Value);
+
+                        if (archivedIncidentIds.Any())
+                        {
+                            incidentsList = incidentsList
+                                .Where(i => !archivedIncidentIds.Contains(i.Id))
+                                .ToList();
+                        }
+                    }
+
+                    var dtos = new List<IncidentDTO>();
+                    foreach (var incident in incidentsList)
                     {
                         dtos.Add(await MapToDto(incident));
                     }
@@ -624,15 +730,28 @@ namespace projet0.Application.Services.Incident
             });
         }
 
-        public async Task<ApiResponse<PagedResult<IncidentDTO>>> SearchIncidentsAsync(IncidentSearchRequest request)
+        public async Task<ApiResponse<PagedResult<IncidentDTO>>> SearchIncidentsAsync(
+    IncidentSearchRequest request,
+    Guid userId)  // AJOUTER userId en paramètre
         {
             _logger.LogWarning("SORT PARAM - SortBy: {SortBy}, Descending: {Descending}",
-            request.SortBy, request.SortDescending);
+                request.SortBy, request.SortDescending);
+
             return await MeasureAsync(nameof(SearchIncidentsAsync), request, async () =>
             {
                 try
                 {
+                    // 1. Récupérer les IDs des incidents archivés par l'utilisateur
+                    var archivedIncidentIds = await _incidentArchiveRepository
+                        .GetArchivedIncidentIdsByUserAsync(userId);
+
                     var query = _incidentRepository.QueryWithDetails();
+
+                    // 2. EXCLURE les incidents archivés par cet utilisateur
+                    if (archivedIncidentIds.Any())
+                    {
+                        query = query.Where(i => !archivedIncidentIds.Contains(i.Id));
+                    }
 
                     List<Guid> matchedUserIds = new();
 
@@ -650,7 +769,7 @@ namespace projet0.Application.Services.Incident
                         matchedUserIds = users.Select(u => u.Id).ToList();
                     }
 
-                    // Appliquer tous les filtres, SearchTerm est optionnel
+                    // Appliquer tous les filtres
                     query = ApplySearchFilters(query, request, matchedUserIds);
 
                     var totalCount = await query.CountAsync();
@@ -1375,15 +1494,54 @@ namespace projet0.Application.Services.Incident
                     }
 
                     // ============================================
-                    // 7. STATISTIQUES PAR SEMAINE (existantes)
+                    // 7. STATISTIQUES PAR SEMAINE (ANNÉE COMPLÈTE)
                     // ============================================
                     var statsParSemaine = new List<IncidentJournalierDTO>();
 
-                    for (int i = 3; i >= 0; i--)
+                    // Récupérer l'année actuelle
+                    var currentYear = DateTime.Today.Year;
+
+                    // Déterminer la première semaine de l'année (semaine 1)
+                    var firstDayOfYear = new DateTime(currentYear, 1, 1);
+
+                    // Trouver le premier lundi de l'année
+                    var startOfFirstWeek = firstDayOfYear;
+                    while (startOfFirstWeek.DayOfWeek != DayOfWeek.Monday)
                     {
-                        var debutSemaine = today.AddDays(-(int)today.DayOfWeek - (i * 7));
+                        startOfFirstWeek = startOfFirstWeek.AddDays(1);  // ✅ CORRECTION: startOfFirstWeek au lieu de startOfYear
+                    }
+
+                    // Ajuster si le premier lundi est après le 7 janvier (semaine 1 de l'année ISO)
+                    if (startOfFirstWeek > firstDayOfYear.AddDays(7))
+                    {
+                        startOfFirstWeek = startOfFirstWeek.AddDays(-7);
+                    }
+
+                    // Déterminer la dernière semaine de l'année
+                    var lastDayOfYear = new DateTime(currentYear, 12, 31);
+                    var endOfLastWeek = lastDayOfYear;
+                    while (endOfLastWeek.DayOfWeek != DayOfWeek.Sunday)
+                    {
+                        endOfLastWeek = endOfLastWeek.AddDays(1);
+                    }
+
+                    // Calculer le nombre de semaines dans l'année
+                    var weeksCount = (int)Math.Ceiling((endOfLastWeek - startOfFirstWeek).TotalDays / 7);
+
+                    // Générer les statistiques pour chaque semaine de l'année
+                    for (int weekNumber = 1; weekNumber <= weeksCount; weekNumber++)
+                    {
+                        // Calculer le début et la fin de la semaine
+                        var debutSemaine = startOfFirstWeek.AddDays((weekNumber - 1) * 7);
                         var finSemaine = debutSemaine.AddDays(6);
-                        var incidentsSemaine = incidentsList.Where(i => i.DateDetection.Date >= debutSemaine && i.DateDetection.Date <= finSemaine).ToList();
+
+                        // Vérifier si la semaine est dans l'année courante
+                        if (debutSemaine.Year > currentYear) break;
+
+                        // Filtrer les incidents de cette semaine
+                        var incidentsSemaine = incidentsList
+                            .Where(i => i.DateDetection.Date >= debutSemaine && i.DateDetection.Date <= finSemaine)
+                            .ToList();
 
                         statsParSemaine.Add(new IncidentJournalierDTO
                         {
@@ -1395,6 +1553,8 @@ namespace projet0.Application.Services.Incident
                         });
                     }
 
+                    // Ordonner par date
+                    statsParSemaine = statsParSemaine.OrderBy(s => s.Date).ToList();
                     // ============================================
                     // 8. STATISTIQUES PAR MOIS (existantes)
                     // ============================================
@@ -1928,16 +2088,23 @@ namespace projet0.Application.Services.Incident
             {
                 try
                 {
-                    _logger.LogInformation("Début GetMyIncidentsPagedAsync - UserId: {UserId}, Page: {Page}, PageSize: {PageSize}, SearchTerm: {SearchTerm}",
-                        userId, request.Page, request.PageSize, request.SearchTerm);
+                    // 1. Récupérer les IDs des incidents que l'utilisateur a archivés
+                    var archivedIncidentIds = await _incidentArchiveRepository
+                        .GetArchivedIncidentIdsByUserAsync(userId);
 
-                    // 1. Obtenir la requête de base avec les détails
+                    // 2. Obtenir la requête de base avec les détails
                     var query = _incidentRepository.QueryWithDetails();
 
-                    // 2. Filtrer par l'utilisateur connecté (ses propres incidents)
+                    // 3. Filtrer par l'utilisateur connecté (ses propres incidents)
                     query = query.Where(i => i.CreatedById == userId);
 
-                    // 3. Recherche utilisateurs pour le SearchTerm (si nécessaire)
+                    // 4. EXCLURE les incidents archivés par cet utilisateur
+                    if (archivedIncidentIds.Any())
+                    {
+                        query = query.Where(i => !archivedIncidentIds.Contains(i.Id));
+                    }
+
+                    // 5. Recherche utilisateurs pour le SearchTerm (si nécessaire)
                     List<Guid> matchedUserIds = new();
                     if (!string.IsNullOrWhiteSpace(request.SearchTerm))
                     {
@@ -1952,17 +2119,17 @@ namespace projet0.Application.Services.Incident
                         matchedUserIds = users.Select(u => u.Id).ToList();
                     }
 
-                    // 4. Appliquer tous les filtres (comme dans SearchIncidentsAsync)
+                    // 6. Appliquer tous les filtres
                     query = ApplySearchFilters(query, request, matchedUserIds);
 
-                    // 5. Compter le total AVANT pagination
+                    // 7. Compter le total AVANT pagination
                     var totalCount = await query.CountAsync();
                     _logger.LogInformation("Total incidents trouvés pour l'utilisateur {UserId}: {TotalCount}", userId, totalCount);
 
-                    // 6. Appliquer le tri
+                    // 8. Appliquer le tri
                     query = ApplySorting(query, request.SortBy, request.SortDescending);
 
-                    // 7. Appliquer la pagination
+                    // 9. Appliquer la pagination
                     var pagedIncidents = await query
                         .Skip((request.Page - 1) * request.PageSize)
                         .Take(request.PageSize)
@@ -1970,14 +2137,14 @@ namespace projet0.Application.Services.Incident
 
                     _logger.LogInformation("{Count} incidents récupérés pour la page {Page}", pagedIncidents.Count, request.Page);
 
-                    // 8. Mapper vers DTO
+                    // 10. Mapper vers DTO
                     var dtos = new List<IncidentDTO>();
                     foreach (var incident in pagedIncidents)
                     {
                         dtos.Add(await MapToDto(incident));
                     }
 
-                    // 9. Créer le résultat paginé
+                    // 11. Créer le résultat paginé
                     var result = new PagedResult<IncidentDTO>
                     {
                         Items = dtos,

@@ -16,8 +16,9 @@ namespace projet0.Application.Services.Incident
         // CRUD de base
         Task<ApiResponse<IncidentDTO>> GetIncidentByIdAsync(Guid id);
         Task<ApiResponse<IncidentDetailDTO>> GetIncidentDetailAsync(Guid id);
-        Task<ApiResponse<List<IncidentDTO>>> GetAllIncidentsAsync();
-        Task<ApiResponse<PagedResult<IncidentDTO>>> SearchIncidentsAsync(IncidentSearchRequest request);
+        Task<ApiResponse<List<IncidentDTO>>> GetAllIncidentsAsync(Guid? userId = null);
+        // IIncidentService.cs
+        Task<ApiResponse<PagedResult<IncidentDTO>>> SearchIncidentsAsync(IncidentSearchRequest request, Guid userId);
         Task<ApiResponse<IncidentDTO>> CreateIncidentAsync(CreateIncidentDTO dto, Guid createdById);
         Task<ApiResponse<IncidentDTO>> UpdateIncidentAsync(Guid id, UpdateIncidentDTO dto, Guid updatedById);
         Task<ApiResponse<bool>> DeleteIncidentAsync(Guid id, Guid userId);
@@ -38,21 +39,10 @@ namespace projet0.Application.Services.Incident
         Task<ApiResponse<PagedResult<IncidentDTO>>> GetMyIncidentsPagedAsync(IncidentSearchRequest request, Guid userId);
         Task<ApiResponse<IncidentDashboardDTO>> GetIncidentDashboardAsync();
 
-        // ================= ARCHIVAGE =================
-
-        /// <summary>
-        /// Archive un incident résolu
-        /// </summary>
+        // ARCHIVAGE
         Task<ApiResponse<IncidentArchiveDTO>> ArchiverIncidentAsync(Guid incidentId, Guid userId);
-
-        /// <summary>
-        /// Restaure un incident archivé
-        /// </summary>
         Task<ApiResponse<IncidentArchiveDTO>> RestaurerIncidentAsync(Guid incidentId, Guid userId);
-
-        /// <summary>
-        /// Récupère les incidents archivés avec pagination
-        /// </summary>
-        Task<ApiResponse<PagedResult<IncidentDTO>>> GetIncidentsArchivesPagedAsync(IncidentSearchRequest request);
+        Task<ApiResponse<PagedResult<IncidentDTO>>> GetMyArchivesPagedAsync(IncidentSearchRequest request, Guid userId);
+         Task<ApiResponse<PagedResult<IncidentDTO>>> GetIncidentsArchivesPagedAsync(IncidentSearchRequest request, Guid userId);
     }
 }
