@@ -29,7 +29,8 @@ namespace projet0.Domain.Entities
         public virtual ICollection<HistoriqueTicket> Historiques { get; set; }
         public virtual ICollection<CommentaireTicket> Commentaires { get; set; }
         public virtual ICollection<Notification> Notifications { get; set; }
-
+        // Domain/Entities/Ticket.cs - AJOUTER
+        public virtual ICollection<TicketArchive> TicketArchives { get; set; }
         // Audit
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }

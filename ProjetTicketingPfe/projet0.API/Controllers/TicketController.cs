@@ -420,6 +420,93 @@ namespace projet0.API.Controllers
                 return StatusCode(500, ApiResponse<TicketDashboardDTO>.Failure("Erreur interne du serveur"));
             }
         }
+
+
+        // Dans TicketController.cs - AJOUTER
+
+        /// <summary>
+        /// Archive un ticket résolu
+        /// </summary>
+        [HttpPost("{id}/archiver")]
+        [Authorize(Policy = "TicketUpdate")]
+        public async Task<ActionResult<ApiResponse<TicketArchiveDTO>>> ArchiverTicket(Guid id)
+        {
+            try
+            {
+                var userId = GetCurrentUserId();
+
+                // Vérifier que le user a le droit d'archiver (admin ou technicien assigné)
+                var ticket = await _ticketService.GetTicketByIdAsync(id);
+                if (!ticket.IsSuccess)
+                    return NotFound(ticket);
+
+                var userRoles = await _userService.GetUserRolesAsync(userId);
+                var isAdmin = userRoles.Contains("Admin");
+                var isTechnicien = userRoles.Contains("Technicien");
+
+                if (!isAdmin && (!isTechnicien || ticket.Data.AssigneeId != userId))
+                {
+                    return Forbid();
+                }
+
+                var result = await _ticketService.ArchiverTicketAsync(id, userId);
+
+                if (!result.IsSuccess)
+                    return BadRequest(result);
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erreur lors de l'archivage du ticket {Id}", id);
+                return StatusCode(500, ApiResponse<TicketArchiveDTO>.Failure("Erreur interne"));
+            }
+        }
+
+        /// <summary>
+        /// Restaure un ticket archivé
+        /// </summary>
+        [HttpPost("{id}/restaurer")]
+        [Authorize(Policy = "TicketUpdate")]
+        public async Task<ActionResult<ApiResponse<TicketArchiveDTO>>> RestaurerTicket(Guid id)
+        {
+            try
+            {
+                var userId = GetCurrentUserId();
+                var result = await _ticketService.RestaurerTicketAsync(id, userId);
+
+                if (!result.IsSuccess)
+                    return BadRequest(result);
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erreur lors de la restauration du ticket {Id}", id);
+                return StatusCode(500, ApiResponse<TicketArchiveDTO>.Failure("Erreur interne"));
+            }
+        }
+
+        /// <summary>
+        /// Récupère les tickets archivés par l'utilisateur connecté
+        /// </summary>
+        [HttpGet("archives")]
+        [Authorize(Policy = "TicketRead")]
+        public async Task<ActionResult<ApiResponse<PagedResult<TicketDTO>>>> GetTicketsArchives(
+            [FromQuery] TicketPagedRequest request)
+        {
+            try
+            {
+                var userId = GetCurrentUserId();
+                var result = await _ticketService.GetMyArchivesTicketsPagedAsync(request, userId);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erreur lors de la récupération des tickets archivés");
+                return StatusCode(500, ApiResponse<PagedResult<TicketDTO>>.Failure("Erreur interne"));
+            }
+        }
         #endregion
     }
 }

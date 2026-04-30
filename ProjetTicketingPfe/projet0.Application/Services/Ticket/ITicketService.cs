@@ -43,5 +43,13 @@ namespace projet0.Application.Services.Ticket
         Task<ApiResponse<PagedResult<TicketDTO>>> GetMesTicketsPagedAsync(TicketPagedRequest request, Guid technicienId);
 
         Task<ApiResponse<TicketDashboardDTO>> GetTicketDashboardAsync();
+
+        // Application/Services/Ticket/ITicketService.cs
+        // AJOUTER CES MÉTHODES
+
+        // ARCHIVAGE
+        Task<ApiResponse<TicketArchiveDTO>> ArchiverTicketAsync(Guid ticketId, Guid userId);
+        Task<ApiResponse<TicketArchiveDTO>> RestaurerTicketAsync(Guid ticketId, Guid userId);
+        Task<ApiResponse<PagedResult<TicketDTO>>> GetMyArchivesTicketsPagedAsync(TicketPagedRequest request, Guid userId);
     }
 }

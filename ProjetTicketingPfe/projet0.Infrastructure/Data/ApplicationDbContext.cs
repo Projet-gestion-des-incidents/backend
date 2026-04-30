@@ -2,7 +2,12 @@
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using projet0.Domain.Entities;
+using System.Linq;  // AJOUTER CETTE LIGNE
+using Microsoft.EntityFrameworkCore;  // AJOUTER CETTE LIGNE
+
+
 namespace projet0.Infrastructure.Data
+
 {
     public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid> 
     {
@@ -19,6 +24,8 @@ namespace projet0.Infrastructure.Data
         // NOUVEAUX DbSets
         public DbSet<Incident> Incidents { get; set; }
         public DbSet<Ticket> Tickets { get; set; }
+        public DbSet<TicketArchive> TicketArchives { get; set; }  // AJOUTER CETTE LIGNE
+
         public DbSet<IncidentTicket> IncidentTickets { get; set; }
         public DbSet<CommentaireTicket> CommentairesTicket { get; set; }
         public DbSet<PieceJointe> PiecesJointes { get; set; }
