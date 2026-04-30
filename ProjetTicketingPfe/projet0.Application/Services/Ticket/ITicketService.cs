@@ -14,7 +14,7 @@ namespace projet0.Application.Services.Ticket
     public interface ITicketService
     {
         // Récupérer tous les tickets
-        Task<ApiResponse<PagedResult<TicketDTO>>> GetTicketsPagedAsync(TicketPagedRequest request);
+        Task<ApiResponse<PagedResult<TicketDTO>>> GetTicketsPagedAsync(TicketPagedRequest request, Guid userId);
 
         // Récupérer un ticket par son ID
         Task<ApiResponse<TicketDTO>> GetTicketByIdAsync(Guid id);

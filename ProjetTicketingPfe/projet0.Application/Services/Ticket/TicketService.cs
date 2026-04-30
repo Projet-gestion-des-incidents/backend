@@ -419,7 +419,7 @@ namespace projet0.Application.Services.Ticket
             return combined;
         }
 
-        public async Task<ApiResponse<PagedResult<TicketDTO>>> GetTicketsPagedAsync(TicketPagedRequest request)
+        public async Task<ApiResponse<PagedResult<TicketDTO>>> GetTicketsPagedAsync(TicketPagedRequest request, Guid userId)
         {
             return await MeasureAsync(nameof(GetTicketsPagedAsync), request, async () =>
             {
@@ -428,28 +428,37 @@ namespace projet0.Application.Services.Ticket
                     _logger.LogInformation("Début GetTicketsPagedAsync - Page: {Page}, PageSize: {PageSize}, SearchTerm: {SearchTerm}",
                         request.Page, request.PageSize, request.SearchTerm);
 
+                    // 🔑 Récupérer les IDs des tickets archivés par cet utilisateur
+                    var archivedTicketIds = await _ticketArchiveRepository
+                        .GetArchivedTicketIdsByUserAsync(userId);
+
                     // 1. Construire le filtre
                     var filter = BuildFilter(request);
 
                     // 2. Obtenir la requête de base
                     var query = _ticketRepository.GetFilteredQuery(filter);
 
-                    // 3. Appliquer le tri
+                    // 3. EXCLURE les tickets archivés par cet utilisateur
+                    if (archivedTicketIds.Any())
+                    {
+                        query = query.Where(t => !archivedTicketIds.Contains(t.Id));
+                    }
+
+                    // 4. Appliquer le tri
                     if (!string.IsNullOrWhiteSpace(request.SortBy))
                     {
                         query = ApplySorting(query, request.SortBy, request.SortDescending);
                     }
                     else
                     {
-                        // Tri par défaut
                         query = query.OrderByDescending(t => t.DateCreation);
                     }
 
-                    // 4. Compter le total (AVANT pagination)
+                    // 5. Compter le total (AVANT pagination)
                     var totalCount = await query.CountAsync();
                     _logger.LogInformation("Total tickets trouvés: {TotalCount}", totalCount);
 
-                    // 5. Appliquer la pagination
+                    // 6. Appliquer la pagination
                     var items = await query
                         .Skip((request.Page - 1) * request.PageSize)
                         .Take(request.PageSize)
@@ -457,14 +466,14 @@ namespace projet0.Application.Services.Ticket
 
                     _logger.LogInformation("{Count} tickets récupérés pour la page {Page}", items.Count, request.Page);
 
-                    // 6. Mapper vers DTO
+                    // 7. Mapper vers DTO
                     var dtos = new List<TicketDTO>();
                     foreach (var ticket in items)
                     {
                         dtos.Add(await MapToDto(ticket));
                     }
 
-                    // 7. Créer le résultat paginé
+                    // 8. Créer le résultat paginé
                     var pagedResult = PagedResult<TicketDTO>.Create(
                         dtos,
                         totalCount,
@@ -1993,7 +2002,11 @@ namespace projet0.Application.Services.Ticket
             {
                 try
                 {
-                    // 1. Construire le filtre de base (inclut le filtre par statut si demandé)
+                    // 🔑 Récupérer les IDs des tickets archivés par ce technicien
+                    var archivedTicketIds = await _ticketArchiveRepository
+                        .GetArchivedTicketIdsByUserAsync(technicienId);
+
+                    // 1. Construire le filtre de base
                     var baseFilter = BuildFilter(request);
 
                     // 2. Ajouter le filtre par technicien assigné
@@ -2013,10 +2026,13 @@ namespace projet0.Application.Services.Ticket
                     // 4. Obtenir la requête avec le filtre combiné
                     var query = _ticketRepository.GetFilteredQuery(combinedFilter);
 
-                    // PAS DE FILTRE SUPPLÉMENTAIRE SUR LE STATUT
-                    // La méthode BuildFilter s'occupe déjà du filtre par statut
+                    // 5. EXCLURE les tickets archivés par ce technicien
+                    if (archivedTicketIds.Any())
+                    {
+                        query = query.Where(t => !archivedTicketIds.Contains(t.Id));
+                    }
 
-                    // 5. Appliquer le tri
+                    // 6. Appliquer le tri
                     if (!string.IsNullOrWhiteSpace(request.SortBy))
                     {
                         query = ApplySorting(query, request.SortBy, request.SortDescending);
@@ -2026,23 +2042,23 @@ namespace projet0.Application.Services.Ticket
                         query = query.OrderByDescending(t => t.DateCreation);
                     }
 
-                    // 6. Compter le total
+                    // 7. Compter le total
                     var totalCount = await query.CountAsync();
 
-                    // 7. Pagination
+                    // 8. Pagination
                     var items = await query
                         .Skip((request.Page - 1) * request.PageSize)
                         .Take(request.PageSize)
                         .ToListAsync();
 
-                    // 8. Mapper vers DTO
+                    // 9. Mapper vers DTO
                     var dtos = new List<TicketDTO>();
                     foreach (var ticket in items)
                     {
                         dtos.Add(await MapToDto(ticket));
                     }
 
-                    // 9. Créer le résultat paginé
+                    // 10. Créer le résultat paginé
                     var pagedResult = PagedResult<TicketDTO>.Create(
                         dtos,
                         totalCount,

@@ -52,17 +52,18 @@ namespace projet0.API.Controllers
 
         #region CRUD Operations
 
-        [HttpGet]  
+        [HttpGet]
         [Authorize(Policy = "TicketRead")]
         public async Task<ActionResult<ApiResponse<PagedResult<TicketDTO>>>> GetTicketsPaged(
-        [FromQuery] TicketPagedRequest request) 
+            [FromQuery] TicketPagedRequest request)
         {
             try
             {
+                var userId = GetCurrentUserId();  // AJOUTER
                 _logger.LogInformation("Récupération paginée des tickets - Page: {Page}, PageSize: {PageSize}",
                     request.Page, request.PageSize);
 
-                var result = await _ticketService.GetTicketsPagedAsync(request);
+                var result = await _ticketService.GetTicketsPagedAsync(request, userId);  // Passer userId
 
                 if (!result.IsSuccess)
                     return BadRequest(result);
@@ -334,7 +335,7 @@ namespace projet0.API.Controllers
         [HttpGet("mes-tickets")]
         [Authorize(Policy = "TicketRead")]
         public async Task<ActionResult<ApiResponse<PagedResult<TicketDTO>>>> GetMesTicketsPaged(
-        [FromQuery] TicketPagedRequest request)
+            [FromQuery] TicketPagedRequest request)
         {
             try
             {
