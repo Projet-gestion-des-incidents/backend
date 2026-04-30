@@ -268,7 +268,8 @@ builder.Services.AddScoped<IIncidentTicketRepository, IncidentTicketRepository>(
 builder.Services.AddScoped<IIncidentTPERepository, IncidentTPERepository>();
 builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
-
+// Program.cs ou Startup.cs
+builder.Services.AddScoped<IIncidentArchiveRepository, IncidentArchiveRepository>();
 builder.Services.Configure<FormOptions>(options =>
 {
     options.ValueLengthLimit = int.MaxValue;
