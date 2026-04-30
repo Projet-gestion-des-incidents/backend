@@ -38,6 +38,8 @@ namespace projet0.Application.Services.Ticket
         private readonly IIncidentTicketRepository _incidentTicketRepository;  
         private readonly IIncidentService _incidentService;
         private readonly INotificationService _notificationService;
+        private readonly ITicketArchiveRepository _ticketArchiveRepository;
+
         public TicketService(
             ITicketRepository ticketRepository,
             IUserRepository userRepository,
@@ -49,7 +51,8 @@ namespace projet0.Application.Services.Ticket
             IIncidentRepository incidentRepository,
               INotificationService notificationService,
             IIncidentTicketRepository incidentTicketRepository,
-            IIncidentService incidentService)
+            IIncidentService incidentService,
+            ITicketArchiveRepository ticketArchiveRepository)
         {
             _ticketRepository = ticketRepository;
             _userRepository = userRepository;
@@ -62,7 +65,180 @@ namespace projet0.Application.Services.Ticket
             _incidentTicketRepository = incidentTicketRepository;
             _incidentService = incidentService;
             _notificationService = notificationService;
+            _ticketArchiveRepository = ticketArchiveRepository;
 
+        }
+
+        /// <summary>
+        /// Archive un ticket résolu
+        /// </summary>
+        public async Task<ApiResponse<TicketArchiveDTO>> ArchiverTicketAsync(Guid ticketId, Guid userId)
+        {
+            return await MeasureAsync(nameof(ArchiverTicketAsync), new { ticketId }, async () =>
+            {
+                try
+                {
+                    var ticket = await _ticketRepository.GetTicketWithDetailsAsync(ticketId);
+                    if (ticket == null)
+                        return ApiResponse<TicketArchiveDTO>.Failure("Ticket non trouvé");
+
+                    // ✅ Seuls les tickets RÉSOLUS peuvent être archivés
+                    if (ticket.StatutTicket != StatutTicket.Resolu)
+                    {
+                        return ApiResponse<TicketArchiveDTO>.Failure(
+                            "Seuls les tickets résolus peuvent être archivés.",
+                            resultCode: 80
+                        );
+                    }
+
+                    // Vérifier si l'utilisateur a déjà archivé ce ticket
+                    var dejaArchive = await _ticketArchiveRepository.ExistsAsync(ticketId, userId);
+                    if (dejaArchive)
+                    {
+                        return ApiResponse<TicketArchiveDTO>.Failure(
+                            "Vous avez déjà archivé ce ticket.",
+                            resultCode: 81
+                        );
+                    }
+
+                    // Créer l'archive
+                    var archive = new TicketArchive
+                    {
+                        Id = Guid.NewGuid(),
+                        TicketId = ticketId,
+                        ArchiveParId = userId,
+                        DateArchivage = DateTime.UtcNow
+                    };
+
+                    await _ticketArchiveRepository.AddAsync(archive);
+                    await _ticketArchiveRepository.SaveChangesAsync();
+
+                    var archiveur = await _userRepository.GetByIdAsync(userId);
+                    string archiveurNom = archiveur != null ? $"{archiveur.Nom} {archiveur.Prenom}" : "Inconnu";
+
+                    var dto = new TicketArchiveDTO
+                    {
+                        TicketId = ticket.Id,
+                        ReferenceTicket = ticket.ReferenceTicket,
+                        EstArchive = true,
+                        DateArchivage = archive.DateArchivage,
+                        ArchivePar = archiveurNom
+                    };
+
+                    _logger.LogInformation("Ticket {Reference} archivé par {Archiveur}", ticket.ReferenceTicket, archiveurNom);
+
+                    return ApiResponse<TicketArchiveDTO>.Success(dto, "Ticket archivé avec succès");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Erreur lors de l'archivage du ticket {TicketId}", ticketId);
+                    return ApiResponse<TicketArchiveDTO>.Failure("Erreur interne du serveur");
+                }
+            });
+        }
+
+        /// <summary>
+        /// Restaure un ticket archivé (supprime l'archive)
+        /// </summary>
+        public async Task<ApiResponse<TicketArchiveDTO>> RestaurerTicketAsync(Guid ticketId, Guid userId)
+        {
+            return await MeasureAsync(nameof(RestaurerTicketAsync), new { ticketId }, async () =>
+            {
+                try
+                {
+                    var archive = await _ticketArchiveRepository.GetByTicketAndUserAsync(ticketId, userId);
+                    if (archive == null)
+                    {
+                        return ApiResponse<TicketArchiveDTO>.Failure(
+                            "Ce ticket n'est pas archivé par vous.",
+                            resultCode: 83
+                        );
+                    }
+
+                    await _ticketArchiveRepository.DeleteAsync(archive);
+                    await _ticketArchiveRepository.SaveChangesAsync();
+
+                    var dto = new TicketArchiveDTO
+                    {
+                        TicketId = ticketId,
+                        EstArchive = false,
+                        DateArchivage = null,
+                        ArchivePar = null
+                    };
+
+                    _logger.LogInformation("Ticket {TicketId} restauré par {UserId}", ticketId, userId);
+
+                    return ApiResponse<TicketArchiveDTO>.Success(dto, "Ticket restauré avec succès");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Erreur lors de la restauration du ticket {TicketId}", ticketId);
+                    return ApiResponse<TicketArchiveDTO>.Failure("Erreur interne du serveur");
+                }
+            });
+        }
+
+        /// <summary>
+        /// Récupère les tickets archivés par l'utilisateur connecté
+        /// </summary>
+        public async Task<ApiResponse<PagedResult<TicketDTO>>> GetMyArchivesTicketsPagedAsync(
+            TicketPagedRequest request,
+            Guid userId)
+        {
+            return await MeasureAsync(nameof(GetMyArchivesTicketsPagedAsync), request, async () =>
+            {
+                try
+                {
+                    var archivedTicketIds = await _ticketArchiveRepository
+                        .GetArchivedTicketIdsByUserAsync(userId);
+
+                    if (!archivedTicketIds.Any())
+                    {
+                        return ApiResponse<PagedResult<TicketDTO>>.Success(
+                            new PagedResult<TicketDTO> { Items = new List<TicketDTO>(), TotalCount = 0 });
+                    }
+
+                    var filter = BuildFilter(request);
+                    var query = _ticketRepository.GetFilteredQuery(filter);
+                    query = query.Where(t => archivedTicketIds.Contains(t.Id));
+
+                    if (!string.IsNullOrWhiteSpace(request.SortBy))
+                    {
+                        query = ApplySorting(query, request.SortBy, request.SortDescending);
+                    }
+                    else
+                    {
+                        query = query.OrderByDescending(t => t.DateCreation);
+                    }
+
+                    var totalCount = await query.CountAsync();
+
+                    var items = await query
+                        .Skip((request.Page - 1) * request.PageSize)
+                        .Take(request.PageSize)
+                        .ToListAsync();
+
+                    var dtos = new List<TicketDTO>();
+                    foreach (var ticket in items)
+                    {
+                        dtos.Add(await MapToDto(ticket));
+                    }
+
+                    var pagedResult = PagedResult<TicketDTO>.Create(
+                        dtos,
+                        totalCount,
+                        request.Page,
+                        request.PageSize
+                    );
+
+                    return ApiResponse<PagedResult<TicketDTO>>.Success(pagedResult);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Erreur lors de la récupération des tickets archivés");
+                    return ApiResponse<PagedResult<TicketDTO>>.Failure("Erreur interne du serveur");
+                }
+            });
         }
 
         #region Private Methods
@@ -2009,15 +2185,54 @@ namespace projet0.Application.Services.Ticket
                     }
 
                     // ============================================
-                    // 6. STATISTIQUES PAR SEMAINE (créations)
+                    // 6. STATISTIQUES PAR SEMAINE (ANNÉE COMPLÈTE)
                     // ============================================
                     var statsParSemaine = new List<TicketJournalierDTO>();
 
-                    for (int i = 3; i >= 0; i--)
+                    // Récupérer l'année actuelle
+                    var currentYear = DateTime.Today.Year;
+
+                    // Déterminer la première semaine de l'année (semaine 1)
+                    var firstDayOfYear = new DateTime(currentYear, 1, 1);
+
+                    // Trouver le premier lundi de l'année
+                    var startOfFirstWeek = firstDayOfYear;
+                    while (startOfFirstWeek.DayOfWeek != DayOfWeek.Monday)
                     {
-                        var debutSemaine = today.AddDays(-(int)today.DayOfWeek - (i * 7));
+                        startOfFirstWeek = startOfFirstWeek.AddDays(1);
+                    }
+
+                    // Ajuster si le premier lundi est après le 7 janvier (semaine 1 de l'année ISO)
+                    if (startOfFirstWeek > firstDayOfYear.AddDays(7))
+                    {
+                        startOfFirstWeek = startOfFirstWeek.AddDays(-7);
+                    }
+
+                    // Déterminer la dernière semaine de l'année
+                    var lastDayOfYear = new DateTime(currentYear, 12, 31);
+                    var endOfLastWeek = lastDayOfYear;
+                    while (endOfLastWeek.DayOfWeek != DayOfWeek.Sunday)
+                    {
+                        endOfLastWeek = endOfLastWeek.AddDays(1);
+                    }
+
+                    // Calculer le nombre de semaines dans l'année
+                    var weeksCount = (int)Math.Ceiling((endOfLastWeek - startOfFirstWeek).TotalDays / 7);
+
+                    // Générer les statistiques pour chaque semaine de l'année
+                    for (int weekNumber = 1; weekNumber <= weeksCount; weekNumber++)
+                    {
+                        // Calculer le début et la fin de la semaine
+                        var debutSemaine = startOfFirstWeek.AddDays((weekNumber - 1) * 7);
                         var finSemaine = debutSemaine.AddDays(6);
-                        var ticketsSemaine = ticketsList.Where(t => t.DateCreation.Date >= debutSemaine && t.DateCreation.Date <= finSemaine).ToList();
+
+                        // Vérifier si la semaine est dans l'année courante
+                        if (debutSemaine.Year > currentYear) break;
+
+                        // Filtrer les tickets de cette semaine
+                        var ticketsSemaine = ticketsList
+                            .Where(t => t.DateCreation.Date >= debutSemaine && t.DateCreation.Date <= finSemaine)
+                            .ToList();
 
                         statsParSemaine.Add(new TicketJournalierDTO
                         {
@@ -2029,6 +2244,9 @@ namespace projet0.Application.Services.Ticket
                             Resolus = ticketsSemaine.Count(t => t.StatutTicket == StatutTicket.Resolu)
                         });
                     }
+
+                    // Ordonner par date
+                    statsParSemaine = statsParSemaine.OrderBy(s => s.Date).ToList();
 
                     // ============================================
                     // 7. STATISTIQUES PAR MOIS (créations)
