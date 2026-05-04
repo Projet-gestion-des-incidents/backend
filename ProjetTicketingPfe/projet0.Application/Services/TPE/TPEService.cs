@@ -444,6 +444,7 @@ namespace projet0.Application.Services.TPEService
         }
 
         // MÉTHODE PAGINÉE
+        // MÉTHODE PAGINÉE CORRIGÉE
         public async Task<ApiResponse<PagedResult<TPEDto>>> GetTPEsPagedAsync(TPEPagedRequest request)
         {
             return await MeasureAsync(nameof(GetTPEsPagedAsync), request, async () =>
@@ -469,16 +470,63 @@ namespace projet0.Application.Services.TPEService
                         _logger.LogInformation("Filtre appliqué: CommercantId = {CommercantId}", request.CommercantId.Value);
                     }
 
+                    // ✅ CORRECTION: Filtre par date de création exacte (pas Debut/Fin)
+                    if (request.CreatedAt.HasValue)
+                    {
+                        var date = request.CreatedAt.Value.Date;
+                        var nextDay = date.AddDays(1);
+                        query = query.Where(t => t.CreatedAt >= date && t.CreatedAt < nextDay);
+                        _logger.LogInformation("Filtre appliqué: CreatedAt = {CreatedAt}", request.CreatedAt.Value);
+                    }
+
+                    // ✅ CORRECTION: Filtre par date de modification exacte
+                    if (request.UpdatedAt.HasValue)
+                    {
+                        var date = request.UpdatedAt.Value.Date;
+                        var nextDay = date.AddDays(1);
+                        query = query.Where(t => t.UpdatedAt >= date && t.UpdatedAt < nextDay);
+                        _logger.LogInformation("Filtre appliqué: UpdatedAt = {UpdatedAt}", request.UpdatedAt.Value);
+                    }
+
+                    // ✅ NOUVEAU: Filtre par créateur
+                    if (request.CreatedById.HasValue)
+                    {
+                        query = query.Where(t => t.CreatedById == request.CreatedById.Value);
+                        _logger.LogInformation("Filtre appliqué: CreatedById = {CreatedById}", request.CreatedById.Value);
+                    }
+
+                    // ✅ NOUVEAU: Filtre par modificateur
+                    if (request.UpdatedById.HasValue)
+                    {
+                        query = query.Where(t => t.UpdatedById == request.UpdatedById.Value);
+                        _logger.LogInformation("Filtre appliqué: UpdatedById = {UpdatedById}", request.UpdatedById.Value);
+                    }
+
+                    // ✅ CORRECTION: Recherche simplifiée (sans SearchUsersByTermAsync)
                     if (!string.IsNullOrWhiteSpace(request.SearchTerm))
                     {
+                        
                         var term = request.SearchTerm.ToLower();
                         query = query.Where(t =>
                             t.NumSerie.ToLower().Contains(term) ||
                             t.NumSerieComplet.ToLower().Contains(term) ||
+                            t.Modele.ToString().ToLower().Contains(term) ||
                             (t.Commercant != null &&
                                 (t.Commercant.Nom.ToLower().Contains(term) ||
                                  t.Commercant.Prenom.ToLower().Contains(term) ||
-                                 (t.Commercant.Nom + " " + t.Commercant.Prenom).ToLower().Contains(term)))
+                                 t.Commercant.UserName.ToLower().Contains(term) ||  // ✅ AJOUTER
+                                 (t.Commercant.Nom + " " + t.Commercant.Prenom).ToLower().Contains(term) ||
+                                 (t.Commercant.Prenom + " " + t.Commercant.Nom).ToLower().Contains(term))) ||
+                            (t.CreatedBy != null &&
+                                (t.CreatedBy.Nom.ToLower().Contains(term) ||
+                                 t.CreatedBy.Prenom.ToLower().Contains(term) ||
+                                 t.CreatedBy.UserName.ToLower().Contains(term) ||  // ✅ AJOUTER
+                                 (t.CreatedBy.Nom + " " + t.CreatedBy.Prenom).ToLower().Contains(term))) ||
+                            (t.UpdatedBy != null &&
+                                (t.UpdatedBy.Nom.ToLower().Contains(term) ||
+                                 t.UpdatedBy.Prenom.ToLower().Contains(term) ||
+                                 t.UpdatedBy.UserName.ToLower().Contains(term) ||  // ✅ AJOUTER
+                                 (t.UpdatedBy.Nom + " " + t.UpdatedBy.Prenom).ToLower().Contains(term)))
                         );
                         _logger.LogInformation("Filtre appliqué: SearchTerm = {SearchTerm}", request.SearchTerm);
                     }
@@ -498,11 +546,10 @@ namespace projet0.Application.Services.TPEService
 
                     _logger.LogInformation("{Count} TPEs récupérés pour la page {Page}", items.Count, request.Page);
 
-                    // 6. Mapper vers DTO avec les champs d'audit
+                    // 6. Mapper vers DTO
                     var dtos = new List<TPEDto>();
                     foreach (var tpe in items)
                     {
-                        // Récupérer les infos de création et modification
                         ApplicationUser createdBy = null;
                         if (tpe.CreatedById.HasValue)
                         {
@@ -739,6 +786,150 @@ namespace projet0.Application.Services.TPEService
             var incidentTPEs = await _incidentTPERepository.GetAllAsync();
             return incidentTPEs.ToList();
         }
+
+        // Application/Services/TPEService/TPEService.cs
+
+        /// <summary>
+        /// Récupère les TPEs du commerçant connecté avec pagination, recherche et filtres
+        /// </summary>
+        public async Task<ApiResponse<PagedResult<TPEDto>>> GetMesTPEsPagedAsync(TPEPagedRequest request, Guid commercantId)
+        {
+            return await MeasureAsync(nameof(GetMesTPEsPagedAsync), request, async () =>
+            {
+                try
+                {
+                    _logger.LogInformation("Récupération paginée des TPEs du commerçant {CommercantId} - Page: {Page}, PageSize: {PageSize}, SearchTerm: {SearchTerm}, Modele: {Modele}",
+                        commercantId, request.Page, request.PageSize, request.SearchTerm, request.Modele);
+
+                    // 1. Vérifier que l'utilisateur existe et a le rôle Commercant
+                    var commercant = await _userRepository.GetByIdAsync(commercantId);
+                    if (commercant == null)
+                    {
+                        return ApiResponse<PagedResult<TPEDto>>.Failure("Commerçant non trouvé", resultCode: 40);
+                    }
+
+                    var roles = await _userRepository.GetUserRolesAsync(commercantId);
+                    if (!roles.Contains("Commercant"))
+                    {
+                        return ApiResponse<PagedResult<TPEDto>>.Failure("L'utilisateur n'a pas le rôle Commerçant", resultCode: 45);
+                    }
+
+                    // 2. Récupérer la requête de base avec les relations
+                    var query = await _tpeRepository.QueryWithDetailsAsync();
+
+                    // 3. ⚠️ IGNORER request.CommercantId - utiliser le userId du token
+                    query = query.Where(t => t.CommercantId == commercantId);
+
+                    // 4. Appliquer les filtres
+                    if (request.Modele.HasValue)
+                    {
+                        query = query.Where(t => t.Modele == request.Modele.Value);
+                        _logger.LogInformation("Filtre appliqué: Modele = {Modele}", request.Modele.Value);
+                    }
+
+                    // 5. Filtre par date de création exacte
+                    if (request.CreatedAt.HasValue)
+                    {
+                        var date = request.CreatedAt.Value.Date;
+                        var nextDay = date.AddDays(1);
+                        query = query.Where(t => t.CreatedAt >= date && t.CreatedAt < nextDay);
+                        _logger.LogInformation("Filtre appliqué: CreatedAt = {CreatedAt}", request.CreatedAt.Value);
+                    }
+
+                    // 6. Filtre par date de modification exacte
+                    if (request.UpdatedAt.HasValue)
+                    {
+                        var date = request.UpdatedAt.Value.Date;
+                        var nextDay = date.AddDays(1);
+                        query = query.Where(t => t.UpdatedAt >= date && t.UpdatedAt < nextDay);
+                        _logger.LogInformation("Filtre appliqué: UpdatedAt = {UpdatedAt}", request.UpdatedAt.Value);
+                    }
+
+                    // 7. Recherche par SearchTerm (numéro de série ou date)
+                    if (!string.IsNullOrWhiteSpace(request.SearchTerm))
+                    {
+                        var term = request.SearchTerm.ToLower();
+
+                        // Essayer de parser la recherche comme une date
+                        DateTime? searchDate = null;
+                        if (DateTime.TryParse(request.SearchTerm, out var parsedDate))
+                        {
+                            searchDate = parsedDate.Date;
+                        }
+
+                        query = query.Where(t =>
+                            t.NumSerie.ToLower().Contains(term) ||
+                            t.NumSerieComplet.ToLower().Contains(term) ||
+                            (searchDate.HasValue && t.CreatedAt.Date == searchDate.Value)
+                        );
+                        _logger.LogInformation("Filtre appliqué: SearchTerm = {SearchTerm}", request.SearchTerm);
+                    }
+
+                    // 8. Compter le total AVANT pagination
+                    var totalCount = await query.CountAsync();
+                    _logger.LogInformation("Total TPEs trouvés: {TotalCount}", totalCount);
+
+                    // 9. Appliquer le tri
+                    query = ApplySortingToQuery(query, request.SortBy, request.SortDescending);
+
+                    // 10. Appliquer la pagination
+                    var items = await query
+                        .Skip((request.Page - 1) * request.PageSize)
+                        .Take(request.PageSize)
+                        .ToListAsync();
+
+                    _logger.LogInformation("{Count} TPEs récupérés pour la page {Page}", items.Count, request.Page);
+
+                    // 11. Mapper vers DTO
+                    var dtos = new List<TPEDto>();
+                    foreach (var tpe in items)
+                    {
+                        ApplicationUser createdBy = null;
+                        if (tpe.CreatedById.HasValue)
+                        {
+                            createdBy = await _userRepository.GetByIdAsync(tpe.CreatedById.Value);
+                        }
+
+                        ApplicationUser updatedBy = null;
+                        if (tpe.UpdatedById.HasValue)
+                        {
+                            updatedBy = await _userRepository.GetByIdAsync(tpe.UpdatedById.Value);
+                        }
+
+                        dtos.Add(new TPEDto
+                        {
+                            Id = tpe.Id,
+                            NumSerie = tpe.NumSerie,
+                            NumSerieComplet = tpe.NumSerieComplet,
+                            Modele = tpe.Modele,
+                            CommercantId = tpe.CommercantId,
+                            CommercantNom = tpe.Commercant != null ? $"{tpe.Commercant.Nom} {tpe.Commercant.Prenom}" : "Non assigné",
+                            CreatedAt = tpe.CreatedAt,
+                            CreatedByNom = createdBy != null ? $"{createdBy.Nom} {createdBy.Prenom}" : "Inconnu",
+                            UpdatedAt = tpe.UpdatedAt,
+                            UpdatedByNom = updatedBy != null ? $"{updatedBy.Nom} {updatedBy.Prenom}" : null
+                        });
+                    }
+
+                    // 12. Créer le résultat paginé
+                    var pagedResult = new PagedResult<TPEDto>
+                    {
+                        Items = dtos,
+                        TotalCount = totalCount,
+                        Page = request.Page,
+                        PageSize = request.PageSize
+                    };
+
+                    return ApiResponse<PagedResult<TPEDto>>.Success(pagedResult,
+                        $"{dtos.Count} TPE(s) trouvé(s) sur {totalCount}");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Erreur lors de la récupération paginée des TPEs du commerçant {CommercantId}", commercantId);
+                    return ApiResponse<PagedResult<TPEDto>>.Failure("Erreur interne du serveur");
+                }
+            });
+        }
     }
 
     // ModeleTPEHelper - CLASSE STATIQUE SÉPARÉE
@@ -757,4 +948,5 @@ namespace projet0.Application.Services.TPEService
         }
         
     }
+
 }

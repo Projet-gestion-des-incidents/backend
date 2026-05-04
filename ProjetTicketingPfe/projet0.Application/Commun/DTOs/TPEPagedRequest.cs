@@ -19,5 +19,11 @@ namespace projet0.Application.Commun.DTOs
         public ModeleTPE? Modele { get; set; }
         public string? SearchTerm { get; set; }  // Recherche par numéro de série ou nom du commerçant
         public Guid? CommercantId { get; set; }  // Filtrer par commerçant spécifique
+
+        // ✅ NOUVEAUX FILTRES (simples)
+        public DateTime? CreatedAt { get; set; }     // Date de création exacte
+        public DateTime? UpdatedAt { get; set; }     // Date de modification exacte
+        public Guid? CreatedById { get; set; }       // Filtre par créateur
+        public Guid? UpdatedById { get; set; }       // Filtre par modificateur
     }
 }

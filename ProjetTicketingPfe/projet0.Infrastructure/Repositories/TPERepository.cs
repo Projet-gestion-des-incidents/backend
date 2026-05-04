@@ -39,6 +39,8 @@ namespace projet0.Infrastructure.Repositories
         {
             return _context.TPEs
                 .Include(t => t.Commercant)
+                .Include(t => t.CreatedBy)   // ✅ AJOUTER OBLIGATOIREMENT
+                .Include(t => t.UpdatedBy)
                 .AsQueryable();
         }
 
@@ -46,6 +48,8 @@ namespace projet0.Infrastructure.Repositories
         {
             var query = _context.TPEs
                 .Include(t => t.Commercant)
+                .Include(t => t.CreatedBy)
+                .Include(t => t.UpdatedBy)
                 .AsQueryable();
 
             // Appliquer les filtres
@@ -54,6 +58,29 @@ namespace projet0.Infrastructure.Repositories
 
             if (request.CommercantId.HasValue)
                 query = query.Where(t => t.CommercantId == request.CommercantId.Value);
+            // ✅ NOUVEAU: Filtre par date de création exacte
+            if (request.CreatedAt.HasValue)
+            {
+                var date = request.CreatedAt.Value.Date;
+                var nextDay = date.AddDays(1);
+                query = query.Where(t => t.CreatedAt >= date && t.CreatedAt < nextDay);
+            }
+
+            // ✅ NOUVEAU: Filtre par date de modification exacte
+            if (request.UpdatedAt.HasValue)
+            {
+                var date = request.UpdatedAt.Value.Date;
+                var nextDay = date.AddDays(1);
+                query = query.Where(t => t.UpdatedAt >= date && t.UpdatedAt < nextDay);
+            }
+
+            // ✅ NOUVEAU: Filtre par créateur
+            if (request.CreatedById.HasValue)
+                query = query.Where(t => t.CreatedById == request.CreatedById.Value);
+
+            // ✅ NOUVEAU: Filtre par modificateur
+            if (request.UpdatedById.HasValue)
+                query = query.Where(t => t.UpdatedById == request.UpdatedById.Value);
 
             if (!string.IsNullOrWhiteSpace(request.SearchTerm))
             {
@@ -64,7 +91,17 @@ namespace projet0.Infrastructure.Repositories
                     (t.Commercant != null &&
                         (t.Commercant.Nom.ToLower().Contains(term) ||
                          t.Commercant.Prenom.ToLower().Contains(term) ||
-                         (t.Commercant.Nom + " " + t.Commercant.Prenom).ToLower().Contains(term)))
+                         (t.Commercant.Nom + " " + t.Commercant.Prenom).ToLower().Contains(term))) ||
+                    // ✅ RECHERCHE SUR CRÉATEUR
+                    (t.CreatedBy != null &&
+                        (t.CreatedBy.Nom.ToLower().Contains(term) ||
+                         t.CreatedBy.Prenom.ToLower().Contains(term) ||
+                         (t.CreatedBy.Nom + " " + t.CreatedBy.Prenom).ToLower().Contains(term))) ||
+                    // ✅ RECHERCHE SUR MODIFICATEUR
+                    (t.UpdatedBy != null &&
+                        (t.UpdatedBy.Nom.ToLower().Contains(term) ||
+                         t.UpdatedBy.Prenom.ToLower().Contains(term) ||
+                         (t.UpdatedBy.Nom + " " + t.UpdatedBy.Prenom).ToLower().Contains(term)))
                 );
             }
 

@@ -139,5 +139,42 @@ namespace projet0.API.Controllers
                 return StatusCode(500, ApiResponse<TPEDashboardDTO>.Failure("Erreur interne du serveur"));
             }
         }
+
+        // API/Controllers/TPEController.cs
+
+        /// <summary>
+        /// Récupère les TPEs du commerçant connecté avec pagination, recherche et filtres
+        /// </summary>
+        [HttpGet("mes-tpe")]
+        [Authorize(Policy = "UserRead")]
+        public async Task<ActionResult<ApiResponse<PagedResult<TPEDto>>>> GetMesTPEsPaged(
+            [FromQuery] TPEPagedRequest request)  // ✅ Utiliser la même DTO
+        {
+            try
+            {
+                var userId = GetCurrentUserId();
+
+                _logger.LogInformation("Récupération des TPEs du commerçant {UserId} - Page: {Page}, PageSize: {PageSize}",
+                    userId, request.Page, request.PageSize);
+
+                // ⚠️ Le request.CommercantId est IGNORÉ - on utilise l'userId du token
+                var result = await _tpeService.GetMesTPEsPagedAsync(request, userId);
+
+                if (!result.IsSuccess)
+                    return BadRequest(result);
+
+                return Ok(result);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                _logger.LogWarning(ex, "Tentative de récupération des TPEs sans authentification");
+                return Unauthorized(ApiResponse<PagedResult<TPEDto>>.Failure(ex.Message));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erreur lors de la récupération des TPEs du commerçant");
+                return StatusCode(500, ApiResponse<PagedResult<TPEDto>>.Failure("Erreur interne du serveur"));
+            }
+        }
     }
 }

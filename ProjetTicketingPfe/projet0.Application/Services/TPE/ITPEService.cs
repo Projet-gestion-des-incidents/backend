@@ -16,6 +16,8 @@ namespace projet0.Application.Services.TPE
         Task<ApiResponse<IEnumerable<TPEDto>>> GetByCommercantIdAsync(Guid commercantId);
         Task<ApiResponse<IEnumerable<TPEDto>>> GetAllAsync();
         Task<ApiResponse<PagedResult<TPEDto>>> GetTPEsPagedAsync(TPEPagedRequest request);
+        // ✅ Pour commerçant : voir ses propres TPEs
+        Task<ApiResponse<PagedResult<TPEDto>>> GetMesTPEsPagedAsync(TPEPagedRequest request, Guid commercantId);
         // ✅ NOUVEAU : Dashboard TPE
         Task<ApiResponse<TPEDashboardDTO>> GetTPEDashboardAsync();
     }
