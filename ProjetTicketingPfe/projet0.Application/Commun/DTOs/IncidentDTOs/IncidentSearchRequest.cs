@@ -13,6 +13,7 @@ namespace projet0.Application.Commun.DTOs.Incident
         public TypeProbleme? TypeProbleme { get; set; }
         public DateTime? DateDetection { get; set; }
         public DateTime? DateResolution { get; set; }
+        public TypeEntiteImpactee? EntiteImpactee { get; set; }
 
         public int? YearDetection { get; set; }
         public int? YearResolution { get; set; }

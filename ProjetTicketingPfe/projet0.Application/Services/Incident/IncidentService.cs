@@ -226,9 +226,9 @@ namespace projet0.Application.Services.Incident
         }
 
         private IQueryable<IncidentEntity> ApplySearchFilters(
-    IQueryable<IncidentEntity> query,
-    IncidentSearchRequest request,
-    List<Guid> matchedUserIds)
+            IQueryable<IncidentEntity> query,
+            IncidentSearchRequest request,
+            List<Guid> matchedUserIds)
         {
             // Filtre par SearchTerm (Code, Emplacement, Créateur)
             if (!string.IsNullOrWhiteSpace(request.SearchTerm))
@@ -242,10 +242,17 @@ namespace projet0.Application.Services.Incident
                 );
             }
 
-            // FILTRE PAR STATUT (gère le null)
+            // FILTRE PAR STATUT
             if (request.StatutIncident.HasValue)
             {
-                query = query.Where(i => i.StatutIncident == request.StatutIncident.Value);
+                if (request.StatutIncident.Value == StatutIncident.NonTraite)
+                {
+                    query = query.Where(i => i.StatutIncident == null);
+                }
+                else
+                {
+                    query = query.Where(i => i.StatutIncident == request.StatutIncident.Value);
+                }
             }
             else if (!string.IsNullOrWhiteSpace(request.StatutLibelle))
             {
@@ -254,10 +261,7 @@ namespace projet0.Application.Services.Incident
                     case "nontraite":
                     case "non traité":
                     case "non-traite":
-                        // Pour "Non traité", inclure NULL ET 0
-                        query = query.Where(i =>
-                            i.StatutIncident == null ||
-                            i.StatutIncident == StatutIncident.NonTraite);
+                        query = query.Where(i => i.StatutIncident == null);
                         break;
                     case "encours":
                     case "en cours":
@@ -269,13 +273,8 @@ namespace projet0.Application.Services.Incident
                         break;
                 }
             }
-            else if (request.StatutIncident.HasValue)
-            {
-                // Si c'est un nombre (valeur enum)
-                query = query.Where(i => i.StatutIncident == request.StatutIncident.Value);
-            }
 
-            // FILTRE PAR SÉVÉRITÉ (CORRIGÉ)
+            // FILTRE PAR SÉVÉRITÉ
             if (request.SeveriteIncident.HasValue)
             {
                 query = query.Where(i => i.SeveriteIncident == request.SeveriteIncident.Value);
@@ -287,7 +286,6 @@ namespace projet0.Application.Services.Incident
                     case "nondefinie":
                     case "non définie":
                     case "non-definie":
-                        // Filtrer les incidents avec SeveriteIncident = 0 (NonDefinie)
                         query = query.Where(i => i.SeveriteIncident == SeveriteIncident.NonDefinie);
                         break;
                     case "faible":
@@ -300,6 +298,15 @@ namespace projet0.Application.Services.Incident
                         query = query.Where(i => i.SeveriteIncident == SeveriteIncident.Forte);
                         break;
                 }
+            }
+
+            // ✅ NOUVEAU: FILTRE PAR ENTITÉ IMPACTÉE
+            // Filtre sur la table EntitesImpactees
+            if (request.EntiteImpactee.HasValue)
+            {
+                var entiteValue = request.EntiteImpactee.Value;
+                query = query.Where(i => i.EntitesImpactees != null &&
+                                         i.EntitesImpactees.Any(e => e.TypeEntiteImpactee == entiteValue));
             }
 
             // Filtre par TypeProbleme
@@ -320,6 +327,8 @@ namespace projet0.Application.Services.Incident
                 query = query.Where(i => i.DateResolution.HasValue &&
                                          i.DateResolution.Value.Year == request.YearResolution.Value);
             }
+
+            // Filtre par date de détection
             if (request.DateDetection.HasValue)
             {
                 var date = request.DateDetection.Value.Date;
@@ -327,7 +336,7 @@ namespace projet0.Application.Services.Incident
                 query = query.Where(i => i.DateDetection >= date && i.DateDetection < nextDay);
             }
 
-            // NOUVEAU : Filtre par date de résolution exacte
+            // Filtre par date de résolution
             if (request.DateResolution.HasValue)
             {
                 var date = request.DateResolution.Value.Date;
