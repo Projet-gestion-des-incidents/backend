@@ -125,11 +125,15 @@ namespace projet0.Application.Commun.DTOs.TicketDTOs
         public int TicketsAssignes { get; set; }
         public int TicketsEnCours { get; set; }
         public int TicketsResolus { get; set; }
+        public int TicketsResolusAvantDateLimite { get; set; }
+        public int TicketsResolusApresDateLimite { get; set; }
         public int TotalTicketsTechnicien { get; set; }
 
         // Pourcentages
         public double PourcentageAssignation { get; set; }  // (TotalTechnicien / TotalTicketsAssignesGlobaux) × 100
         public double TauxResolution { get; set; }          // (Resolus / TotalTechnicien) × 100
+        public double TauxRespectDelai { get; set; }        // ✅ NOUVEAU : (AvantDelai / (AvantDelai + ApresDelai)) × 100
+
     }
 
     // Statistiques globales d'assignation

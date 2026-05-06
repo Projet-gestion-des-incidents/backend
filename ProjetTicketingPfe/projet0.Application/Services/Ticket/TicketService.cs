@@ -2345,7 +2345,7 @@ namespace projet0.Application.Services.Ticket
                         ResolutionParMois = resolutionParMois        // ✅ NOUVEAU
                     };
                     // ============================================
-                    // ✅ 10. STATISTIQUES D'ASSIGNATION PAR TECHNICIEN (simplifié)
+                    // ✅ 10. STATISTIQUES D'ASSIGNATION PAR TECHNICIEN
                     // ============================================
 
                     // Compter le nombre total de tickets avec assignation
@@ -2359,8 +2359,32 @@ namespace projet0.Application.Services.Ticket
                         var ticketsTechnicien = ticketsList.Where(t => t.AssigneeId == technicien.Id).ToList();
                         var totalTech = ticketsTechnicien.Count;
 
-                        // ✅ Inclure TOUS les techniciens (même ceux avec 0 ticket)
-                        // Le pourcentage sera 0 pour ceux sans ticket
+                        // ✅ Compter les tickets résolus par ce technicien
+                        var ticketsResolusParTechnicien = ticketsTechnicien
+                            .Where(t => t.StatutTicket == StatutTicket.Resolu && t.DateCloture.HasValue)
+                            .ToList();
+
+                        // ✅ Variables pour ce technicien spécifique
+                        int avantDelaiPourCeTechnicien = 0;
+                        int apresDelaiPourCeTechnicien = 0;
+
+                        foreach (var ticket in ticketsResolusParTechnicien)
+                        {
+                            // Vérifier si la date limite est définie et valide
+                            if (ticket.DateLimite != DateTime.MinValue)
+                            {
+                                if (ticket.DateCloture.Value <= ticket.DateLimite)
+                                    avantDelaiPourCeTechnicien++;
+                                else
+                                    apresDelaiPourCeTechnicien++;
+                            }
+                        }
+
+                        // ✅ Calcul du taux de respect des délais pour ce technicien
+                        int totalAvecDelai = avantDelaiPourCeTechnicien + apresDelaiPourCeTechnicien;
+                        double tauxRespectDelaiPourCeTechnicien = totalAvecDelai > 0
+                            ? Math.Round((double)avantDelaiPourCeTechnicien / totalAvecDelai * 100, 1)
+                            : 0;
 
                         assignationParTechnicien.Add(new TechnicienAssignationDTO
                         {
@@ -2369,20 +2393,30 @@ namespace projet0.Application.Services.Ticket
                             Prenom = technicien.Prenom,
                             TicketsAssignes = ticketsTechnicien.Count(t => t.StatutTicket == StatutTicket.Assigne),
                             TicketsEnCours = ticketsTechnicien.Count(t => t.StatutTicket == StatutTicket.EnCours),
-                            TicketsResolus = ticketsTechnicien.Count(t => t.StatutTicket == StatutTicket.Resolu),
+                            TicketsResolus = ticketsResolusParTechnicien.Count,
                             TotalTicketsTechnicien = totalTech,
+                            TicketsResolusAvantDateLimite = avantDelaiPourCeTechnicien,
+                            TicketsResolusApresDateLimite = apresDelaiPourCeTechnicien,
                             PourcentageAssignation = totalAvecAssignation > 0
                                 ? Math.Round((double)totalTech / totalAvecAssignation * 100, 1)
-                                : 0
+                                : 0,
+                            TauxResolution = totalTech > 0
+                                ? Math.Round((double)ticketsResolusParTechnicien.Count / totalTech * 100, 1)
+                                : 0,
+                            TauxRespectDelai = tauxRespectDelaiPourCeTechnicien
                         });
+
+                        // ✅ Log pour déboguer
+                        _logger.LogDebug("Technicien {Nom} {Prenom} - Avant délai: {Avant}, Après délai: {Apres}, Taux: {Taux}%",
+                            technicien.Nom, technicien.Prenom, avantDelaiPourCeTechnicien, apresDelaiPourCeTechnicien, tauxRespectDelaiPourCeTechnicien);
                     }
 
-                    // Trier par pourcentage d'assignation (optionnel)
+                    // Trier par pourcentage d'assignation
                     assignationParTechnicien = assignationParTechnicien
                         .OrderByDescending(t => t.PourcentageAssignation)
                         .ToList();
 
-                    // Statistiques globales d'assignation (simplifié)
+                    // Statistiques globales d'assignation
                     var assignationGlobale = new AssignationGlobaleDTO
                     {
                         TotalTicketsAvecAssignation = totalAvecAssignation,
@@ -2395,7 +2429,6 @@ namespace projet0.Application.Services.Ticket
                     // Ajouter au dashboard
                     dashboard.AssignationParTechnicien = assignationParTechnicien;
                     dashboard.AssignationGlobale = assignationGlobale;
-
                     _logger.LogInformation("Dashboard tickets généré - Résolu: {Resolus}, Temps moyen: {Moyenne}h, Respect délai: {Taux}%",
                         resolus, moyenneHeures, statsResolution.TauxRespectDelai);
 
