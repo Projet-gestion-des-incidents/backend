@@ -36,6 +36,7 @@ namespace projet0.Application.Services.Incident
         private readonly ICommentaireRepository _commentaireRepository;
         private readonly IPieceJointeRepository _pieceJointeRepository;
         private readonly IIncidentArchiveRepository _incidentArchiveRepository;
+        private readonly INotificationRepository _notificationRepository;  // ← AJOUTER
 
         public IncidentService(
             IIncidentRepository incidentRepository,
@@ -51,6 +52,7 @@ namespace projet0.Application.Services.Incident
             IWebHostEnvironment environment,
             IPieceJointeRepository pieceJointeRepository,
             INotificationService notificationService,
+            INotificationRepository notificationRepository,
             ICommentaireRepository commentaireRepository,
             IIncidentArchiveRepository incidentArchiveRepository  // Ajouter ceci
 )
@@ -68,6 +70,7 @@ namespace projet0.Application.Services.Incident
             _environment = environment;
             _notificationService = notificationService;
             _incidentArchiveRepository = incidentArchiveRepository;
+            _notificationRepository = notificationRepository;  // ← AJOUTER
 
             _pieceJointeRepository = pieceJointeRepository;
             _commentaireRepository = commentaireRepository;
@@ -1228,6 +1231,8 @@ namespace projet0.Application.Services.Incident
             }
         }
 
+        // Dans IncidentService.cs - Remplacer la méthode DeleteIncidentAsync
+
         public async Task<ApiResponse<bool>> DeleteIncidentAsync(Guid id, Guid userId)
         {
             var sw = Stopwatch.StartNew();
@@ -1247,98 +1252,103 @@ namespace projet0.Application.Services.Incident
                 var isAdmin = userRoles.Contains("Admin");
                 var isCommercant = userRoles.Contains("Commercant");
 
-                // Récupérer les tickets liés AVANT suppression
-                var ticketsLies = new List<TicketEntity>();
-                if (incident.IncidentTickets != null && incident.IncidentTickets.Any())
-                {
-                    ticketsLies = incident.IncidentTickets
-                        .Select(it => it.Ticket)
-                        .Where(t => t != null)
-                        .ToList();
-                }
-
                 // Règles pour le commerçant
                 if (isCommercant && !isAdmin)
                 {
-                    // 1. Vérifier que c'est SON incident
                     if (incident.CreatedById != userId)
                     {
                         return ApiResponse<bool>.Failure("Vous ne pouvez supprimer que vos propres incidents.", resultCode: 72);
                     }
 
-                    // 2. Vérifier que l'incident n'est PAS FERMÉ
                     if (incident.StatutIncident == StatutIncident.Ferme)
                     {
-                        return ApiResponse<bool>.Failure(
-                            "Vous ne pouvez pas supprimer un incident fermé.",
-                            resultCode: 48
-                        );
+                        return ApiResponse<bool>.Failure("Vous ne pouvez pas supprimer un incident fermé.", resultCode: 48);
                     }
-
-                    // Plus de vérification sur les tickets liés
-                    // Le commerçant peut supprimer son incident même s'il est lié à des tickets
                 }
 
-                // Admin : supprimer les liaisons
-                if (isAdmin)
+                using var transaction = await _incidentRepository.BeginTransactionAsync();
+
+                try
                 {
+                    // 1. Supprimer les liaisons IncidentTPE
+                    if (incident.IncidentTPEs != null && incident.IncidentTPEs.Any())
+                    {
+                        foreach (var lien in incident.IncidentTPEs.ToList())
+                        {
+                            await _incidentTPERepository.DeleteAsync(lien);
+                        }
+                    }
+
+                    // 2. Récupérer les tickets liés AVANT de supprimer les liaisons
+                    var ticketsLies = new List<TicketEntity>();
                     if (incident.IncidentTickets != null && incident.IncidentTickets.Any())
                     {
+                        ticketsLies = incident.IncidentTickets
+                            .Select(it => it.Ticket)
+                            .Where(t => t != null)
+                            .ToList();
+
+                        // Supprimer les liaisons IncidentTicket
                         foreach (var lien in incident.IncidentTickets.ToList())
                         {
                             await _incidentTicketRepository.DeleteAsync(lien);
                         }
                     }
-                }
 
-                // Supprimer l'incident
-                await _incidentRepository.DeleteAsync(incident);
-                await _incidentRepository.SaveChangesAsync();
-
-                // ✅ Gérer les tickets qui n'ont plus d'incidents
-                foreach (var ticket in ticketsLies)
-                {
-                    var ticketMisAJour = await _ticketRepository.GetTicketWithDetailsAsync(ticket.Id);
-                    if (ticketMisAJour == null) continue;
-
-                    var incidentsRestants = ticketMisAJour.IncidentTickets?.Select(it => it.Incident).Where(i => i != null).ToList() ?? new List<IncidentEntity>();
-
-                    if (!incidentsRestants.Any())
+                    // 3. Supprimer les notifications liées à l'incident
+                    var notifications = await _notificationRepository.GetByIncidentIdAsync(id);
+                    foreach (var notification in notifications)
                     {
-                        _logger.LogInformation("Ticket {TicketId} n'a plus d'incidents liés - suppression", ticket.Id);
-
-                        // Supprimer les commentaires et leurs pièces jointes
-                        if (ticketMisAJour.Commentaires != null && ticketMisAJour.Commentaires.Any())
-                        {
-                            foreach (var commentaire in ticketMisAJour.Commentaires.ToList())
-                            {
-                                // Supprimer les pièces jointes du commentaire
-                                if (commentaire.PiecesJointes != null && commentaire.PiecesJointes.Any())
-                                {
-                                    foreach (var piece in commentaire.PiecesJointes.ToList())
-                                    {
-                                        // Supprimer via le service
-                                        await _pieceJointeService.SupprimerFichierAsync(piece.Id);
-                                    }
-                                }
-                                // Supprimer le commentaire
-                                await _commentaireRepository.DeleteAsync(commentaire);
-                            }
-                        }
-
-                        // Supprimer le ticket
-                        await _ticketRepository.DeleteAsync(ticketMisAJour);
-                        _logger.LogInformation("Ticket {TicketId} supprimé définitivement", ticket.Id);
+                        await _notificationRepository.DeleteAsync(notification);
                     }
+
+                    // 4. Supprimer l'incident
+                    await _incidentRepository.DeleteAsync(incident);
+                    await _incidentRepository.SaveChangesAsync();
+
+                    // 5. Mettre à jour les tickets qui n'ont plus d'incidents
+                    foreach (var ticket in ticketsLies)
+                    {
+                        var incidentsRestants = await _incidentTicketRepository.GetIncidentsByTicketIdAsync(ticket.Id);
+
+                        if (!incidentsRestants.Any())
+                        {
+                            _logger.LogInformation("Ticket {TicketId} n'a plus d'incidents liés - suppression", ticket.Id);
+
+                            // Supprimer les commentaires et leurs pièces jointes
+                            if (ticket.Commentaires != null && ticket.Commentaires.Any())
+                            {
+                                foreach (var commentaire in ticket.Commentaires.ToList())
+                                {
+                                    if (commentaire.PiecesJointes != null && commentaire.PiecesJointes.Any())
+                                    {
+                                        foreach (var piece in commentaire.PiecesJointes.ToList())
+                                        {
+                                            await _pieceJointeService.SupprimerFichierAsync(piece.Id);
+                                        }
+                                    }
+                                    await _commentaireRepository.DeleteAsync(commentaire);
+                                }
+                            }
+
+                            await _ticketRepository.DeleteAsync(ticket);
+                        }
+                    }
+
+                    await _incidentRepository.SaveChangesAsync();
+                    await transaction.CommitAsync();
+
+                    sw.Stop();
+                    _logger.LogInformation("DeleteIncident SUCCESS | Id: {Id} | Duration: {Ms} ms",
+                        id, sw.ElapsedMilliseconds);
+
+                    return ApiResponse<bool>.Success(true, "Incident supprimé avec succès");
                 }
-
-                await _ticketRepository.SaveChangesAsync();
-
-                sw.Stop();
-                _logger.LogInformation("DeleteIncident SUCCESS | Id: {Id} | Rôle: {Role} | Duration: {Ms} ms",
-                    id, isAdmin ? "Admin" : "Commercant", sw.ElapsedMilliseconds);
-
-                return ApiResponse<bool>.Success(true, "Incident supprimé avec succès");
+                catch (Exception ex)
+                {
+                    await transaction.RollbackAsync();
+                    throw;
+                }
             }
             catch (Exception ex)
             {

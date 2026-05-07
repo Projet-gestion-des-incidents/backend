@@ -24,16 +24,20 @@ namespace projet0.Application.Services.TPEService
         private readonly IIncidentTPERepository _incidentTPERepository;
         private readonly INotificationService _notificationService;  // Ajouter
         private readonly ILogger<TPEService> _logger;
+        private readonly INotificationRepository _notificationRepository;  // ← AJOUTER
 
         public TPEService(
             ITPERepository tpeRepository,
             IUserRepository userRepository,
             IIncidentTPERepository incidentTPERepository,
-            INotificationService notificationService,  // Ajouter
+            INotificationService notificationService,
+                INotificationRepository notificationRepository,  // ← AJOUTER
+                                                                 // Ajouter
             ILogger<TPEService> logger)
         {
             _tpeRepository = tpeRepository;
             _userRepository = userRepository;
+            _notificationRepository = notificationRepository;  // ← AJOUTER
 
             _incidentTPERepository = incidentTPERepository;
             _notificationService = notificationService;  // Ajouter
@@ -258,6 +262,8 @@ namespace projet0.Application.Services.TPEService
 
         }
 
+        // Dans TPEService.cs - Remplacer la méthode DeleteAsync
+
         public async Task<ApiResponse<string>> DeleteAsync(Guid id)
         {
             return await MeasureAsync("DeleteTPE", new { id }, async () =>
@@ -266,21 +272,45 @@ namespace projet0.Application.Services.TPEService
                 if (tpe == null)
                 {
                     _logger.LogWarning("TPE not found | Id = {Id}", id);
-                    return ApiResponse<string>.Failure(
-                        message: "TPE non trouvé",
-                        resultCode: 42
-                    );
+                    return ApiResponse<string>.Failure("TPE non trouvé", resultCode: 42);
                 }
 
-                await _tpeRepository.DeleteAsync(tpe);
-                await _tpeRepository.SaveChangesAsync();
+                // Utiliser une transaction pour garantir l'atomicité
+                using var transaction = await _tpeRepository.BeginTransactionAsync();
 
-                _logger.LogInformation("TPE deleted | Id: {Id} | NumSerie: {NumSerie}", id, tpe.NumSerie);
+                try
+                {
+                    // 1. Supprimer les notifications liées à ce TPE
+                    var notifications = await _notificationRepository.GetByTPEIdAsync(id);
+                    foreach (var notification in notifications)
+                    {
+                        await _notificationRepository.DeleteAsync(notification);
+                    }
 
-                return ApiResponse<string>.Success(
-                    message: "TPE supprimé avec succès",
-                    resultCode: 0
-                );
+                    // 2. Supprimer les liaisons IncidentTPE
+                    var incidentTPEs = await _incidentTPERepository.GetByTPEIdAsync(id);
+                    foreach (var incidentTPE in incidentTPEs)
+                    {
+                        await _incidentTPERepository.DeleteAsync(incidentTPE);
+                    }
+
+                    // 3. Supprimer le TPE
+                    await _tpeRepository.DeleteAsync(tpe);
+                    await _tpeRepository.SaveChangesAsync();
+
+                    await transaction.CommitAsync();
+
+                    _logger.LogInformation("TPE et ses dépendances supprimés | Id: {Id} | NumSerie: {NumSerie}",
+                        id, tpe.NumSerie);
+
+                    return ApiResponse<string>.Success("TPE et ses dépendances supprimés avec succès", resultCode: 0);
+                }
+                catch (Exception ex)
+                {
+                    await transaction.RollbackAsync();
+                    _logger.LogError(ex, "Erreur lors de la suppression du TPE {Id}", id);
+                    return ApiResponse<string>.Failure("Erreur lors de la suppression: " + ex.Message, resultCode: 500);
+                }
             });
         }
 

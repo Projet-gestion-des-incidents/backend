@@ -12,5 +12,6 @@ namespace projet0.Application.Interfaces
         Task<IncidentTPE> GetByIncidentAndTPEAsync(Guid incidentId, Guid tpeId);
         Task<bool> ExistsAsync(Guid incidentId, Guid tpeId);
         Task<bool> DeleteLiaisonAsync(Guid incidentId, Guid tpeId);
+        
     }
 }

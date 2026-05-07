@@ -107,5 +107,32 @@ namespace projet0.Infrastructure.Repositories
                 await _context.SaveChangesAsync();
             }
         }
+
+        public async Task<IEnumerable<Notification>> GetByTPEIdAsync(Guid tpeId)
+        {
+            return await _dbSet.Where(n => n.TPEId == tpeId).ToListAsync();
+        }
+
+        // NotificationRepository.cs - Ajouter ces méthodes
+        public async Task<IEnumerable<Notification>> GetByIncidentIdAsync(Guid incidentId)
+        {
+            return await _dbSet
+                .Where(n => n.IncidentId == incidentId)
+                .ToListAsync();
+        }
+
+        public async Task<IEnumerable<Notification>> GetByTicketIdAsync(Guid ticketId)
+        {
+            return await _dbSet
+                .Where(n => n.TicketId == ticketId)
+                .ToListAsync();
+        }
+
+        public async Task<IEnumerable<Notification>> GetByCommentaireIdAsync(Guid commentaireId)
+        {
+            return await _dbSet
+                .Where(n => n.CommentaireId == commentaireId)
+                .ToListAsync();
+        }
     }
 }

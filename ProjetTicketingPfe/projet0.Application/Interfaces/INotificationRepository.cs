@@ -16,5 +16,9 @@ namespace projet0.Application.Interfaces
         Task MarkAsReadAsync(Guid notificationId);
         Task MarkAllAsReadAsync(Guid userId);
         Task DeleteOldNotificationsAsync(int daysToKeep);
+        Task<IEnumerable<Notification>> GetByTPEIdAsync(Guid tpeId);
+        Task<IEnumerable<Notification>> GetByCommentaireIdAsync(Guid commentaireId);
+        Task<IEnumerable<Notification>> GetByTicketIdAsync(Guid ticketId);
+        Task<IEnumerable<Notification>> GetByIncidentIdAsync(Guid incidentId);
     }
 }

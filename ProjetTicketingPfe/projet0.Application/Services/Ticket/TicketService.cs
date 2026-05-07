@@ -23,6 +23,7 @@ using TicketEntity = projet0.Domain.Entities.Ticket;
 
 
 
+
 namespace projet0.Application.Services.Ticket
 {
     public class TicketService : ITicketService
@@ -39,6 +40,8 @@ namespace projet0.Application.Services.Ticket
         private readonly IIncidentService _incidentService;
         private readonly INotificationService _notificationService;
         private readonly ITicketArchiveRepository _ticketArchiveRepository;
+        private readonly INotificationRepository _notificationRepository;  // ✅ AJOUTER
+        
 
         public TicketService(
             ITicketRepository ticketRepository,
@@ -52,7 +55,8 @@ namespace projet0.Application.Services.Ticket
               INotificationService notificationService,
             IIncidentTicketRepository incidentTicketRepository,
             IIncidentService incidentService,
-            ITicketArchiveRepository ticketArchiveRepository)
+            ITicketArchiveRepository ticketArchiveRepository,
+             INotificationRepository notificationRepository)
         {
             _ticketRepository = ticketRepository;
             _userRepository = userRepository;
@@ -66,7 +70,8 @@ namespace projet0.Application.Services.Ticket
             _incidentService = incidentService;
             _notificationService = notificationService;
             _ticketArchiveRepository = ticketArchiveRepository;
-
+            _notificationRepository = notificationRepository;  // ✅ AJOUTER
+             // ✅ AJOUTER
         }
 
         /// <summary>
@@ -709,6 +714,8 @@ namespace projet0.Application.Services.Ticket
             });
         }
 
+        // Dans TicketService.cs - Remplacer DeleteTicketAsync
+
         public async Task<ApiResponse<bool>> DeleteTicketAsync(Guid id, Guid userId)
         {
             return await MeasureAsync(nameof(DeleteTicketAsync), new { id }, async () =>
@@ -720,14 +727,12 @@ namespace projet0.Application.Services.Ticket
                     if (ticket == null)
                         return ApiResponse<bool>.Failure($"Ticket avec ID {id} non trouvé");
 
-                    // Vérifier le rôle de l'utilisateur
                     var userRoles = await _userRepository.GetUserRolesAsync(userId);
                     var isAdmin = userRoles.Contains("Admin");
 
-                    // Si ce n'est pas un admin, appliquer les restrictions
+                    // Restrictions pour les non-admins
                     if (!isAdmin)
                     {
-                        // RÈGLE : Ne peut pas supprimer un ticket en cours ou résolu
                         if (ticket.StatutTicket == StatutTicket.EnCours ||
                             ticket.StatutTicket == StatutTicket.Resolu)
                         {
@@ -736,42 +741,33 @@ namespace projet0.Application.Services.Ticket
                                 resultCode: 50
                             );
                         }
+                    }
 
-                        // RÈGLE : Vérifier que tous les incidents liés sont supprimables
-                        if (ticket.IncidentTickets != null && ticket.IncidentTickets.Any())
+                    using var transaction = await _ticketRepository.BeginTransactionAsync();
+
+                    try
+                    {
+                        // 1. Supprimer les commentaires et leurs pièces jointes
+                        if (ticket.Commentaires != null && ticket.Commentaires.Any())
                         {
-                            var incidentsNonSupprimables = ticket.IncidentTickets
-                                .Select(it => it.Incident)
-                                .Where(i => i.StatutIncident.HasValue)
-                                .ToList();
-
-                            if (incidentsNonSupprimables.Any())
+                            foreach (var commentaire in ticket.Commentaires)
                             {
-                                var ids = string.Join(", ", incidentsNonSupprimables.Select(i => i.CodeIncident));
-                                return ApiResponse<bool>.Failure(
-                                    $"Impossible de supprimer le ticket car des incidents liés ont déjà un statut: {ids}",
-                                    resultCode: 51
-                                );
+                                if (commentaire.PiecesJointes != null && commentaire.PiecesJointes.Any())
+                                {
+                                    foreach (var piece in commentaire.PiecesJointes)
+                                    {
+                                        var filePath = Path.Combine(_environment.ContentRootPath, "uploads", "commentaires", piece.NomFichier);
+                                        if (File.Exists(filePath))
+                                        {
+                                            File.Delete(filePath);
+                                        }
+                                    }
+                                }
                             }
                         }
-                    }
-                    else
-                    {
-                        // ADMIN : Peut tout supprimer, sans aucune restriction !
-                        _logger.LogInformation("Admin supprime le ticket {Id} - Nettoyage des incidents liés", id);
 
-                        // Récupérer tous les incidents liés AVANT de supprimer le ticket
-                        var incidentsLies = new List<IncidentEntity>();
-                        if (ticket.IncidentTickets != null)
-                        {
-                            incidentsLies = ticket.IncidentTickets
-                                .Select(it => it.Incident)
-                                .Where(i => i != null)
-                                .ToList();
-                        }
-
-                        // Supprimer d'abord toutes les liaisons (IncidentTicket)
-                        if (ticket.IncidentTickets != null)
+                        // 2. Supprimer les liaisons IncidentTicket
+                        if (ticket.IncidentTickets != null && ticket.IncidentTickets.Any())
                         {
                             foreach (var lien in ticket.IncidentTickets.ToList())
                             {
@@ -779,49 +775,31 @@ namespace projet0.Application.Services.Ticket
                             }
                         }
 
-                        // Pour chaque incident lié, remettre son statut à null
-                        foreach (var incident in incidentsLies)
+                        // 3. Supprimer les notifications liées au ticket
+                        var notifications = await _notificationRepository.GetByTicketIdAsync(id);
+                        foreach (var notification in notifications)
                         {
-                            incident.StatutIncident = null;
-                            incident.DateResolution = null;
-                            _logger.LogInformation("Incident {IncidentId} remis à null (statut et date résolution)", incident.Id);
+                            await _notificationRepository.DeleteAsync(notification);
                         }
 
-                        // Sauvegarder les modifications des incidents
-                        if (incidentsLies.Any())
-                        {
-                            await _incidentRepository.SaveChangesAsync();
-                        }
+                        
+
+                        // 5. Supprimer le ticket
+                        await _ticketRepository.DeleteAsync(ticket);
+                        await _ticketRepository.SaveChangesAsync();
+
+                        await transaction.CommitAsync();
+
+                        _logger.LogInformation("Ticket supprimé avec succès | ID: {TicketId}, Ref: {Reference}",
+                            id, ticket.ReferenceTicket);
+
+                        return ApiResponse<bool>.Success(true, $"Ticket {ticket.ReferenceTicket} supprimé avec succès");
                     }
-
-                    // Supprimer les commentaires et leurs pièces jointes
-                    if (ticket.Commentaires != null && ticket.Commentaires.Any())
+                    catch (Exception ex)
                     {
-                        foreach (var commentaire in ticket.Commentaires)
-                        {
-                            if (commentaire.PiecesJointes != null && commentaire.PiecesJointes.Any())
-                            {
-                                foreach (var piece in commentaire.PiecesJointes)
-                                {
-                                    // Supprimer le fichier physique
-                                    var filePath = Path.Combine(_environment.ContentRootPath, "uploads", "commentaires", piece.NomFichier);
-                                    if (File.Exists(filePath))
-                                    {
-                                        File.Delete(filePath);
-                                    }
-                                }
-                            }
-                        }
+                        await transaction.RollbackAsync();
+                        throw;
                     }
-
-                    // Supprimer le ticket
-                    await _ticketRepository.DeleteAsync(ticket);
-                    await _ticketRepository.SaveChangesAsync();
-
-                    _logger.LogInformation("Ticket supprimé avec succès | ID: {TicketId}, Ref: {Reference}",
-                        id, ticket.ReferenceTicket);
-
-                    return ApiResponse<bool>.Success(true, $"Ticket {ticket.ReferenceTicket} supprimé avec succès");
                 }
                 catch (Exception ex)
                 {

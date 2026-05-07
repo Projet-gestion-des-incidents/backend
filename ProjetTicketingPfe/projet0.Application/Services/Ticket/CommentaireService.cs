@@ -28,13 +28,16 @@ namespace projet0.Application.Services.Ticket
         private readonly ITicketRepository _ticketRepository;  // Ajouter
         private readonly INotificationService _notificationService;  // Ajouter
         private readonly ILogger<CommentaireService> _logger;
+        private readonly INotificationRepository _notificationRepository;  // ← AJOUTER
 
         public CommentaireService(
             ICommentaireRepository commentaireRepository,
             IPieceJointeService pieceJointeService,
             IUserRepository userRepository,
             ITicketRepository ticketRepository,  // Ajouter
-            INotificationService notificationService,  // Ajouter
+            INotificationService notificationService,
+                INotificationRepository notificationRepository,  // ← AJOUTER
+                                                                 // Ajouter
             ILogger<CommentaireService> logger)
         {
             _commentaireRepository = commentaireRepository;
@@ -43,6 +46,8 @@ namespace projet0.Application.Services.Ticket
             _ticketRepository = ticketRepository;  // Ajouter
             _notificationService = notificationService;  // Ajouter
             _logger = logger;
+            _notificationRepository = notificationRepository;  // ← AJOUTER
+
         }
 
         public async Task<ApiResponse<CommentaireDTO>> GetCommentaireByIdAsync(Guid id)
@@ -175,31 +180,51 @@ namespace projet0.Application.Services.Ticket
             }
         }
 
+        // Dans CommentaireService.cs - Remplacer DeleteCommentaireAsync
+
         public async Task<ApiResponse<bool>> DeleteCommentaireAsync(Guid id)
         {
             try
             {
                 _logger.LogInformation("Suppression commentaire {Id}", id);
 
-                // 1. Récupérer le commentaire avec ses pièces jointes
                 var commentaire = await _commentaireRepository.GetCommentaireWithPiecesJointesAsync(id);
                 if (commentaire == null)
                     return ApiResponse<bool>.Failure("Commentaire non trouvé");
 
-                // 2. Supprimer les fichiers physiques des pièces jointes
-                if (commentaire.PiecesJointes != null && commentaire.PiecesJointes.Any())
+                using var transaction = await _commentaireRepository.BeginTransactionAsync();
+
+                try
                 {
-                    foreach (var piece in commentaire.PiecesJointes)
+                    // 1. Supprimer les fichiers physiques des pièces jointes
+                    if (commentaire.PiecesJointes != null && commentaire.PiecesJointes.Any())
                     {
-                        await _pieceJointeService.SupprimerFichierAsync(piece.Id);
+                        foreach (var piece in commentaire.PiecesJointes)
+                        {
+                            await _pieceJointeService.SupprimerFichierAsync(piece.Id);
+                        }
                     }
+
+                    // 2. Supprimer les notifications liées à ce commentaire
+                    var notifications = await _notificationRepository.GetByCommentaireIdAsync(id);
+                    foreach (var notification in notifications)
+                    {
+                        await _notificationRepository.DeleteAsync(notification);
+                    }
+
+                    // 3. Supprimer le commentaire
+                    await _commentaireRepository.DeleteAsync(commentaire);
+                    await _commentaireRepository.SaveChangesAsync();
+
+                    await transaction.CommitAsync();
+
+                    return ApiResponse<bool>.Success(true, "Commentaire supprimé avec succès");
                 }
-
-                // 3. Supprimer le commentaire (les pièces jointes seront supprimées en cascade)
-                await _commentaireRepository.DeleteAsync(commentaire);
-                await _commentaireRepository.SaveChangesAsync();
-
-                return ApiResponse<bool>.Success(true, "Commentaire supprimé avec succès");
+                catch (Exception ex)
+                {
+                    await transaction.RollbackAsync();
+                    throw;
+                }
             }
             catch (Exception ex)
             {
