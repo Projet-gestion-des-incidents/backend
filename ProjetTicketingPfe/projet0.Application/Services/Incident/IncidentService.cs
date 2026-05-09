@@ -136,6 +136,236 @@ namespace projet0.Application.Services.Incident
 
             return dto;
         }
+        public async Task<ApiResponse<CommercantIncidentDashboardDTO>> GetCommercantDashboardAsync(Guid commercantId)
+        {
+            return await MeasureAsync(nameof(GetCommercantDashboardAsync), null, async () =>
+            {
+                try
+                {
+                    _logger.LogInformation("Récupération du dashboard pour le commerçant {CommercantId}", commercantId);
+
+                    // Récupérer les IDs des incidents archivés par ce commerçant
+                    var archivedIncidentIds = await _incidentArchiveRepository
+                        .GetArchivedIncidentIdsByUserAsync(commercantId);
+
+                    // Récupérer tous les incidents du commerçant
+                    var query = _incidentRepository.QueryWithDetails();
+                    query = query.Where(i => i.CreatedById == commercantId);
+                    var allIncidents = await query.ToListAsync();
+
+                    // Séparer incidents non archivés et archivés
+                    var incidentsNonArchives = allIncidents.Where(i => !archivedIncidentIds.Contains(i.Id)).ToList();
+                    var incidentsArchives = allIncidents.Where(i => archivedIncidentIds.Contains(i.Id)).ToList();
+                    var incidentsNonArchivesList = incidentsNonArchives.ToList();
+
+                    // ============================================
+                    // 1. STATISTIQUES GLOBALES
+                    // ============================================
+                    var total = incidentsNonArchivesList.Count;
+                    var nonTraite = incidentsNonArchivesList.Count(i => i.StatutIncident == null || i.StatutIncident == StatutIncident.NonTraite);
+                    var enCours = incidentsNonArchivesList.Count(i => i.StatutIncident == StatutIncident.EnCours);
+                    var ferme = incidentsNonArchivesList.Count(i => i.StatutIncident == StatutIncident.Ferme);
+                    var archiveCount = incidentsArchives.Count;
+                    var nonArchiveCount = incidentsNonArchivesList.Count;
+
+                    // Incident résolus = Fermé
+                    var resolus = ferme;
+                    var tauxResolution = total > 0 ? Math.Round((double)resolus / total * 100, 1) : 0;
+
+                    var overview = new CommercantIncidentOverviewDTO
+                    {
+                        TotalIncidents = total,
+                        IncidentsNonTraite = nonTraite,
+                        IncidentsEnCours = enCours,
+                        IncidentsFerme = ferme,
+                        IncidentsArchives = archiveCount,
+                        IncidentsNonArchive = nonArchiveCount,
+                        TauxNonTraite = total > 0 ? Math.Round((double)nonTraite / total * 100, 1) : 0,
+                        TauxEnCours = total > 0 ? Math.Round((double)enCours / total * 100, 1) : 0,
+                        TauxFerme = total > 0 ? Math.Round((double)ferme / total * 100, 1) : 0,
+                        TauxResolution = tauxResolution
+                    };
+
+                    // ============================================
+                    // 2. STATISTIQUES PAR STATUT
+                    // ============================================
+                    var statsParStatut = new List<IncidentStatutStatDTO>
+            {
+                new IncidentStatutStatDTO
+                {
+                    Statut = "Non traité",
+                    Count = nonTraite,
+                    Color = "#ffc107",
+                    Pourcentage = total > 0 ? Math.Round((double)nonTraite / total * 100, 1) : 0
+                },
+                new IncidentStatutStatDTO
+                {
+                    Statut = "En cours",
+                    Count = enCours,
+                    Color = "#17a2b8",
+                    Pourcentage = total > 0 ? Math.Round((double)enCours / total * 100, 1) : 0
+                },
+                new IncidentStatutStatDTO
+                {
+                    Statut = "Fermé",
+                    Count = ferme,
+                    Color = "#28a745",
+                    Pourcentage = total > 0 ? Math.Round((double)ferme / total * 100, 1) : 0
+                },
+                new IncidentStatutStatDTO
+                {
+                    Statut = "Archivé",
+                    Count = archiveCount,
+                    Color = "#6c757d",
+                    Pourcentage = allIncidents.Count > 0 ? Math.Round((double)archiveCount / allIncidents.Count * 100, 1) : 0
+                }
+            };
+
+                    // ============================================
+                    // 3. STATISTIQUES PAR JOUR (derniers 7 jours)
+                    // ============================================
+                    var statsParJour = new List<IncidentJournalierDTO>();
+                    var today = DateTime.Today;
+
+                    for (int i = 6; i >= 0; i--)
+                    {
+                        var date = today.AddDays(-i);
+                        var incidentsDuJour = incidentsNonArchivesList
+                            .Where(i => i.DateDetection.Date == date)
+                            .ToList();
+
+                        statsParJour.Add(new IncidentJournalierDTO
+                        {
+                            Date = date,
+                            Crees = incidentsDuJour.Count,
+                            NonTraite = incidentsDuJour.Count(i => i.StatutIncident == null || i.StatutIncident == StatutIncident.NonTraite),
+                            EnCours = incidentsDuJour.Count(i => i.StatutIncident == StatutIncident.EnCours),
+                            Ferme = incidentsDuJour.Count(i => i.StatutIncident == StatutIncident.Ferme)
+                        });
+                    }
+
+                    // ============================================
+                    // 4. STATISTIQUES PAR SEMAINE (dernières 4 semaines)
+                    // ============================================
+                    var statsParSemaine = new List<IncidentJournalierDTO>();
+                    var currentYear = DateTime.Today.Year;
+                    var firstDayOfYear = new DateTime(currentYear, 1, 1);
+                    var startOfFirstWeek = firstDayOfYear;
+
+                    while (startOfFirstWeek.DayOfWeek != DayOfWeek.Monday)
+                    {
+                        startOfFirstWeek = startOfFirstWeek.AddDays(1);
+                    }
+
+                    var weeksCount = 4;
+
+                    for (int weekNumber = weeksCount; weekNumber >= 1; weekNumber--)
+                    {
+                        var debutSemaine = startOfFirstWeek.AddDays((weekNumber - 1) * 7);
+                        var finSemaine = debutSemaine.AddDays(6);
+
+                        var incidentsSemaine = incidentsNonArchivesList
+                            .Where(i => i.DateDetection.Date >= debutSemaine && i.DateDetection.Date <= finSemaine)
+                            .ToList();
+
+                        statsParSemaine.Add(new IncidentJournalierDTO
+                        {
+                            Date = debutSemaine,
+                            Crees = incidentsSemaine.Count,
+                            NonTraite = incidentsSemaine.Count(i => i.StatutIncident == null || i.StatutIncident == StatutIncident.NonTraite),
+                            EnCours = incidentsSemaine.Count(i => i.StatutIncident == StatutIncident.EnCours),
+                            Ferme = incidentsSemaine.Count(i => i.StatutIncident == StatutIncident.Ferme)
+                        });
+                    }
+
+                    statsParSemaine = statsParSemaine.OrderBy(s => s.Date).ToList();
+
+                    // ============================================
+                    // 5. STATISTIQUES PAR MOIS (derniers 6 mois)
+                    // ============================================
+                    var statsParMois = new List<IncidentJournalierDTO>();
+
+                    for (int i = 5; i >= 0; i--)
+                    {
+                        var dateMois = today.AddMonths(-i);
+                        var debutMois = new DateTime(dateMois.Year, dateMois.Month, 1);
+                        var finMois = debutMois.AddMonths(1).AddDays(-1);
+
+                        var incidentsMois = incidentsNonArchivesList
+                            .Where(i => i.DateDetection.Date >= debutMois && i.DateDetection.Date <= finMois)
+                            .ToList();
+
+                        statsParMois.Add(new IncidentJournalierDTO
+                        {
+                            Date = debutMois,
+                            Crees = incidentsMois.Count,
+                            NonTraite = incidentsMois.Count(i => i.StatutIncident == null || i.StatutIncident == StatutIncident.NonTraite),
+                            EnCours = incidentsMois.Count(i => i.StatutIncident == StatutIncident.EnCours),
+                            Ferme = incidentsMois.Count(i => i.StatutIncident == StatutIncident.Ferme)
+                        });
+                    }
+
+                    // ============================================
+                    // 6. STATISTIQUES PAR TYPE DE PROBLÈME
+                    // ============================================
+                    var resolutionParTypeProbleme = new List<ResolutionParTypeProblemeDTO>();
+                    var incidentsResolus = incidentsNonArchivesList.Where(i => i.StatutIncident == StatutIncident.Ferme && i.DateResolution.HasValue).ToList();
+
+                    foreach (TypeProbleme type in Enum.GetValues(typeof(TypeProbleme)))
+                    {
+                        var incidentsType = incidentsNonArchivesList.Where(i => i.TypeProbleme == type).ToList();
+                        var incidentsResolusType = incidentsType.Where(i => i.StatutIncident == StatutIncident.Ferme && i.DateResolution.HasValue).ToList();
+                        var tempsResolution = incidentsResolusType
+                            .Select(i => (i.DateResolution.Value - i.DateDetection).TotalHours)
+                            .ToList();
+
+                        double moyenneHeures = tempsResolution.Any() ? Math.Round(tempsResolution.Average(), 1) : 0;
+                        double moyenneJours = Math.Round(moyenneHeures / 24, 1);
+
+                        resolutionParTypeProbleme.Add(new ResolutionParTypeProblemeDTO
+                        {
+                            TypeProbleme = GetTypeProblemeLabel(type),
+                            TypeProblemeEnum = type,
+                            NombreIncidents = incidentsType.Count,
+                            NombreResolus = incidentsResolusType.Count,
+                            TempsMoyenResolutionHeures = moyenneHeures,
+                            TempsMoyenResolutionJours = moyenneJours,
+                            TauxResolution = incidentsType.Count > 0
+                                ? Math.Round((double)incidentsResolusType.Count / incidentsType.Count * 100, 1)
+                                : 0,
+                            PourcentageTotal = total > 0
+                                ? Math.Round((double)incidentsType.Count / total * 100, 1)
+                                : 0,
+                            Color = GetColorForTypeProbleme(type)
+                        });
+                    }
+
+                    resolutionParTypeProbleme = resolutionParTypeProbleme
+                        .OrderByDescending(t => t.NombreIncidents)
+                        .ToList();
+
+                    var dashboard = new CommercantIncidentDashboardDTO
+                    {
+                        Overview = overview,
+                        StatsParStatut = statsParStatut,
+                        StatsParJour = statsParJour,
+                        StatsParSemaine = statsParSemaine,
+                        StatsParMois = statsParMois,
+                        ResolutionParTypeProbleme = resolutionParTypeProbleme
+                    };
+
+                    _logger.LogInformation("Dashboard commerçant généré - Total: {Total}, Résolus: {Resolus}",
+                        total, ferme);
+
+                    return ApiResponse<CommercantIncidentDashboardDTO>.Success(dashboard);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Erreur lors de la génération du dashboard pour le commerçant");
+                    return ApiResponse<CommercantIncidentDashboardDTO>.Failure("Erreur interne du serveur");
+                }
+            });
+        }
 
         //transformer un IncidentEntity en IncidentDetailDTO
         private async Task<IncidentDetailDTO> MapToDetailDto(IncidentEntity incident)

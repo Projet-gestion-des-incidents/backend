@@ -635,6 +635,31 @@ namespace projet0.API.Controllers
         }
 
         /// <summary>
+        /// Récupère le dashboard pour le commerçant connecté (ses incidents)
+        /// </summary>
+        [HttpGet("commercant-dashboard")]
+        [Authorize(Roles = "Commercant")]
+        public async Task<ActionResult<ApiResponse<CommercantIncidentDashboardDTO>>> GetCommercantDashboard()
+        {
+            try
+            {
+                var userId = GetCurrentUserId();
+                _logger.LogInformation("Récupération du dashboard pour le commerçant {UserId}", userId);
+
+                var result = await _incidentService.GetCommercantDashboardAsync(userId);
+
+                if (!result.IsSuccess)
+                    return BadRequest(result);
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erreur lors de la récupération du dashboard commerçant");
+                return StatusCode(500, ApiResponse<CommercantIncidentDashboardDTO>.Failure("Erreur interne du serveur"));
+            }
+        }
+        /// <summary>
         /// Récupère les incidents archivés (paginated)
         /// </summary>
         // API/Controllers/IncidentController.cs

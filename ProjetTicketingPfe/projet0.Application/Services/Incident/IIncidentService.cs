@@ -39,6 +39,8 @@ namespace projet0.Application.Services.Incident
         Task<ApiResponse<PagedResult<IncidentDTO>>> GetMyIncidentsPagedAsync(IncidentSearchRequest request, Guid userId);
         Task<ApiResponse<IncidentDashboardDTO>> GetIncidentDashboardAsync();
 
+        // Dans IIncidentService.cs
+        Task<ApiResponse<CommercantIncidentDashboardDTO>> GetCommercantDashboardAsync(Guid commercantId);
         // ARCHIVAGE
         Task<ApiResponse<IncidentArchiveDTO>> ArchiverIncidentAsync(Guid incidentId, Guid userId);
         Task<ApiResponse<IncidentArchiveDTO>> RestaurerIncidentAsync(Guid incidentId, Guid userId);
