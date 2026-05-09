@@ -187,18 +187,35 @@ namespace projet0.Application.Services.Ticket
         /// Récupère les tickets archivés par l'utilisateur connecté
         /// </summary>
         public async Task<ApiResponse<PagedResult<TicketDTO>>> GetMyArchivesTicketsPagedAsync(
-            TicketPagedRequest request,
-            Guid userId)
+         TicketPagedRequest request,
+         Guid userId)
         {
+            _logger.LogCritical("🚨🚨🚨 GetMyArchivesTicketsPagedAsync ENTRY - UserId: {UserId}", userId);
+
             return await MeasureAsync(nameof(GetMyArchivesTicketsPagedAsync), request, async () =>
             {
                 try
                 {
-                    var archivedTicketIds = await _ticketArchiveRepository
-                        .GetArchivedTicketIdsByUserAsync(userId);
+                    _logger.LogWarning("=== DÉBUT GetMyArchivesTicketsPagedAsync ===");
+                    _logger.LogWarning("UserId reçu: {UserId}", userId);
+
+                    // ✅ UTILISER LA BONNE MÉTHODE !
+                    var archives = await _ticketArchiveRepository.GetArchivesByTicketCreatorAsync(userId);
+                    _logger.LogWarning("Archives trouvées: {Count}", archives.Count);
+
+                    // Créer un dictionnaire TicketId -> DateArchivage
+                    var archiveDict = archives
+                        .GroupBy(a => a.TicketId)
+                        .ToDictionary(
+                            g => g.Key,
+                            g => g.Max(a => a.DateArchivage)
+                        );
+
+                    _logger.LogWarning("Dictionnaire créé avec {Count} entrées uniques", archiveDict.Count); var archivedTicketIds = archiveDict.Keys.ToList();
 
                     if (!archivedTicketIds.Any())
                     {
+                        _logger.LogWarning("Aucun ticket archivé trouvé");
                         return ApiResponse<PagedResult<TicketDTO>>.Success(
                             new PagedResult<TicketDTO> { Items = new List<TicketDTO>(), TotalCount = 0 });
                     }
@@ -217,6 +234,7 @@ namespace projet0.Application.Services.Ticket
                     }
 
                     var totalCount = await query.CountAsync();
+                    _logger.LogWarning("TotalCount après filtre: {TotalCount}", totalCount);
 
                     var items = await query
                         .Skip((request.Page - 1) * request.PageSize)
@@ -226,7 +244,14 @@ namespace projet0.Application.Services.Ticket
                     var dtos = new List<TicketDTO>();
                     foreach (var ticket in items)
                     {
-                        dtos.Add(await MapToDto(ticket));
+                        var dto = await MapToDto(ticket);
+                        // ✅ AJOUTER LA DATE D'ARCHIVAGE
+                        if (archiveDict.TryGetValue(ticket.Id, out var dateArchivage))
+                        {
+                            dto.DateArchivage = dateArchivage;
+                            _logger.LogWarning("DateArchivage assignée pour ticket {TicketId}: {Date}", ticket.Id, dateArchivage);
+                        }
+                        dtos.Add(dto);
                     }
 
                     var pagedResult = PagedResult<TicketDTO>.Create(
@@ -236,6 +261,7 @@ namespace projet0.Application.Services.Ticket
                         request.PageSize
                     );
 
+                    _logger.LogWarning("=== FIN GetMyArchivesTicketsPagedAsync ===");
                     return ApiResponse<PagedResult<TicketDTO>>.Success(pagedResult);
                 }
                 catch (Exception ex)
@@ -245,7 +271,6 @@ namespace projet0.Application.Services.Ticket
                 }
             });
         }
-
         #region Private Methods
         private async Task<T> MeasureAsync<T>(string actionName, object input, Func<Task<T>> action)
         {

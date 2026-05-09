@@ -32,7 +32,16 @@ namespace projet0.Infrastructure.Repositories
                 .Distinct()
                 .ToListAsync();
         }
-
+        // Dans TicketArchiveRepository
+        // Dans TicketArchiveRepository
+        public async Task<List<TicketArchive>> GetArchivesByTicketCreatorAsync(Guid userId)
+        {
+            // ✅ Pour les tickets, on utilise ArchiveParId
+            // (peu importe qui a créé le ticket)
+            return await _context.TicketArchives
+                .Where(a => a.ArchiveParId == userId)
+                .ToListAsync();
+        }
         public async Task<TicketArchive?> GetByTicketAndUserAsync(Guid ticketId, Guid userId)
         {
             return await _context.TicketArchives

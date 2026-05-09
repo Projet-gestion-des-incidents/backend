@@ -32,7 +32,12 @@ namespace projet0.Infrastructure.Repositories
                 .Distinct()
                 .ToListAsync();
         }
-
+        public async Task<List<IncidentArchive>> GetArchivesByUserAsync(Guid userId)
+        {
+            return await _context.IncidentArchives
+                .Where(a => a.ArchiveParId == userId)
+                .ToListAsync();
+        }
         public async Task<IncidentArchive?> GetByIncidentAndUserAsync(Guid incidentId, Guid userId)
         {
             return await _context.IncidentArchives

@@ -494,17 +494,24 @@ namespace projet0.API.Controllers
         [HttpGet("archives")]
         [Authorize(Policy = "TicketRead")]
         public async Task<ActionResult<ApiResponse<PagedResult<TicketDTO>>>> GetTicketsArchives(
-            [FromQuery] TicketPagedRequest request)
+           [FromQuery] TicketPagedRequest request)
         {
+            _logger.LogCritical("🎯🎯🎯 GetTicketsArchives CONTROLLER - AVANT appel service");
+
             try
             {
                 var userId = GetCurrentUserId();
+                _logger.LogCritical("🎯 UserId: {UserId}", userId);
+
+                // ⚠️ Vérifiez que vous appelez la BONNE méthode
                 var result = await _ticketService.GetMyArchivesTicketsPagedAsync(request, userId);
+                _logger.LogCritical("🎯 Service appelé avec succès");
+
                 return Ok(result);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Erreur lors de la récupération des tickets archivés");
+                _logger.LogCritical("🎯 ERREUR: {Error}", ex.Message);
                 return StatusCode(500, ApiResponse<PagedResult<TicketDTO>>.Failure("Erreur interne"));
             }
         }

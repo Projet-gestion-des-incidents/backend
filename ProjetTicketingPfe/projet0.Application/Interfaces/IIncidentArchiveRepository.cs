@@ -9,6 +9,8 @@ namespace projet0.Application.Interfaces
     {
         Task<bool> ExistsAsync(Guid incidentId, Guid userId);
         Task<List<Guid>> GetArchivedIncidentIdsByUserAsync(Guid userId);
+        Task<List<IncidentArchive>> GetArchivesByUserAsync(Guid userId);  // ✅ AJOUTER
+
         Task<IncidentArchive?> GetByIncidentAndUserAsync(Guid incidentId, Guid userId);
     }
 }

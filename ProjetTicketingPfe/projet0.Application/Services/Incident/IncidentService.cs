@@ -589,19 +589,33 @@ namespace projet0.Application.Services.Incident
         /// Récupère les incidents archivés par l'utilisateur connecté
         /// </summary>
         public async Task<ApiResponse<PagedResult<IncidentDTO>>> GetIncidentsArchivesPagedAsync(
-            IncidentSearchRequest request,
-            Guid userId)
+         IncidentSearchRequest request,
+         Guid userId)
         {
             return await MeasureAsync(nameof(GetIncidentsArchivesPagedAsync), request, async () =>
             {
                 try
                 {
-                    // Récupérer les IDs des incidents que l'utilisateur a archivés
-                    var archivedIncidentIds = await _incidentArchiveRepository
-                        .GetArchivedIncidentIdsByUserAsync(userId);
+                    _logger.LogWarning("=== DÉBUT GetIncidentsArchivesPagedAsync ===");
+                    _logger.LogWarning("UserId reçu: {UserId}", userId);
+
+                    // ✅ 1. Récupérer TOUTES les archives avec leurs dates
+                    var archives = await _incidentArchiveRepository.GetArchivesByUserAsync(userId);
+                    _logger.LogWarning("Archives trouvées: {Count}", archives.Count);
+
+                    // ✅ 2. Créer un dictionnaire IncidentId -> DateArchivage (gérer les doublons)
+                    var archiveDict = archives
+                        .GroupBy(a => a.IncidentId)
+                        .ToDictionary(
+                            g => g.Key,
+                            g => g.Max(a => a.DateArchivage)  // Prend la date la plus récente
+                        );
+
+                    var archivedIncidentIds = archiveDict.Keys.ToList();
 
                     if (!archivedIncidentIds.Any())
                     {
+                        _logger.LogWarning("Aucun incident archivé trouvé");
                         return ApiResponse<PagedResult<IncidentDTO>>.Success(
                             new PagedResult<IncidentDTO> { Items = new List<IncidentDTO>(), TotalCount = 0 });
                     }
@@ -625,6 +639,8 @@ namespace projet0.Application.Services.Incident
 
                     query = ApplySearchFilters(query, request, matchedUserIds);
                     var totalCount = await query.CountAsync();
+                    _logger.LogWarning("TotalCount après filtre: {TotalCount}", totalCount);
+
                     query = ApplySorting(query, request.SortBy, request.SortDescending);
 
                     var pagedIncidents = await query
@@ -635,7 +651,14 @@ namespace projet0.Application.Services.Incident
                     var dtos = new List<IncidentDTO>();
                     foreach (var incident in pagedIncidents)
                     {
-                        dtos.Add(await MapToDto(incident));
+                        var dto = await MapToDto(incident);
+                        // ✅ 3. AJOUTER LA DATE D'ARCHIVAGE
+                        if (archiveDict.TryGetValue(incident.Id, out var dateArchivage))
+                        {
+                            dto.DateArchivage = dateArchivage;
+                            _logger.LogWarning("DateArchivage assignée pour incident {IncidentId}: {Date}", incident.Id, dateArchivage);
+                        }
+                        dtos.Add(dto);
                     }
 
                     var result = new PagedResult<IncidentDTO>
@@ -646,6 +669,7 @@ namespace projet0.Application.Services.Incident
                         PageSize = request.PageSize
                     };
 
+                    _logger.LogWarning("=== FIN GetIncidentsArchivesPagedAsync ===");
                     return ApiResponse<PagedResult<IncidentDTO>>.Success(result);
                 }
                 catch (Exception ex)
