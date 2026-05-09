@@ -11,7 +11,7 @@ using System.Collections.Generic;
 using System.Text;
 
 namespace projet0.Application.Services.EntiteImpacteeServices
-{ 
+{
     public class EntiteImpacteeService : IEntiteImpacteeService
     {
         private readonly IEntiteImpacteeRepository _repository;
@@ -79,15 +79,20 @@ namespace projet0.Application.Services.EntiteImpacteeServices
         public async Task<ApiResponse<EntiteImpacteeDTO>> AddToIncidentAsync(AddEntiteImpacteeDTO dto)
         {
             try
-            {              
-                // Vérifier que cette entité n'existe pas déjà pour cet incident
+            {
+                // ✅ CORRECTION : Vérifier si CETTE entité spécifique existe déjà
                 var entitesExistantes = await _repository.GetByIncidentIdAsync(dto.IncidentId);
-                if (entitesExistantes.Any(e => e.TypeEntiteImpactee == dto.TypeEntiteImpactee))
+
+                // Vérifier si le MÊME type d'entité existe déjà
+                var existeDeja = entitesExistantes.Any(e => e.TypeEntiteImpactee == dto.TypeEntiteImpactee);
+
+                if (existeDeja)
                 {
-                    _logger.LogWarning("Cette entité impactée existe déjà pour l'incident {IncidentId}", dto.IncidentId);
-                    // Retourner une erreur ou permettre le doublon selon votre choix
+                    _logger.LogWarning("L'entité impactée de type {Type} existe déjà pour l'incident {IncidentId}",
+                        dto.TypeEntiteImpactee, dto.IncidentId);
+
                     return ApiResponse<EntiteImpacteeDTO>.Failure(
-                        "Cette entité impactée existe déjà pour cet incident",
+                        $"Une entité impactée de type {dto.TypeEntiteImpactee} existe déjà pour cet incident",
                         resultCode: 409
                     );
                 }
@@ -106,8 +111,8 @@ namespace projet0.Application.Services.EntiteImpacteeServices
                 var dtoResult = _mapper.Map<EntiteImpacteeDTO>(entite);
 
                 _logger.LogInformation(
-                    "Entité impactée ajoutée à l'incident {IncidentId} | Type: {Type}",
-                    dto.IncidentId, dto.TypeEntiteImpactee
+                    "Entité impactée de type {Type} ajoutée à l'incident {IncidentId}",
+                    dto.TypeEntiteImpactee, dto.IncidentId
                 );
 
                 return ApiResponse<EntiteImpacteeDTO>.Success(
@@ -125,7 +130,7 @@ namespace projet0.Application.Services.EntiteImpacteeServices
         /// <summary>
         /// Supprimer une entité impactée d'un incident
         /// </summary>
-       public async Task<ApiResponse<bool>> RemoveFromIncidentAsync(Guid entiteImpacteeId)
+        public async Task<ApiResponse<bool>> RemoveFromIncidentAsync(Guid entiteImpacteeId)
         {
             try
             {
@@ -156,7 +161,6 @@ namespace projet0.Application.Services.EntiteImpacteeServices
                 _logger.LogError(ex, "Erreur lors de la suppression de l'entité impactée {EntiteId}", entiteImpacteeId);
                 return ApiResponse<bool>.Failure("Erreur interne du serveur");
             }
-        }        
+        }
     }
 }
-
