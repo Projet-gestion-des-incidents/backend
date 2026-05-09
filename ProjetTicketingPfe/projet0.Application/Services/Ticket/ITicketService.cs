@@ -22,6 +22,9 @@ namespace projet0.Application.Services.Ticket
         // Créer un nouveau ticket
         Task<ApiResponse<TicketDTO>> CreateTicketAsync(CreateTicketDTO dto, Guid createurId);
 
+        // Dans ITicketService.cs
+        Task<ApiResponse<TicketTechnicienDashboardDTO>> GetTechnicienDashboardAsync(Guid technicienId);
+
         Task<ApiResponse<bool>> DeleteTicketAsync(Guid id, Guid userId);
 
         // Récupérer un ticket avec ses commentaires

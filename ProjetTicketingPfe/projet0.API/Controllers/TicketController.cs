@@ -487,7 +487,31 @@ namespace projet0.API.Controllers
                 return StatusCode(500, ApiResponse<TicketArchiveDTO>.Failure("Erreur interne"));
             }
         }
+        /// <summary>
+        /// Récupère le dashboard pour le technicien connecté (ses tickets assignés)
+        /// </summary>
+        [HttpGet("technicien-dashboard")]
+        [Authorize(Roles = "Technicien")]
+        public async Task<ActionResult<ApiResponse<TicketTechnicienDashboardDTO>>> GetTechnicienDashboard()
+        {
+            try
+            {
+                var userId = GetCurrentUserId();
+                _logger.LogInformation("Récupération du dashboard pour le technicien {UserId}", userId);
 
+                var result = await _ticketService.GetTechnicienDashboardAsync(userId);
+
+                if (!result.IsSuccess)
+                    return BadRequest(result);
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erreur lors de la récupération du dashboard technicien");
+                return StatusCode(500, ApiResponse<TicketTechnicienDashboardDTO>.Failure("Erreur interne du serveur"));
+            }
+        }
         /// <summary>
         /// Récupère les tickets archivés par l'utilisateur connecté
         /// </summary>
