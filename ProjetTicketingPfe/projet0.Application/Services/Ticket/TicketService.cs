@@ -755,17 +755,13 @@ namespace projet0.Application.Services.Ticket
                     var userRoles = await _userRepository.GetUserRolesAsync(userId);
                     var isAdmin = userRoles.Contains("Admin");
 
-                    // Restrictions pour les non-admins
-                    if (!isAdmin)
+                    // ✅ Seul le statut EnCours est universellement bloqué
+                    if (ticket.StatutTicket == StatutTicket.EnCours)
                     {
-                        if (ticket.StatutTicket == StatutTicket.EnCours ||
-                            ticket.StatutTicket == StatutTicket.Resolu)
-                        {
-                            return ApiResponse<bool>.Failure(
-                                "Impossible de supprimer un ticket en cours ou résolu",
-                                resultCode: 50
-                            );
-                        }
+                        return ApiResponse<bool>.Failure(
+                            "Impossible de supprimer un ticket en cours de traitement.",
+                            resultCode: 50
+                        );
                     }
 
                     using var transaction = await _ticketRepository.BeginTransactionAsync();

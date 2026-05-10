@@ -1507,6 +1507,7 @@ namespace projet0.Application.Services.Incident
                 var isCommercant = userRoles.Contains("Commercant");
 
                 // Règles pour le commerçant
+                // Règles pour le commerçant
                 if (isCommercant && !isAdmin)
                 {
                     if (incident.CreatedById != userId)
@@ -1514,12 +1515,15 @@ namespace projet0.Application.Services.Incident
                         return ApiResponse<bool>.Failure("Vous ne pouvez supprimer que vos propres incidents.", resultCode: 72);
                     }
 
-                    if (incident.StatutIncident == StatutIncident.Ferme)
+                    // ✅ Seul EnCours est bloqué — Ferme (archivé) est autorisé
+                    if (incident.StatutIncident == StatutIncident.EnCours)
                     {
-                        return ApiResponse<bool>.Failure("Vous ne pouvez pas supprimer un incident fermé.", resultCode: 48);
+                        return ApiResponse<bool>.Failure(
+                            "Impossible de supprimer un incident en cours de traitement.",
+                            resultCode: 48
+                        );
                     }
                 }
-
                 using var transaction = await _incidentRepository.BeginTransactionAsync();
 
                 try

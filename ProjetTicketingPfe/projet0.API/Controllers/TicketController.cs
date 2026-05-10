@@ -173,7 +173,7 @@ namespace projet0.API.Controllers
             try
             {
                 var userId = GetCurrentUserId();
-                var userRoles = await _userService.GetUserRolesAsync(userId); 
+                var userRoles = await _userService.GetUserRolesAsync(userId);
                 var isAdmin = userRoles.Contains("Admin");
                 var isTechnicien = userRoles.Contains("Technicien");
 
@@ -183,10 +183,9 @@ namespace projet0.API.Controllers
 
                 var ticket = result.Data;
 
-                // RÈGLES DE SUPPRESSION
                 if (isAdmin)
                 {
-                    // Admin : peut supprimer si statut = null, Assigné, ou Résolu
+                    // Admin : ne peut pas supprimer un ticket en cours
                     if (ticket.StatutTicket == StatutTicket.EnCours)
                     {
                         return BadRequest(ApiResponse<bool>.Failure(
@@ -197,7 +196,8 @@ namespace projet0.API.Controllers
                 }
                 else if (isTechnicien)
                 {
-                    // Technicien : ne peut supprimer que ses propres tickets avec statut null
+                    // Technicien : peut supprimer ses propres tickets
+                    // ✅ Y COMPRIS les tickets résolus (archivés)
                     if (ticket.AssigneeId != userId)
                     {
                         return BadRequest(ApiResponse<bool>.Failure(
@@ -206,11 +206,11 @@ namespace projet0.API.Controllers
                         ));
                     }
 
-                    // utiliser != null au lieu de HasValue
-                    if (ticket.StatutTicket != null)
+                    // ✅ Seul le statut EnCours est bloqué
+                    if (ticket.StatutTicket == StatutTicket.EnCours)
                     {
                         return BadRequest(ApiResponse<bool>.Failure(
-                            "Un technicien ne peut supprimer qu'un ticket sans statut.",
+                            "Impossible de supprimer un ticket en cours de traitement.",
                             resultCode: 94
                         ));
                     }
@@ -220,7 +220,6 @@ namespace projet0.API.Controllers
                     return Forbid();
                 }
 
-                // Procéder à la suppression
                 var deleteResult = await _ticketService.DeleteTicketAsync(id, userId);
 
                 if (!deleteResult.IsSuccess)

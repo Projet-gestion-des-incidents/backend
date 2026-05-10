@@ -224,7 +224,6 @@ namespace projet0.API.Controllers
                 if (!incident.IsSuccess || incident.Data == null)
                     return NotFound(ApiResponse<bool>.Failure("Incident non trouvé"));
 
-                // RÈGLES DE SUPPRESSION
                 if (isAdmin)
                 {
                     // Admin peut supprimer n'importe quel incident
@@ -240,12 +239,12 @@ namespace projet0.API.Controllers
                         ));
                     }
 
-                    // SOLUTION RAPIDE : Vérifier si le statut est différent de 0 (Non traité)
-                    // Dans votre enum, "Non traité" correspond à 0
-                    if ((int)incident.Data.StatutIncident != 0)
+                    // ✅ Seul le statut EnCours est bloqué
+                    // Les incidents Fermés (archivés) peuvent être supprimés
+                    if (incident.Data.StatutIncident == StatutIncident.EnCours)
                     {
                         return BadRequest(ApiResponse<bool>.Failure(
-                            "Vous ne pouvez supprimer qu'un incident sans statut.",
+                            "Impossible de supprimer un incident en cours de traitement.",
                             resultCode: 96
                         ));
                     }
