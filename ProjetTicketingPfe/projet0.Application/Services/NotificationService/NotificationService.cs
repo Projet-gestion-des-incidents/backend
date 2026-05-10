@@ -185,7 +185,10 @@ namespace projet0.Application.Services
                 _logger.LogWarning($"Notification {id} non trouvée");
             }
         }
-
+        public async Task MarkAllAsConsultedAsync(Guid userId)
+        {
+            await _notificationRepository.MarkAllAsConsultedAsync(userId);
+        }
         public async Task DeleteAllUserNotificationsAsync(Guid userId)
         {
             _logger.LogInformation($"DeleteAllUserNotificationsAsync - Suppression de toutes les notifications pour l'utilisateur {userId}");

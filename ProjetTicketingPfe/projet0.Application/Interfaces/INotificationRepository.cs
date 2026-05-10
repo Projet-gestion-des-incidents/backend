@@ -20,5 +20,6 @@ namespace projet0.Application.Interfaces
         Task<IEnumerable<Notification>> GetByCommentaireIdAsync(Guid commentaireId);
         Task<IEnumerable<Notification>> GetByTicketIdAsync(Guid ticketId);
         Task<IEnumerable<Notification>> GetByIncidentIdAsync(Guid incidentId);
+        Task MarkAllAsConsultedAsync(Guid userId);
     }
 }

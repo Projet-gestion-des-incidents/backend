@@ -148,7 +148,18 @@ namespace projet0.API.Controllers
             await _notificationService.DeleteNotificationAsync(id, userId);
             return Ok(new { message = "Notification supprimée" });
         }
+        /// <summary>
+        /// Marquer toutes les notifications comme consultées (dropdown ouvert)
+        /// </summary>
+        [HttpPut("consulter")]
+        public async Task<IActionResult> MarkAllAsConsulted()
+        {
+            var userId = await GetCurrentUserIdAsync();
+            if (userId == Guid.Empty) return Unauthorized();
 
+            await _notificationService.MarkAllAsConsultedAsync(userId);
+            return Ok();
+        }
         /// <summary>
         /// Delete all read notifications (Admin only)
         /// </summary>

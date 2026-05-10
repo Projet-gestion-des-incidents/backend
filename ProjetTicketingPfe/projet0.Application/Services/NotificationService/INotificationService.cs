@@ -20,6 +20,7 @@ namespace projet0.Application.Interfaces
         Task CreateCommentNotificationAsync(Guid userId, Guid commentId, Guid? ticketId, string titre, string message);
         Task MarkAsReadAsync(Guid notificationId, Guid userId);
         Task MarkAllAsReadAsync(Guid userId);
+        Task MarkAllAsConsultedAsync(Guid userId);
         Task DeleteNotificationAsync(Guid id, Guid userId);
         Task DeleteAllUserNotificationsAsync(Guid userId);
     }

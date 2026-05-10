@@ -127,7 +127,21 @@ namespace projet0.Infrastructure.Repositories
                 .Where(n => n.TicketId == ticketId)
                 .ToListAsync();
         }
+        public async Task MarkAllAsConsultedAsync(Guid userId)
+        {
+            var notifications = await _dbSet
+                .Where(n => n.DestinataireId == userId && !n.EstConsulte)
+                .ToListAsync();
 
+            foreach (var n in notifications)
+            {
+                n.EstConsulte = true;
+                n.DateConsultation = DateTime.UtcNow;
+            }
+
+            if (notifications.Any())
+                await _context.SaveChangesAsync();
+        }
         public async Task<IEnumerable<Notification>> GetByCommentaireIdAsync(Guid commentaireId)
         {
             return await _dbSet

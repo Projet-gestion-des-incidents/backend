@@ -23,6 +23,9 @@ namespace projet0.Domain.Entities
         public Guid? TPEId { get; set; }
 
         // Navigation Properties
+        public bool EstConsulte { get; set; } = false;
+        public DateTime? DateConsultation { get; set; }
+
         public virtual ApplicationUser Destinataire { get; set; }
         public virtual Ticket Ticket { get; set; }
         public virtual TPE TPE { get; set; }
