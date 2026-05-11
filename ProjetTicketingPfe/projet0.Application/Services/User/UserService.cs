@@ -1672,15 +1672,18 @@ namespace projet0.Application.Services.User
                 bool hasChanges = false;
                 bool emailChanged = false;
                 bool userNameChanged = false;
+                _logger.LogInformation("=== AdminUpdateTechnicienAsync - Début ===");
+                _logger.LogInformation("DTO reçu: {@Dto}", dto);
+                _logger.LogInformation("User ID: {UserId}", userId);
 
                 // 1. VALIDATION DU NOM D'UTILISATEUR (si fourni)
                 if (!string.IsNullOrEmpty(dto.UserName))
                 {
                     // Vérifier la longueur minimale
-                    if (dto.UserName.Length < 4)
+                    if (dto.UserName.Length < 3)
                     {
                         return ApiResponse<ApplicationUser>.Failure(
-                            "Le nom d'utilisateur doit contenir au moins 4 caractères",
+                            "Le nom d'utilisateur doit contenir au moins 3 caractères",
                             resultCode: 40);
                     }
 
@@ -1800,17 +1803,17 @@ namespace projet0.Application.Services.User
                 }
 
                 // 5. VALIDATION DES CHAMPS TEXTE (longueur)
-                if (!string.IsNullOrEmpty(dto.Nom) && (dto.Nom.Length < 4 || dto.Nom.Length > 30))
+                if (!string.IsNullOrEmpty(dto.Nom) && (dto.Nom.Length < 3 || dto.Nom.Length > 30))
                 {
                     return ApiResponse<ApplicationUser>.Failure(
-                        "Le nom doit contenir entre 4 et 30 caractères",
+                        "Le nom doit contenir entre 3 et 30 caractères",
                         resultCode: 40);
                 }
 
-                if (!string.IsNullOrEmpty(dto.Prenom) && (dto.Prenom.Length < 4 || dto.Prenom.Length > 30))
+                if (!string.IsNullOrEmpty(dto.Prenom) && (dto.Prenom.Length < 3 || dto.Prenom.Length > 30))
                 {
                     return ApiResponse<ApplicationUser>.Failure(
-                        "Le prénom doit contenir entre 4 et 30 caractères",
+                        "Le prénom doit contenir entre 3 et 30 caractères",
                         resultCode: 40);
                 }
 
