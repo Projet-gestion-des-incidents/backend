@@ -1507,7 +1507,6 @@ namespace projet0.Application.Services.Incident
                 var isCommercant = userRoles.Contains("Commercant");
 
                 // Règles pour le commerçant
-                // Règles pour le commerçant
                 if (isCommercant && !isAdmin)
                 {
                     if (incident.CreatedById != userId)
@@ -1515,7 +1514,6 @@ namespace projet0.Application.Services.Incident
                         return ApiResponse<bool>.Failure("Vous ne pouvez supprimer que vos propres incidents.", resultCode: 72);
                     }
 
-                    // ✅ Seul EnCours est bloqué — Ferme (archivé) est autorisé
                     if (incident.StatutIncident == StatutIncident.EnCours)
                     {
                         return ApiResponse<bool>.Failure(
@@ -1524,6 +1522,7 @@ namespace projet0.Application.Services.Incident
                         );
                     }
                 }
+
                 using var transaction = await _incidentRepository.BeginTransactionAsync();
 
                 try
@@ -1564,7 +1563,7 @@ namespace projet0.Application.Services.Incident
                     await _incidentRepository.DeleteAsync(incident);
                     await _incidentRepository.SaveChangesAsync();
 
-                    // 5. Mettre à jour les tickets qui n'ont plus d'incidents
+                    // 5. Pour chaque ticket qui n'a plus d'incidents, supprimer SES notifications d'abord
                     foreach (var ticket in ticketsLies)
                     {
                         var incidentsRestants = await _incidentTicketRepository.GetIncidentsByTicketIdAsync(ticket.Id);
@@ -1572,6 +1571,13 @@ namespace projet0.Application.Services.Incident
                         if (!incidentsRestants.Any())
                         {
                             _logger.LogInformation("Ticket {TicketId} n'a plus d'incidents liés - suppression", ticket.Id);
+
+                            // ✅ NOUVEAU : Supprimer les notifications liées au ticket AVANT de supprimer le ticket
+                            var ticketNotifications = await _notificationRepository.GetByTicketIdAsync(ticket.Id);
+                            foreach (var notif in ticketNotifications)
+                            {
+                                await _notificationRepository.DeleteAsync(notif);
+                            }
 
                             // Supprimer les commentaires et leurs pièces jointes
                             if (ticket.Commentaires != null && ticket.Commentaires.Any())
