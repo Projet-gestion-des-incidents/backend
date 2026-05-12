@@ -22,8 +22,18 @@ namespace projet0.Application.Commun.DTOs.Incident
         public TypeProbleme TypeProbleme { get; set; }
         public string Emplacement { get; set; }
         public DateTime? DateArchivage { get; set; }
-
+        public int TicketCount { get; set; }
+        public bool HasTicket => TicketCount > 0;
+        public List<IncidentTicketInfoDTO> Tickets { get; set; } = new();
         public List<EntiteImpacteeDTO> EntitesImpactees { get; set; } = new();
+        public class IncidentTicketInfoDTO
+        {
+            public Guid TicketId { get; set; }
+            public string ReferenceTicket { get; set; }
+            public string TitreTicket { get; set; }
+            public string StatutTicket { get; set; }
+            public DateTime DateLiaison { get; set; }
+        }
 
     }
 }

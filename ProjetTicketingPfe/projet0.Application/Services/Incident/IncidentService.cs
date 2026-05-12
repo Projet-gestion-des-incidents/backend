@@ -14,6 +14,7 @@ using projet0.Domain.Enums;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using static projet0.Application.Commun.DTOs.Incident.IncidentDTO;
 using IncidentEntity = projet0.Domain.Entities.Incident;
 using TicketEntity = projet0.Domain.Entities.Ticket;
 
@@ -106,7 +107,7 @@ namespace projet0.Application.Services.Incident
             var dto = _mapper.Map<IncidentDTO>(incident);
 
             dto.StatutIncidentLibelle = GetStatutLibelle(incident.StatutIncident);
-            dto.SeveriteIncidentLibelle = GetSeveriteLibelle(incident.SeveriteIncident); 
+            dto.SeveriteIncidentLibelle = GetSeveriteLibelle(incident.SeveriteIncident);
             dto.Emplacement = incident.Emplacement;
 
             if (incident.CreatedById.HasValue && dto.CreatedByName == null)
@@ -117,7 +118,7 @@ namespace projet0.Application.Services.Incident
 
             dto.TypeProbleme = incident.TypeProbleme;
 
-            // AJOUTER LE MAPPAGE DES ENTITÉS IMPACTÉES
+            // MAPPAGE DES ENTITÉS IMPACTÉES
             if (incident.EntitesImpactees != null && incident.EntitesImpactees.Any())
             {
                 dto.EntitesImpactees = incident.EntitesImpactees
@@ -125,13 +126,38 @@ namespace projet0.Application.Services.Incident
                     {
                         Id = e.Id,
                         TypeEntiteImpactee = e.TypeEntiteImpactee,
-                        // Ajoutez d'autres propriétés si nécessaire
                     })
                     .ToList();
             }
             else
             {
                 dto.EntitesImpactees = new List<EntiteImpacteeDTO>();
+            }
+
+            // ✅ AJOUTER LE MAPPAGE DES TICKETS
+            if (incident.IncidentTickets != null && incident.IncidentTickets.Any())
+            {
+                // Filtrer les tickets non archivés
+                var activeTickets = incident.IncidentTickets
+                    .Where(it => it.Ticket != null )
+                    .ToList();
+
+                dto.TicketCount = activeTickets.Count;
+
+                dto.Tickets = activeTickets
+                    .Select(it => new IncidentTicketInfoDTO
+                    {
+                        TicketId = it.TicketId,
+                        ReferenceTicket = it.Ticket.ReferenceTicket,
+                        TitreTicket = it.Ticket.TitreTicket,
+                        StatutTicket = it.Ticket.StatutTicket.ToString()
+                    })
+                    .ToList();
+            }
+            else
+            {
+                dto.TicketCount = 0;
+                dto.Tickets = new List<IncidentTicketInfoDTO>();
             }
 
             return dto;
@@ -2371,23 +2397,26 @@ namespace projet0.Application.Services.Incident
             {
                 try
                 {
-                    // 1. Récupérer les IDs des incidents que l'utilisateur a archivés
                     var archivedIncidentIds = await _incidentArchiveRepository
                         .GetArchivedIncidentIdsByUserAsync(userId);
 
-                    // 2. Obtenir la requête de base avec les détails
-                    var query = _incidentRepository.QueryWithDetails();
+                    // ✅ CORRECTION : Commencer avec IQueryable, puis appliquer Include
+                    var baseQuery = _incidentRepository.QueryWithDetails();
 
-                    // 3. Filtrer par l'utilisateur connecté (ses propres incidents)
+                    // ✅ Appliquer les Include séparément
+                    var query = baseQuery
+                        .Include(i => i.IncidentTickets)
+                            .ThenInclude(it => it.Ticket)
+                        .Include(i => i.EntitesImpactees)
+                        .AsQueryable();  // Important pour garder le type IQueryable
+
                     query = query.Where(i => i.CreatedById == userId);
 
-                    // 4. EXCLURE les incidents archivés par cet utilisateur
                     if (archivedIncidentIds.Any())
                     {
                         query = query.Where(i => !archivedIncidentIds.Contains(i.Id));
                     }
 
-                    // 5. Recherche utilisateurs pour le SearchTerm (si nécessaire)
                     List<Guid> matchedUserIds = new();
                     if (!string.IsNullOrWhiteSpace(request.SearchTerm))
                     {
@@ -2402,32 +2431,22 @@ namespace projet0.Application.Services.Incident
                         matchedUserIds = users.Select(u => u.Id).ToList();
                     }
 
-                    // 6. Appliquer tous les filtres
                     query = ApplySearchFilters(query, request, matchedUserIds);
-
-                    // 7. Compter le total AVANT pagination
                     var totalCount = await query.CountAsync();
-                    _logger.LogInformation("Total incidents trouvés pour l'utilisateur {UserId}: {TotalCount}", userId, totalCount);
-
-                    // 8. Appliquer le tri
                     query = ApplySorting(query, request.SortBy, request.SortDescending);
 
-                    // 9. Appliquer la pagination
                     var pagedIncidents = await query
                         .Skip((request.Page - 1) * request.PageSize)
                         .Take(request.PageSize)
                         .ToListAsync();
 
-                    _logger.LogInformation("{Count} incidents récupérés pour la page {Page}", pagedIncidents.Count, request.Page);
-
-                    // 10. Mapper vers DTO
+                    // Mapper vers DTO
                     var dtos = new List<IncidentDTO>();
                     foreach (var incident in pagedIncidents)
                     {
                         dtos.Add(await MapToDto(incident));
                     }
 
-                    // 11. Créer le résultat paginé
                     var result = new PagedResult<IncidentDTO>
                     {
                         Items = dtos,
@@ -2440,12 +2459,11 @@ namespace projet0.Application.Services.Incident
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Erreur lors de la récupération paginée des incidents de l'utilisateur {UserId}", userId);
+                    _logger.LogError(ex, "Erreur lors de la récupération paginée des incidents");
                     return ApiResponse<PagedResult<IncidentDTO>>.Failure("Erreur interne du serveur");
                 }
             });
         }
-
         #endregion
 
         #region Dashboard Statistics Methods
