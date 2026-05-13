@@ -494,10 +494,28 @@ namespace projet0.Application.Services.TPEService
                         _logger.LogInformation("Filtre appliqué: Modele = {Modele}", request.Modele.Value);
                     }
 
+                    // Remplacer la section des filtres par :
+
+                    // 2. Appliquer les filtres
+                    if (request.Modele.HasValue)
+                    {
+                        query = query.Where(t => t.Modele == request.Modele.Value);
+                        _logger.LogInformation("Filtre appliqué: Modele = {Modele}", request.Modele.Value);
+                    }
+
+                    // ✅ GESTION CORRECTE - CommercantId reste Guid?
                     if (request.CommercantId.HasValue)
                     {
+                        // Filtrer par un commerçant spécifique
                         query = query.Where(t => t.CommercantId == request.CommercantId.Value);
                         _logger.LogInformation("Filtre appliqué: CommercantId = {CommercantId}", request.CommercantId.Value);
+                    }
+
+                    // ✅ FILTRE "NON ASSIGNÉ" via paramètre booléen séparé
+                    if (request.NonAssigne == true)
+                    {
+                        query = query.Where(t => t.CommercantId == null);
+                        _logger.LogInformation("Filtre appliqué: TPEs non assignés (CommercantId = null)");
                     }
 
                     // ✅ CORRECTION: Filtre par date de création exacte (pas Debut/Fin)
