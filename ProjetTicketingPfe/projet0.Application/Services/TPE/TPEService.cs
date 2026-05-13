@@ -665,37 +665,61 @@ namespace projet0.Application.Services.TPEService
                 {
                     _logger.LogInformation("Récupération du dashboard TPE");
 
-                    // 1. Récupérer tous les TPEs avec leurs commerçants
+                    // 1. Récupérer tous les TPEs
                     var tpes = await _tpeRepository.GetAllAsync();
                     var tpesList = tpes.ToList();
 
-                    // 2. Récupérer tous les incidents liés aux TPEs
-                    // Pour cela, on a besoin des liaisons IncidentTPE
+                    // 2. Récupérer toutes les liaisons IncidentTPE
                     var incidentTPEs = await GetIncidentTPEsAsync();
 
-                    // 3. Compter le nombre d'incidents par TPE
-                    var incidentsParTPE = incidentTPEs
-                        .GroupBy(it => it.TPEId)
-                        .ToDictionary(g => g.Key, g => g.Count());
+                    if (!incidentTPEs.Any())
+                    {
+                        // Pas de liaisons, retourner des stats à 0
+                        var emptyDashboard = new TPEDashboardDTO
+                        {
+                            Overview = new TPEDashboardOverviewDTO
+                            {
+                                TotalTPEs = tpesList.Count,
+                                TotalIncidentsLiees = 0,
+                                TauxGlobalPanne = 0
+                            },
+                            PannesParModele = new List<TPEPanneParModeleDTO>(),
+                            PannesParAdresse = new List<TPEPanneParAdresseDTO>()
+                        };
+                        return ApiResponse<TPEDashboardDTO>.Success(emptyDashboard);
+                    }
 
                     // ============================================
-                    // STATISTIQUES GLOBALES
+                    // APPROCHE PONDÉRÉE : 1 incident = 1 / (nb TPEs dans l'incident)
                     // ============================================
+
+                    // Compter le nombre de TPEs par incident
+                    var nbTPEsParIncident = incidentTPEs
+                        .GroupBy(it => it.IncidentId)
+                        .ToDictionary(g => g.Key, g => g.Count());
+
+                    // Calculer le poids total des incidents (réparti entre TPEs)
+                    var poidsTotalIncidents = incidentTPEs
+                        .Sum(it => 1.0 / nbTPEsParIncident[it.IncidentId]);
+
+                    // Statistiques globales
                     var totalTPEs = tpesList.Count;
-                    var totalIncidents = incidentTPEs.Count;
+                    var totalIncidentsUniques = nbTPEsParIncident.Count;
+                    var totalLiaisons = incidentTPEs.Count;
+
                     var tauxGlobalPanne = totalTPEs > 0
-                        ? Math.Round((double)totalIncidents / totalTPEs * 100, 1)
+                        ? Math.Round(poidsTotalIncidents / totalTPEs * 100, 1)
                         : 0;
 
                     var overview = new TPEDashboardOverviewDTO
                     {
                         TotalTPEs = totalTPEs,
-                        TotalIncidentsLiees = totalIncidents,
+                        TotalIncidentsLiees = totalIncidentsUniques,  // ← Incidents UNIQUES
                         TauxGlobalPanne = tauxGlobalPanne
                     };
 
                     // ============================================
-                    // TAUX DE PANNE PAR MODÈLE
+                    // TAUX DE PANNE PAR MODÈLE (PONDÉRÉ)
                     // ============================================
                     var pannesParModele = new List<TPEPanneParModeleDTO>();
                     var couleursParModele = new Dictionary<ModeleTPE, string>
@@ -708,37 +732,52 @@ namespace projet0.Application.Services.TPEService
                     foreach (ModeleTPE modele in Enum.GetValues(typeof(ModeleTPE)))
                     {
                         var tpesModele = tpesList.Where(t => t.Modele == modele).ToList();
+                        var tpeIdsModele = tpesModele.Select(t => t.Id).ToHashSet();
                         var nombreTPEsModele = tpesModele.Count;
 
-                        // Compter les incidents pour ce modèle
-                        var tpeIdsModele = tpesModele.Select(t => t.Id).ToList();
-                        var incidentsModele = incidentTPEs.Count(it => tpeIdsModele.Contains(it.TPEId));
+                        if (nombreTPEsModele == 0)
+                        {
+                            pannesParModele.Add(new TPEPanneParModeleDTO
+                            {
+                                Modele = modele.ToString(),
+                                NombreTPEs = 0,
+                                NombreIncidents = 0,
+                                TauxPanne = 0,
+                                Color = couleursParModele[modele]
+                            });
+                            continue;
+                        }
+
+                        // Filtrer les liaisons concernant ce modèle
+                        var incidentsModele = incidentTPEs
+                            .Where(it => tpeIdsModele.Contains(it.TPEId))
+                            .ToList();
+
+                        // Calcul pondéré pour ce modèle
+                        var poidsIncidentsModele = incidentsModele
+                            .Sum(it => 1.0 / nbTPEsParIncident[it.IncidentId]);
 
                         var tauxPanne = nombreTPEsModele > 0
-                            ? Math.Round((double)incidentsModele / nombreTPEsModele * 100, 1)
+                            ? Math.Round(poidsIncidentsModele / nombreTPEsModele * 100, 1)
                             : 0;
 
                         pannesParModele.Add(new TPEPanneParModeleDTO
                         {
                             Modele = modele.ToString(),
                             NombreTPEs = nombreTPEsModele,
-                            NombreIncidents = incidentsModele,
+                            NombreIncidents = incidentsModele.Select(it => it.IncidentId).Distinct().Count(),
                             TauxPanne = tauxPanne,
                             Color = couleursParModele[modele]
                         });
                     }
 
-                    // Trier par taux de panne (décroissant)
-                    pannesParModele = pannesParModele
-                        .OrderByDescending(m => m.TauxPanne)
-                        .ToList();
+                    pannesParModele = pannesParModele.OrderByDescending(m => m.TauxPanne).ToList();
 
                     // ============================================
-                    // TAUX DE PANNE PAR ADRESSE (via commerçant)
+                    // TAUX DE PANNE PAR ADRESSE (PONDÉRÉ)
                     // ============================================
                     var pannesParAdresse = new List<TPEPanneParAdresseDTO>();
 
-                    // Grouper les TPEs par commerçant
                     var tpesParCommercant = tpesList
                         .Where(t => t.CommercantId.HasValue)
                         .GroupBy(t => t.CommercantId.Value)
@@ -748,18 +787,23 @@ namespace projet0.Application.Services.TPEService
                     {
                         var commercantId = groupe.Key;
                         var commercant = await _userRepository.GetByIdAsync(commercantId);
-
                         if (commercant == null) continue;
 
                         var tpesCommercant = groupe.ToList();
+                        var tpeIds = tpesCommercant.Select(t => t.Id).ToHashSet();
                         var nombreTPEs = tpesCommercant.Count;
 
-                        // Compter les incidents pour ce commerçant
-                        var tpeIds = tpesCommercant.Select(t => t.Id).ToList();
-                        var incidentsCommercant = incidentTPEs.Count(it => tpeIds.Contains(it.TPEId));
+                        // Incidents impliquant les TPEs de ce commerçant
+                        var incidentsCommercant = incidentTPEs
+                            .Where(it => tpeIds.Contains(it.TPEId))
+                            .ToList();
+
+                        // Calcul pondéré
+                        var poidsIncidentsCommercant = incidentsCommercant
+                            .Sum(it => 1.0 / nbTPEsParIncident[it.IncidentId]);
 
                         var tauxPanne = nombreTPEs > 0
-                            ? Math.Round((double)incidentsCommercant / nombreTPEs * 100, 1)
+                            ? Math.Round(poidsIncidentsCommercant / nombreTPEs * 100, 1)
                             : 0;
 
                         var pourcentageTPEsTotal = totalTPEs > 0
@@ -769,23 +813,19 @@ namespace projet0.Application.Services.TPEService
                         pannesParAdresse.Add(new TPEPanneParAdresseDTO
                         {
                             CommercantId = commercantId,
-                            CommercantNom = $"{commercant.Nom} {commercant.Prenom}",
+                            CommercantNom = $"{commercant.Nom} {commercant.Prenom}".Trim(),
                             Adresse = commercant.Adresse ?? "Adresse non renseignée",
                             NombreTPEs = nombreTPEs,
-                            NombreIncidents = incidentsCommercant,
+                            NombreIncidents = incidentsCommercant.Select(it => it.IncidentId).Distinct().Count(),
                             TauxPanne = tauxPanne,
                             PourcentageTPEsTotal = pourcentageTPEsTotal
                         });
                     }
 
-                    // Trier par taux de panne (décroissant)
                     pannesParAdresse = pannesParAdresse
                         .OrderByDescending(a => a.TauxPanne)
                         .ToList();
 
-                    // ============================================
-                    // DASHBOARD COMPLET
-                    // ============================================
                     var dashboard = new TPEDashboardDTO
                     {
                         Overview = overview,
@@ -793,8 +833,8 @@ namespace projet0.Application.Services.TPEService
                         PannesParAdresse = pannesParAdresse
                     };
 
-                    _logger.LogInformation("Dashboard TPE généré - Total TPEs: {TotalTPEs}, Total Incidents: {TotalIncidents}, Taux global: {Taux}%",
-                        totalTPEs, totalIncidents, tauxGlobalPanne);
+                    _logger.LogInformation("Dashboard TPE généré - Total TPEs: {TotalTPEs}, Incidents uniques: {TotalIncidents}, Taux pondéré: {Taux}%",
+                        totalTPEs, totalIncidentsUniques, tauxGlobalPanne);
 
                     return ApiResponse<TPEDashboardDTO>.Success(dashboard);
                 }
@@ -804,9 +844,7 @@ namespace projet0.Application.Services.TPEService
                     return ApiResponse<TPEDashboardDTO>.Failure("Erreur interne du serveur");
                 }
             });
-        }
-
-        // Méthode helper pour récupérer les liaisons IncidentTPE
+        }        // Méthode helper pour récupérer les liaisons IncidentTPE
         private async Task<List<IncidentTPE>> GetIncidentTPEsAsync()
         {
             // Vous devez injecter IIncidentTPERepository dans le constructeur
