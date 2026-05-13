@@ -443,6 +443,17 @@ namespace projet0.Infrastructure.Repositories
                                 _logger.LogInformation("Suppression de {Count} liaisons Incident-Ticket pour incident {IncidentId}",
                                     incident.IncidentTickets.Count, incident.Id);
                             }
+                            // Supprimer les notifications liées à l'incident
+                            var notificationsIncident = await _context.Notifications
+                                .Where(n => n.IncidentId == incident.Id)
+                                .ToListAsync();
+                            if (notificationsIncident.Any())
+                            {
+                                _context.Notifications.RemoveRange(notificationsIncident);
+                                await _context.SaveChangesAsync();
+                                _logger.LogInformation("Suppression de {Count} notification(s) pour incident {IncidentId}",
+                                    notificationsIncident.Count, incident.Id);
+                            }
 
                             // Supprimer les pièces jointes de l'incident (fichiers physiques)
                             var piecesJointesIncident = await _context.PiecesJointes
@@ -550,9 +561,10 @@ namespace projet0.Infrastructure.Repositories
                         .ToListAsync();
 
                     _logger.LogInformation("Technicien assigné à {Count} ticket(s)", ticketsAssignes.Count);
-
                     if (ticketsAssignes.Any())
                     {
+                        var historiques = new List<HistoriqueTicket>();
+
                         foreach (var ticket in ticketsAssignes)
                         {
                             var ancienStatutTicket = ticket.StatutTicket;
@@ -584,9 +596,8 @@ namespace projet0.Infrastructure.Repositories
                                 }
                             }
 
-                            // Ajouter à l'historique
-                            ticket.Historiques ??= new List<HistoriqueTicket>();
-                            ticket.Historiques.Add(new HistoriqueTicket
+                            // *** CORRECTION : collecter les historiques séparément ***
+                            historiques.Add(new HistoriqueTicket
                             {
                                 Id = Guid.NewGuid(),
                                 TicketId = ticket.Id,
@@ -596,12 +607,32 @@ namespace projet0.Infrastructure.Repositories
                             });
                         }
 
+                        // Sauvegarder d'abord les tickets
                         await _context.SaveChangesAsync();
+
+                        // Ensuite insérer les historiques séparément
+                        await _context.HistoriquesTicket.AddRangeAsync(historiques);
+                        await _context.SaveChangesAsync();
+
                         _logger.LogInformation("{Count} ticket(s) désassigné(s) du technicien {UserId}",
                             ticketsAssignes.Count, user.Id);
                     }
 
                     // 2.2 Supprimer les tickets créés par le technicien
+                    _context.ChangeTracker.Clear();
+
+                    // Recharger l'utilisateur car ChangeTracker.Clear() l'a détaché,
+                    // ce qui invaliderait le ConcurrencyStamp pour _userManager.DeleteAsync
+                    user = await _userManager.FindByIdAsync(user.Id.ToString());
+                    if (user == null)
+                    {
+                        await transaction.RollbackAsync();
+                        return IdentityResult.Failed(new IdentityError
+                        {
+                            Description = "Utilisateur introuvable après rechargement."
+                        });
+                    }
+
                     var ticketsCrees = await _context.Tickets
                         .Include(t => t.Commentaires)
                             .ThenInclude(c => c.PiecesJointes)

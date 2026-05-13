@@ -149,15 +149,25 @@ namespace projet0.API.Controllers
 
             return Ok(result);
         }
-
         [HttpDelete("{id}")]
         [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> Delete(Guid id)
         {
             var result = await _userService.DeleteAsync(id);
+
+            if (!result.IsSuccess)
+            {
+                return result.ResultCode switch
+                {
+                    20 => NotFound(result),      // User not found
+                    30 => BadRequest(result),    // Cannot delete last admin
+                    _ => StatusCode(500, result) // Unexpected error
+                };
+            }
+
             return Ok(result);
         }
-        
+
         [HttpGet("search")]
         [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> SearchUsers([FromQuery] UserSearchRequest request)

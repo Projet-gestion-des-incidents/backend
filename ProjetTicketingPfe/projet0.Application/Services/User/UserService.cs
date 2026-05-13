@@ -1062,7 +1062,7 @@ namespace projet0.Application.Services.User
 
                     // 6. Appliquer la pagination
                     var page = Math.Max(1, request.Page);
-                    var pageSize = Math.Clamp(request.PageSize, 1, 100);
+                    var pageSize = Math.Clamp(request.PageSize, 1, 1000);
                     var skip = (page - 1) * pageSize;
 
                     var paginatedTechniciens = query
@@ -1200,7 +1200,7 @@ namespace projet0.Application.Services.User
 
                     // 6. Appliquer la pagination
                     var page = Math.Max(1, request.Page);
-                    var pageSize = Math.Clamp(request.PageSize, 1, 100);
+                    var pageSize = Math.Clamp(request.PageSize, 1, 1000);
                     var skip = (page - 1) * pageSize;
 
                     var paginatedCommercants = query
