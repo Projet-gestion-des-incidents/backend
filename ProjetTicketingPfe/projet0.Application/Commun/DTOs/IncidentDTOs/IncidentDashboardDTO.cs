@@ -11,11 +11,14 @@ namespace projet0.Application.Commun.DTOs.IncidentDTOs
         public int IncidentsNonTraite { get; set; }
         public int IncidentsEnCours { get; set; }
         public int IncidentsFerme { get; set; }
-
+        public int IncidentsNonTraiteLiesTicket { get; set; }     // Non traités + liés à au moins un ticket
+        public int IncidentsNonTraiteSansTicket { get; set; }
         // Pourcentages
         public double TauxNonTraite { get; set; }
         public double TauxEnCours { get; set; }
         public double TauxFerme { get; set; }
+        public double TauxNonTraiteLiesTicket { get; set; }       // % des non traités liés à un ticket
+        public double TauxNonTraiteSansTicket { get; set; }       // % des non traités sans ticket
     }
 
     // Statistiques par statut (pour graphique camembert)

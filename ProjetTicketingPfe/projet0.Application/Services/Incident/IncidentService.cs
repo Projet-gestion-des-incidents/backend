@@ -1659,26 +1659,61 @@ namespace projet0.Application.Services.Incident
                     // Récupérer tous les incidents
                     var incidents = await _incidentRepository.GetAllAsync();
                     var incidentsList = incidents.ToList();
-
                     // ============================================
-                    // 1. STATISTIQUES GLOBALES (existantes)
+                    // 1. STATISTIQUES GLOBALES
                     // ============================================
                     var total = incidentsList.Count;
                     var nonTraite = incidentsList.Count(i => i.StatutIncident == null || i.StatutIncident == StatutIncident.NonTraite);
                     var enCours = incidentsList.Count(i => i.StatutIncident == StatutIncident.EnCours);
                     var ferme = incidentsList.Count(i => i.StatutIncident == StatutIncident.Ferme);
 
+                    // ✅ STATISTIQUES DES INCIDENTS NON TRAITÉS (sous-détails)
+                    // Récupérer les incidents non traités
+                    var incidentsNonTraites = incidentsList
+                        .Where(i => i.StatutIncident == null || i.StatutIncident == StatutIncident.NonTraite)
+                        .ToList();
+
+                    // Subdiviser : liés à au moins un ticket vs sans aucun ticket
+                    // Un incident est lié à un ticket s'il a au moins une entrée dans IncidentTickets
+                    var incidentsNonTraiteLiesTicket = incidentsNonTraites
+                        .Count(i => i.IncidentTickets != null && i.IncidentTickets.Any());
+
+                    var incidentsNonTraiteSansTicket = incidentsNonTraites
+                        .Count(i => i.IncidentTickets == null || !i.IncidentTickets.Any());
+
+                    // Vérification de cohérence
+                    if (incidentsNonTraiteLiesTicket + incidentsNonTraiteSansTicket != incidentsNonTraites.Count)
+                    {
+                        _logger.LogWarning("⚠️ Incohérence dans les compteurs des incidents non traités");
+                    }
+
                     var overview = new IncidentDashboardOverviewDTO
                     {
                         TotalIncidents = total,
                         IncidentsNonTraite = nonTraite,
+
+                        // ✅ NOUVEAUX DÉTAILS
+                        IncidentsNonTraiteLiesTicket = incidentsNonTraiteLiesTicket,
+                        IncidentsNonTraiteSansTicket = incidentsNonTraiteSansTicket,
+
                         IncidentsEnCours = enCours,
                         IncidentsFerme = ferme,
                         TauxNonTraite = total > 0 ? Math.Round((double)nonTraite / total * 100, 1) : 0,
                         TauxEnCours = total > 0 ? Math.Round((double)enCours / total * 100, 1) : 0,
-                        TauxFerme = total > 0 ? Math.Round((double)ferme / total * 100, 1) : 0
+                        TauxFerme = total > 0 ? Math.Round((double)ferme / total * 100, 1) : 0,
+
+                        // ✅ NOUVEAUX POURCENTAGES (parmi les non traités)
+                        TauxNonTraiteLiesTicket = nonTraite > 0
+                            ? Math.Round((double)incidentsNonTraiteLiesTicket / nonTraite * 100, 1)
+                            : 0,
+                        TauxNonTraiteSansTicket = nonTraite > 0
+                            ? Math.Round((double)incidentsNonTraiteSansTicket / nonTraite * 100, 1)
+                            : 0
                     };
 
+                    // Log pour déboguer
+                    _logger.LogInformation("📊 Incidents non traités: {Total} | Liés à ticket: {Lies} | Sans ticket: {Sans}",
+                        nonTraite, incidentsNonTraiteLiesTicket, incidentsNonTraiteSansTicket);
                     // ============================================
                     // 2. STATISTIQUES PAR STATUT (existantes)
                     // ============================================
