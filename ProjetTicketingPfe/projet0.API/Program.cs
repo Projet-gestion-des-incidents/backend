@@ -269,6 +269,7 @@ builder.Services.AddScoped<IIncidentTPERepository, IncidentTPERepository>();
 builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 // Program.cs ou Startup.cs
+builder.Services.AddScoped<IIncidentPredictionService, IncidentPredictionRepository>();
 builder.Services.AddScoped<ITicketArchiveRepository, TicketArchiveRepository>();
 builder.Services.AddScoped<IIncidentArchiveRepository, IncidentArchiveRepository>();
 builder.Services.Configure<FormOptions>(options =>
