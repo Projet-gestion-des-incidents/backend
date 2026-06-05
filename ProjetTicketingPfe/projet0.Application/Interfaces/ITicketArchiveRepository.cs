@@ -12,6 +12,7 @@ namespace projet0.Application.Interfaces
         Task<TicketArchive?> GetByTicketAndUserAsync(Guid ticketId, Guid userId);
         Task<List<TicketArchive>> GetArchivesByTicketCreatorAsync(Guid createurId); // ✅ À AJOUTER
 
+        Task<List<Guid>> GetAllArchivedTicketIdsAsync();
 
     }
 }

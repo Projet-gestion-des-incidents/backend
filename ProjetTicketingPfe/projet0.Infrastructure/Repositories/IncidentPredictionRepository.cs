@@ -328,17 +328,31 @@ namespace projet0.Infrastructure.Repositories
         {
             return predictions
                 .GroupBy(p => p.Date)
-                .Select(g => new PredictionResultDTO
+                .Select(g =>
                 {
-                    Date = g.Key,
-                    Periode = g.First().Periode,
-                    TotalIncidents = g.Sum(p => p.TotalIncidents),
-                    IncidentsParType = g
+                    var mergedTypes = g
                         .SelectMany(p => p.IncidentsParType)
                         .GroupBy(kv => kv.Key)
-                        .ToDictionary(g2 => g2.Key, g2 => g2.Sum(kv => kv.Value)),
-                    ConfidenceLower = Math.Round(g.Sum(p => p.ConfidenceLower), 1),
-                    ConfidenceUpper = Math.Round(g.Sum(p => p.ConfidenceUpper), 1)
+                        .ToDictionary(g2 => g2.Key, g2 => g2.Sum(kv => kv.Value));
+
+                    // ✅ Total = somme des types individuels UNIQUEMENT (exclut "TotalIncidents")
+                    int totalReel = mergedTypes
+                        .Where(kv => kv.Key != "TotalIncidents")
+                        .Sum(kv => kv.Value);
+
+                    return new PredictionResultDTO
+                    {
+                        Date = g.Key,
+                        Periode = g.First().Periode,
+                        TotalIncidents = totalReel,
+                        IncidentsParType = mergedTypes,
+                        ConfidenceLower = Math.Round(g
+                            .Where(p => p.IncidentsParType.ContainsKey("TotalIncidents"))
+                            .Sum(p => p.ConfidenceLower), 1),
+                        ConfidenceUpper = Math.Round(g
+                            .Where(p => p.IncidentsParType.ContainsKey("TotalIncidents"))
+                            .Sum(p => p.ConfidenceUpper), 1)
+                    };
                 })
                 .OrderBy(p => p.Date)
                 .ToList();

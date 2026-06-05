@@ -13,7 +13,20 @@ namespace projet0.Application.Commun.Ressources.Pagination
         public StatutTicket? Statut { get; set; }
 
         public DateTime? DateDebut { get; set; }
-        
+        public bool? NonAssigne { get; set; }
+
         public DateTime? DateFin { get; set; }
+        // ✅ NOUVEAU : Filtre par statut de date limite
+        public DateLimiteStatut? DateLimiteStatut { get; set; }
+    }
+
+    // ✅ NOUVEAU ENUM
+    public enum DateLimiteStatut
+    {
+        Expire = 1,           // Date limite dépassée et ticket non résolu
+        RealiseAvantDelai = 2, // Résolu avant la date limite
+        RealiseApresDelai = 3, // Résolu après la date limite
+        JoursRestants = 4      // Non résolu mais date limite dans le futur
     }
 }
+

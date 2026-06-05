@@ -52,7 +52,6 @@ namespace projet0.API.Controllers
         [HttpPut("me")]
         public async Task<IActionResult> EditAdminProfile([FromBody] EditAdminProfileDto dto)
         {
-            // Valider le modèle (DataAnnotations)
             if (!ModelState.IsValid)
             {
                 var errors = ModelState.Values
@@ -87,7 +86,11 @@ namespace projet0.API.Controllers
             if (response.ResultCode != 0)
                 return BadRequest(response);
 
-            return Ok(response.Data);
+            // ✅ FIX: Return wrapped response for consistency
+            return Ok(ApiResponse<ApplicationUser>.Success(
+                data: response.Data,
+                message: "Profil mis à jour avec succès",
+                resultCode: 0));
         }
 
         [HttpGet("me")]

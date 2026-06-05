@@ -1656,17 +1656,29 @@ namespace projet0.Application.Services.Incident
                 {
                     _logger.LogInformation("Récupération du dashboard incidents");
 
-                    // Récupérer tous les incidents
-                    var incidents = await _incidentRepository.GetAllAsync();
-                    var incidentsList = incidents.ToList();
-                    // ============================================
-                    // 1. STATISTIQUES GLOBALES
-                    // ============================================
+                    // ✅ Récupérer TOUS les incidents avec leurs relations
+                    var allIncidents = await _incidentRepository.GetAllWithDetailsAsync();
+
+                    // ✅ Récupérer les IDs de TOUS les incidents archivés (par n'importe quel admin)
+                    var allArchivedIncidentIds = await _incidentArchiveRepository.GetAllArchivedIncidentIdsAsync();
+
+                    // ✅ EXCLURE les incidents archivés
+                    var incidentsList = allIncidents
+                        .Where(i => !allArchivedIncidentIds.Contains(i.Id))
+                        .ToList();
+
+                    var archivedIncidents = allIncidents
+                        .Where(i => allArchivedIncidentIds.Contains(i.Id))
+                        .ToList();
+
+                    _logger.LogInformation("Dashboard incidents - Total actifs: {Actifs}, Archivés: {Archivés}",
+                        incidentsList.Count, archivedIncidents.Count);
+
+                    // ✅ Statistiques UNIQUEMENT sur les incidents NON archivés
                     var total = incidentsList.Count;
                     var nonTraite = incidentsList.Count(i => i.StatutIncident == null || i.StatutIncident == StatutIncident.NonTraite);
                     var enCours = incidentsList.Count(i => i.StatutIncident == StatutIncident.EnCours);
                     var ferme = incidentsList.Count(i => i.StatutIncident == StatutIncident.Ferme);
-
                     // ✅ STATISTIQUES DES INCIDENTS NON TRAITÉS (sous-détails)
                     // Récupérer les incidents non traités
                     var incidentsNonTraites = incidentsList
@@ -2124,26 +2136,28 @@ namespace projet0.Application.Services.Incident
                 var ticket = await _ticketRepository.GetTicketWithDetailsAsync(ticketId);
                 if (ticket != null && ticket.StatutTicket != StatutTicket.Resolu)
                 {
-                    var ancienStatut = ticket.StatutTicket;
                     ticket.StatutTicket = StatutTicket.Resolu;
                     ticket.DateCloture = DateTime.UtcNow;
                     await _ticketRepository.SaveChangesAsync();
 
                     _logger.LogInformation("Ticket {TicketId} automatiquement clôturé car tous ses incidents sont résolus", ticketId);
 
-                    // ======================================================
-                    // 🔔 NOTIFICATION : Ticket résolu automatiquement
-                    // ======================================================
-
-                    // Récupérer le créateur du ticket et le technicien
                     var createur = await _userRepository.GetByIdAsync(ticket.CreateurId);
                     var technicien = ticket.AssigneeId.HasValue
                         ? await _userRepository.GetByIdAsync(ticket.AssigneeId.Value)
                         : null;
                     string technicienNom = technicien != null ? $"{technicien.Nom} {technicien.Prenom}" : "Le technicien";
 
-                    // 1. Notification au CREATEUR du ticket
-                    if (createur != null)
+                    var admins = await _userRepository.GetUsersByRoleAsync("Admin");
+                    var adminIds = admins.Select(a => a.Id).ToHashSet();
+
+                    // ✅ Vérifier si le créateur est aussi admin
+                    bool isCreatorAlsoAdmin = createur != null && adminIds.Contains(createur.Id);
+
+                    // ======================================================
+                    // 1. Notification au CREATEUR (seulement s'il n'est PAS admin)
+                    // ======================================================
+                    if (createur != null && !isCreatorAlsoAdmin)
                     {
                         await _notificationService.CreateTicketNotificationAsync(
                             createur.Id,
@@ -2152,22 +2166,30 @@ namespace projet0.Application.Services.Incident
                             $"Ticket résolu : {ticket.ReferenceTicket}",
                             $"Tous les incidents liés à votre ticket '{ticket.TitreTicket}' ont été résolus. Le ticket est maintenant fermé."
                         );
-                        _logger.LogInformation("Notification envoyée au créateur du ticket {CreateurId} pour clôture automatique", createur.Id);
+                        _logger.LogInformation("Notification envoyée au créateur du ticket {CreateurId}", createur.Id);
                     }
 
-                    // 2. Notification aux ADMINS
-                    var admins = await _userRepository.GetUsersByRoleAsync("Admin");
+                    // ======================================================
+                    // 2. Notification aux ADMINS (exclure le créateur s'il est admin)
+                    // ======================================================
                     foreach (var admin in admins)
                     {
+                        // Ne pas notifier l'admin si c'est aussi le créateur (il a déjà sa notif)
+                        if (createur != null && admin.Id == createur.Id && isCreatorAlsoAdmin)
+                            continue;
+
+                        string messageAdmin = $"Le ticket '{ticket.TitreTicket}' a été automatiquement résolu car tous ses incidents sont résolus. Créé par {createur?.Nom} {createur?.Prenom}.";
+
                         await _notificationService.CreateTicketNotificationAsync(
                             admin.Id,
                             ticket.Id,
                             TypeNotification.TicketCloture,
                             $"Ticket résolu : {ticket.ReferenceTicket}",
-                            $"Le ticket '{ticket.TitreTicket}' a été automatiquement résolu car tous ses incidents sont résolus. Créé par {createur?.Nom} {createur?.Prenom}."
+                            messageAdmin
                         );
                     }
-                    _logger.LogInformation("Notifications envoyées aux admins pour la clôture automatique du ticket {TicketId}", ticketId);
+
+                    _logger.LogInformation("Notifications envoyées pour la clôture du ticket {TicketId}", ticketId);
                 }
             }
         }

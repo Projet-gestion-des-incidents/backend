@@ -17,7 +17,13 @@ namespace projet0.Infrastructure.Repositories
         {
             _context = context;
         }
-
+        public async Task<List<Guid>> GetAllArchivedTicketIdsAsync()
+        {
+            return await _context.TicketArchives
+                .Select(a => a.TicketId)
+                .Distinct()
+                .ToListAsync();
+        }
         public async Task<bool> ExistsAsync(Guid ticketId, Guid userId)
         {
             return await _context.TicketArchives

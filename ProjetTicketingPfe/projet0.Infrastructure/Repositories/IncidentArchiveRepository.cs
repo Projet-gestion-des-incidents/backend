@@ -43,5 +43,12 @@ namespace projet0.Infrastructure.Repositories
             return await _context.IncidentArchives
                 .FirstOrDefaultAsync(a => a.IncidentId == incidentId && a.ArchiveParId == userId);
         }
+        public async Task<List<Guid>> GetAllArchivedIncidentIdsAsync()
+        {
+            return await _context.IncidentArchives
+                .Select(a => a.IncidentId)
+                .Distinct()
+                .ToListAsync();
+        }
     }
 }
