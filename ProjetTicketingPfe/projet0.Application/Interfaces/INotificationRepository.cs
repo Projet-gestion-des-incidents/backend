@@ -7,7 +7,11 @@ using System.Text;
 namespace projet0.Application.Interfaces
 {
     public interface INotificationRepository : IGenericRepository<Notification>
+        // Dans INotificationRepository.cs
+
     {
+        Task DeleteByTicketAndUserAsync(Guid ticketId, Guid userId);
+        Task DeleteByTicketForAllExceptUserAsync(Guid ticketId, Guid userIdToKeep);
         Task<IEnumerable<Notification>> GetByUserIdAsync(Guid userId);
         Task<IEnumerable<Notification>> GetUnreadByUserIdAsync(Guid userId);
         Task<int> GetUnreadCountAsync(Guid userId);

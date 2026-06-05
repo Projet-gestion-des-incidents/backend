@@ -120,7 +120,32 @@ namespace projet0.Infrastructure.Repositories
                 .Where(n => n.IncidentId == incidentId)
                 .ToListAsync();
         }
+        // Dans NotificationRepository.cs
+        public async Task DeleteByTicketAndUserAsync(Guid ticketId, Guid userId)
+        {
+            var notifications = await _dbSet
+                .Where(n => n.TicketId == ticketId && n.DestinataireId == userId)
+                .ToListAsync();
 
+            if (notifications.Any())
+            {
+                _dbSet.RemoveRange(notifications);
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        public async Task DeleteByTicketForAllExceptUserAsync(Guid ticketId, Guid userIdToKeep)
+        {
+            var notifications = await _dbSet
+                .Where(n => n.TicketId == ticketId && n.DestinataireId != userIdToKeep)
+                .ToListAsync();
+
+            if (notifications.Any())
+            {
+                _dbSet.RemoveRange(notifications);
+                await _context.SaveChangesAsync();
+            }
+        }
         public async Task<IEnumerable<Notification>> GetByTicketIdAsync(Guid ticketId)
         {
             return await _dbSet

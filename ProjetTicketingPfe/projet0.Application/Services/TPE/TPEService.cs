@@ -180,6 +180,11 @@ namespace projet0.Application.Services.TPEService
                 var admin = await _userRepository.GetByIdAsync(userId);
                 var createdByUser = tpe.CreatedById.HasValue ? await _userRepository.GetByIdAsync(tpe.CreatedById.Value) : null;
 
+                // ✅ Sauvegarder l'ancien commerçant et l'ancien modèle
+                var oldCommercantId = tpe.CommercantId;
+                var oldModele = tpe.Modele;
+                var oldNumSerieComplet = tpe.NumSerieComplet;
+
                 // Gérer le changement de modèle
                 bool modeleChanged = tpe.Modele != dto.Modele;
 
@@ -193,7 +198,10 @@ namespace projet0.Application.Services.TPEService
                     tpe.Modele = dto.Modele;
                 }
 
-                // Gérer le changement de commerçant (peut être null)
+                // Gérer le changement de commerçant
+                bool commercantChanged = false;
+                Guid? newCommercantId = null;
+
                 if (dto.CommercantId.HasValue)
                 {
                     var nouveauCommercant = await _userRepository.GetByIdAsync(dto.CommercantId.Value);
@@ -208,10 +216,21 @@ namespace projet0.Application.Services.TPEService
                         return ApiResponse<TPEDto>.Failure("Le nouveau propriétaire doit avoir le rôle 'Commerçant'", resultCode: 45);
                     }
 
+                    // Vérifier si le commerçant a vraiment changé
+                    if (tpe.CommercantId != dto.CommercantId.Value)
+                    {
+                        commercantChanged = true;
+                        newCommercantId = dto.CommercantId.Value;
+                    }
                     tpe.CommercantId = dto.CommercantId.Value;
                 }
                 else
                 {
+                    if (tpe.CommercantId != null)
+                    {
+                        commercantChanged = true;
+                        newCommercantId = null;
+                    }
                     tpe.CommercantId = null;
                 }
 
@@ -221,6 +240,78 @@ namespace projet0.Application.Services.TPEService
 
                 await _tpeRepository.UpdateAsync(tpe);
                 await _tpeRepository.SaveChangesAsync();
+
+                // ======================================================
+                // 🔔 GESTION DES NOTIFICATIONS
+                // ======================================================
+
+                string adminNom = admin != null ? $"{admin.Nom} {admin.Prenom}" : "L'administrateur";
+
+                // ======================================================
+                // 1. CHANGEMENT DE MODÈLE (même propriétaire)
+                // ======================================================
+                if (modeleChanged && !commercantChanged)
+                {
+                    // ✅ Supprimer l'ancienne notification pour le commerçant actuel
+                    if (tpe.CommercantId.HasValue)
+                    {
+                        var oldNotifications = await _notificationRepository.GetByTPEIdAsync(id);
+                        foreach (var notif in oldNotifications)
+                        {
+                            if (notif.TypeNotification == TypeNotification.TPECree)
+                            {
+                                await _notificationRepository.DeleteAsync(notif);
+                                _logger.LogInformation("Ancienne notification supprimée pour le TPE {TPEId} (changement de modèle)", id);
+                            }
+                        }
+                        await _notificationRepository.SaveChangesAsync();
+
+                        // ✅ Créer une nouvelle notification avec le même format que la création
+                        await _notificationService.CreateTPENotificationAsync(
+                            tpe.CommercantId.Value,
+                            tpe.Id,
+                            TypeNotification.TPECree,
+                            $"Nouveau TPE ajouté : {tpe.NumSerieComplet}",
+                            $"Un nouveau TPE de modèle '{dto.Modele}' (Série: {tpe.NumSerieComplet}) a été ajouté à votre compte par l'administrateur {adminNom}."
+                        );
+                        _logger.LogInformation("Notification de changement de modèle envoyée au commerçant {CommercantId}", tpe.CommercantId.Value);
+                    }
+                }
+
+                // ======================================================
+                // 2. CHANGEMENT DE PROPRIÉTAIRE (avec ou sans changement de modèle)
+                // ======================================================
+                if (commercantChanged)
+                {
+                    // ✅ Supprimer les anciennes notifications pour l'ANCIEN commerçant
+                    if (oldCommercantId.HasValue)
+                    {
+                        var oldNotifications = await _notificationRepository.GetByTPEIdAsync(id);
+                        foreach (var notif in oldNotifications)
+                        {
+                            await _notificationRepository.DeleteAsync(notif);
+                        }
+                        await _notificationRepository.SaveChangesAsync();
+                        _logger.LogInformation("Notifications supprimées pour l'ancien commerçant {OldCommercantId} du TPE {TPEId}",
+                            oldCommercantId.Value, id);
+                    }
+
+                    // ✅ Créer une notification pour le NOUVEAU commerçant (même format que la création)
+                    if (newCommercantId.HasValue)
+                    {
+                        string modeleAAfficher = modeleChanged ? dto.Modele.ToString() : oldModele.ToString();
+                        string numSerieAAfficher = tpe.NumSerieComplet;
+
+                        await _notificationService.CreateTPENotificationAsync(
+                            newCommercantId.Value,
+                            tpe.Id,
+                            TypeNotification.TPECree,
+                            $"Nouveau TPE ajouté : {numSerieAAfficher}",
+                            $"Un nouveau TPE de modèle '{modeleAAfficher}' (Série: {numSerieAAfficher}) a été ajouté à votre compte par l'administrateur {adminNom}."
+                        );
+                        _logger.LogInformation("Notification d'assignation envoyée au nouveau commerçant {NewCommercantId}", newCommercantId.Value);
+                    }
+                }
 
                 // Préparer la réponse
                 ApplicationUser commercant = null;
@@ -245,9 +336,17 @@ namespace projet0.Application.Services.TPEService
 
                 // Construire le message de succès
                 string message = "TPE mis à jour avec succès";
-                if (modeleChanged)
+                if (modeleChanged && commercantChanged)
                 {
-                    message = $"TPE mis à jour avec succès. Modèle changé, nouveau numéro: {tpe.NumSerieComplet}";
+                    message = $"TPE mis à jour. Modèle changé de '{oldModele}' vers '{dto.Modele}' et propriétaire changé.";
+                }
+                else if (modeleChanged)
+                {
+                    message = $"TPE mis à jour. Modèle changé de '{oldModele}' vers '{dto.Modele}'. Nouveau numéro: {tpe.NumSerieComplet}";
+                }
+                else if (commercantChanged)
+                {
+                    message = $"TPE mis à jour. Propriétaire changé.";
                 }
 
                 _logger.LogInformation("TPE updated | Id: {Id} | New NumSerieComplet: {NumSerieComplet} | New Commercant: {CommercantId}",
@@ -259,10 +358,7 @@ namespace projet0.Application.Services.TPEService
                     resultCode: 0
                 );
             });
-
-        }
-
-        // Dans TPEService.cs - Remplacer la méthode DeleteAsync
+        }        // Dans TPEService.cs - Remplacer la méthode DeleteAsync
 
         public async Task<ApiResponse<string>> DeleteAsync(Guid id)
         {

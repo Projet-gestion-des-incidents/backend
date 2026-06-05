@@ -1127,6 +1127,9 @@ namespace projet0.Application.Services.Ticket
                 var ancienStatut = (StatutTicket?)null;
                 var ancienAssigneeId = (Guid?)null;
                 var ancienAssigneeNom = (string?)null;
+                bool aEuAssignation = false;
+                bool estResteEnCours = false;
+                string nouveauTechnicienNom = null;
 
                 try
                 {
@@ -1199,13 +1202,12 @@ namespace projet0.Application.Services.Ticket
                     // ========================================================
                     // 2. GESTION DE L'ASSIGNATION (VERSION CORRIGÉE)
                     // ========================================================
-                    bool estResteEnCours = false;
-                    bool aEuAssignation = false;
-                    string nouveauTechnicienNom = null;
-
                     if (dto.IsAssigneeIdSpecified && dto.AssigneeId != ticket.AssigneeId)
                     {
                         aEuAssignation = true;
+
+                        // ✅ Sauvegarder l'ancien technicien AVANT le changement
+                        var oldAssigneeId = ticket.AssigneeId;
 
                         if (dto.AssigneeId.HasValue)
                         {
@@ -1249,6 +1251,14 @@ namespace projet0.Application.Services.Ticket
                                         ticket.AssigneeId = dto.AssigneeId;
                                         modifications.Add($"Assignation -> {nouveauTechnicienNom}");
 
+                                        // ✅ SUPPRIMER LES NOTIFICATIONS DE L'ANCIEN TECHNICIEN
+                                        if (oldAssigneeId.HasValue && oldAssigneeId.Value != dto.AssigneeId.Value)
+                                        {
+                                            await _notificationRepository.DeleteByTicketAndUserAsync(id, oldAssigneeId.Value);
+                                            _logger.LogInformation("Notifications supprimées pour l'ancien technicien {OldTechnicienId} du ticket {TicketId}",
+                                                oldAssigneeId.Value, id);
+                                        }
+
                                         // Logique de gestion du statut
                                         if (statutAvantAssignation == StatutTicket.EnCours)
                                         {
@@ -1270,6 +1280,14 @@ namespace projet0.Application.Services.Ticket
                         {
                             if (isAdmin)
                             {
+                                // ✅ SUPPRIMER LES NOTIFICATIONS DE L'ANCIEN TECHNICIEN
+                                if (oldAssigneeId.HasValue)
+                                {
+                                    await _notificationRepository.DeleteByTicketAndUserAsync(id, oldAssigneeId.Value);
+                                    _logger.LogInformation("Notifications supprimées pour l'ancien technicien {OldTechnicienId} du ticket {TicketId} (désassignation)",
+                                        oldAssigneeId.Value, id);
+                                }
+
                                 ticket.AssigneeId = null;
                                 modifications.Add("Assignation (supprimée)");
                             }
@@ -1279,7 +1297,6 @@ namespace projet0.Application.Services.Ticket
                             }
                         }
                     }
-
                     // ========================================================
                     // 3. GESTION DU STATUT (Technicien uniquement)
                     // ========================================================
