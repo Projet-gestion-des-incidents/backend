@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace projet0.Domain.Entities
+﻿namespace projet0.Domain.Entities
 {
     public class IncidentArchive
     {
@@ -10,7 +6,7 @@ namespace projet0.Domain.Entities
         public Guid IncidentId { get; set; }
         public Guid ArchiveParId { get; set; }
         public DateTime DateArchivage { get; set; }
-        public string? Commentaire { get; set; }  // Optionnel
+        public string? Commentaire { get; set; }  
 
         // Navigation
         public virtual Incident Incident { get; set; }

@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace projet0.Domain.Entities
+﻿namespace projet0.Domain.Entities
 {
     public class TicketArchive
     {

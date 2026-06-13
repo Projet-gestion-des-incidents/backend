@@ -1,15 +1,11 @@
 ﻿using projet0.Domain.Enums;
-using System;
-using System.Collections.Generic;
-using System.Net.Sockets;
-using System.Text;
 
 namespace projet0.Domain.Entities
 {
     public class Incident
     {
         public Guid Id { get; set; }
-        public string CodeIncident { get; set; }  // Format: INC-2026-001
+        public string CodeIncident { get; set; }  
         public string DescriptionIncident { get; set; }
 
         // Enums (stockés comme int)
@@ -35,7 +31,6 @@ namespace projet0.Domain.Entities
 
         // Relation avec les pièces jointes 
         public virtual ICollection<PieceJointe> PiecesJointes { get; set; }
-        // Domain/Entities/Incident.cs
         public virtual ICollection<IncidentArchive> IncidentArchives { get; set; }
     }
 }

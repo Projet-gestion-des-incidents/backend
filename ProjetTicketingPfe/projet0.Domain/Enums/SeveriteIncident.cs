@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace projet0.Domain.Enums
+﻿namespace projet0.Domain.Enums
 {
     public enum SeveriteIncident
     {

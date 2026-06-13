@@ -1,12 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace projet0.Domain.Entities
+﻿namespace projet0.Domain.Entities
 {
     public class IncidentTicket
     {
-        // Clé composite (IncidentId + TicketId)
         public Guid IncidentId { get; set; }
         public Guid TicketId { get; set; }
 

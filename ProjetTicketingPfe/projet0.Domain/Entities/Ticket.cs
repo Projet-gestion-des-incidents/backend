@@ -1,20 +1,16 @@
 ﻿using projet0.Domain.Enums;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace projet0.Domain.Entities
 {
     public class Ticket
     {
         public Guid Id { get; set; }
-        public string ReferenceTicket { get; set; }  // Format: TCK-2026-001
+        public string ReferenceTicket { get; set; }  
         public string TitreTicket { get; set; }
         public string DescriptionTicket { get; set; }
 
         // Enums
         public StatutTicket? StatutTicket { get; set; }
-
         public DateTime DateCreation { get; set; }
         public DateTime? DateCloture { get; set; }
         public DateTime DateLimite { get; set; }
@@ -29,7 +25,6 @@ namespace projet0.Domain.Entities
         public virtual ICollection<HistoriqueTicket> Historiques { get; set; }
         public virtual ICollection<CommentaireTicket> Commentaires { get; set; }
         public virtual ICollection<Notification> Notifications { get; set; }
-        // Domain/Entities/Ticket.cs - AJOUTER
         public virtual ICollection<TicketArchive> TicketArchives { get; set; }
         // Audit
         public DateTime CreatedAt { get; set; }
