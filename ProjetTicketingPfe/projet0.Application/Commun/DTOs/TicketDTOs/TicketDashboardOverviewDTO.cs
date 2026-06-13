@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace projet0.Application.Commun.DTOs.TicketDTOs
+﻿namespace projet0.Application.Commun.DTOs.TicketDTOs
 {
     // Statistiques globales des tickets
     public class TicketDashboardOverviewDTO
@@ -56,18 +52,19 @@ namespace projet0.Application.Commun.DTOs.TicketDTOs
 
         // Top techniciens
         public List<TopTechnicienDTO> TopTechniciens { get; set; }
-        // ✅ NOUVEAU : Statistiques de résolution globales
+
+        //  Statistiques de résolution globales
         public ResolutionStatsDTO StatsResolution { get; set; }
 
-        // ✅ NOUVEAU : Résolution par période
+        //  Résolution par période
         public List<ResolutionParPeriodeDTO> ResolutionParJour { get; set; }
         public List<ResolutionParPeriodeDTO> ResolutionParSemaine { get; set; }
         public List<ResolutionParPeriodeDTO> ResolutionParMois { get; set; }
 
-        // ✅ NOUVEAU : Statistiques d'assignation par technicien
+        //  Statistiques d'assignation par technicien
         public List<TechnicienAssignationDTO> AssignationParTechnicien { get; set; }
 
-        // ✅ NOUVEAU : Statistiques globales d'assignation
+        //  Statistiques globales d'assignation
         public AssignationGlobaleDTO AssignationGlobale { get; set; }
     }
 
@@ -80,8 +77,8 @@ namespace projet0.Application.Commun.DTOs.TicketDTOs
         public string NomComplet => $"{Nom} {Prenom}";
         public int TicketsResolus { get; set; }
         public int TicketsEnCours { get; set; }
-        public int TicketsAssignes { get; set; }      // ✅ NOUVEAU : tickets avec statut "Assigné"
-        public int TicketsTotal { get; set; }         // ✅ NOUVEAU : somme de tous les tickets (Assignés + En cours + Résolus)
+        public int TicketsAssignes { get; set; }      //  tickets avec statut "Assigné"
+        public int TicketsTotal { get; set; }         //  somme de tous les tickets (Assignés + En cours + Résolus)
         public double TauxResolution { get; set; }
     }
 
@@ -132,7 +129,7 @@ namespace projet0.Application.Commun.DTOs.TicketDTOs
         // Pourcentages
         public double PourcentageAssignation { get; set; }  // (TotalTechnicien / TotalTicketsAssignesGlobaux) × 100
         public double TauxResolution { get; set; }          // (Resolus / TotalTechnicien) × 100
-        public double TauxRespectDelai { get; set; }        // ✅ NOUVEAU : (AvantDelai / (AvantDelai + ApresDelai)) × 100
+        public double TauxRespectDelai { get; set; }        //  (AvantDelai / (AvantDelai + ApresDelai)) × 100
 
     }
 

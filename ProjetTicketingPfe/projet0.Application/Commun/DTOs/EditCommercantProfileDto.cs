@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Text;
+﻿using System.ComponentModel.DataAnnotations;
 using System.Text.RegularExpressions;
 
 namespace projet0.Application.Commun.DTOs
@@ -24,7 +21,7 @@ namespace projet0.Application.Commun.DTOs
 
         public string? Image { get; set; }  
 
-        // Champs pour changement de mot de passe (optionnels)
+        // Champs pour changement de mot de passe 
         public string? CurrentPassword { get; set; }
 
         [MinLength(6, ErrorMessage = "Le mot de passe doit contenir au moins 6 caractères")]
@@ -34,7 +31,7 @@ namespace projet0.Application.Commun.DTOs
         [Compare("NewPassword", ErrorMessage = "Les mots de passe ne correspondent pas")]
         public string? ConfirmPassword { get; set; }
 
-        // Validation personnalisée pour le mot de passe (optionnelle)
+        // Validation personnalisée pour le mot de passe 
         public static ValidationResult? ValidatePassword(string? password, ValidationContext context)
         {
             if (string.IsNullOrEmpty(password))

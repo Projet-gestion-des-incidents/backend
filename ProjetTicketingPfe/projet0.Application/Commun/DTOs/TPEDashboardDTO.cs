@@ -1,12 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace projet0.Application.Commun.DTOs
+﻿namespace projet0.Application.Commun.DTOs
 {
-    // ============================================
-    // DTOs pour le Dashboard TPE
-    // ============================================
 
     // Statistiques globales
     public class TPEDashboardOverviewDTO
@@ -38,7 +31,6 @@ namespace projet0.Application.Commun.DTOs
         public double PourcentageTPEsTotal { get; set; } // Part des TPEs de ce commerçant dans le total
     }
 
-    // Dashboard complet
     public class TPEDashboardDTO
     {
         public TPEDashboardOverviewDTO Overview { get; set; }

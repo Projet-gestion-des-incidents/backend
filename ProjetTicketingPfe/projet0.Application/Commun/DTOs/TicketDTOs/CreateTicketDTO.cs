@@ -1,6 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
-using projet0.Domain.Enums;
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace projet0.Application.Commun.DTOs.Ticket
 {

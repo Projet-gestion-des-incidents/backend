@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using Microsoft.AspNetCore.Http;
-using projet0.Domain.Enums;
+﻿using Microsoft.AspNetCore.Http;
 
 namespace projet0.Application.Commun.DTOs.Ticket
 {

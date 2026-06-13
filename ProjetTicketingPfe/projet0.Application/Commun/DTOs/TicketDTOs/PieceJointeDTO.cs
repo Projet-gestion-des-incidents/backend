@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using projet0.Domain.Enums;
-
-namespace projet0.Application.Commun.DTOs.Ticket
+﻿namespace projet0.Application.Commun.DTOs.Ticket
 {
     public class PieceJointeDTO
     {

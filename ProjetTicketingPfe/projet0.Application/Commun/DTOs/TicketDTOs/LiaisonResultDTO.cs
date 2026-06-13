@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace projet0.Application.Commun.DTOs.TicketDTOs
+﻿namespace projet0.Application.Commun.DTOs.TicketDTOs
 {
     public class LiaisonResultDTO
     {

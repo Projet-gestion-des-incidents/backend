@@ -1,7 +1,4 @@
 ﻿using projet0.Domain.Enums;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace projet0.Application.Commun.DTOs
 {
@@ -17,8 +14,8 @@ namespace projet0.Application.Commun.DTOs
         public DateTime? DateLecture { get; set; }
         public Guid DestinataireId { get; set; }
         public string DestinataireNom { get; set; }
-        public bool EstConsulte { get; set; }          // ✅ NOUVEAU
-        public DateTime? DateConsultation { get; set; } // ✅ NOUVEAU
+        public bool EstConsulte { get; set; }         
+        public DateTime? DateConsultation { get; set; } 
         public Guid? TicketId { get; set; }
         public string TicketTitre { get; set; }
         public Guid? IncidentId { get; set; }

@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Text;
+﻿using System.ComponentModel.DataAnnotations;
 using System.Text.RegularExpressions;
 
 namespace projet0.Application.Commun.DTOs
@@ -39,7 +36,7 @@ namespace projet0.Application.Commun.DTOs
         [Compare("NewPassword", ErrorMessage = "Les mots de passe ne correspondent pas")]
         public string? ConfirmPassword { get; set; }
 
-        // Validation personnalisée pour l'âge (optionnelle)
+        // Validation personnalisée pour l'âge 
         public static ValidationResult? ValidateAge(DateTime? birthDate, ValidationContext context)
         {
             if (!birthDate.HasValue)
@@ -61,7 +58,7 @@ namespace projet0.Application.Commun.DTOs
             return ValidationResult.Success;
         }
 
-        // Validation personnalisée pour le mot de passe (optionnelle)
+        // Validation personnalisée pour le mot de passe
         public static ValidationResult? ValidatePassword(string? password, ValidationContext context)
         {
             if (string.IsNullOrEmpty(password))

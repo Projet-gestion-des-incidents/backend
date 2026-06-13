@@ -1,7 +1,4 @@
 ﻿using projet0.Domain.Enums;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace projet0.Application.Commun.DTOs
 {
@@ -22,7 +19,6 @@ namespace projet0.Application.Commun.DTOs
 
         public bool? NonAssigne { get; set; }
 
-        // ✅ NOUVEAUX FILTRES (simples)
         public DateTime? CreatedAt { get; set; }     // Date de création exacte
         public DateTime? UpdatedAt { get; set; }     // Date de modification exacte
         public Guid? CreatedById { get; set; }       // Filtre par créateur
