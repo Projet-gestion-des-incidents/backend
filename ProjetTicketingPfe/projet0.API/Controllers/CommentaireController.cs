@@ -6,9 +6,7 @@ using projet0.Application.Commun.Ressources;
 using projet0.Application.Interfaces;
 using projet0.Application.Services.Ticket;
 using projet0.Domain.Entities;
-using projet0.Domain.Enums;
 using System.Security.Claims;
-using projet0.Application.Services.Ticket;
 
 
 namespace projet0.API.Controllers
@@ -22,7 +20,7 @@ namespace projet0.API.Controllers
         private readonly ICommentaireRepository _commentaireRepository;
         private readonly IPieceJointeService _pieceJointeService;
         private readonly ILogger<CommentaireController> _logger;
-        private readonly ICommentaireService _commentaireService;  
+        private readonly ICommentaireService _commentaireService;
 
         public CommentaireController(
             ITicketService ticketService,
@@ -35,7 +33,7 @@ namespace projet0.API.Controllers
             _commentaireRepository = commentaireRepository;
             _pieceJointeService = pieceJointeService;
             _logger = logger;
-            _commentaireService = commentaireService; 
+            _commentaireService = commentaireService;
 
         }
         private Guid GetCurrentUserId()
@@ -63,8 +61,8 @@ namespace projet0.API.Controllers
                     EstInterne = c.EstInterne,
                     AuteurId = c.AuteurId,
                     AuteurNom = c.Auteur != null ? $"{c.Auteur.Nom} {c.Auteur.Prenom}" : "Inconnu",
-                    TicketId = c.TicketId, 
-                    TicketReference = c.Ticket?.ReferenceTicket,  
+                    TicketId = c.TicketId,
+                    TicketReference = c.Ticket?.ReferenceTicket,
                     PiecesJointes = c.PiecesJointes?.Select(p => new PieceJointeDTO
                     {
                         Id = p.Id,
@@ -111,7 +109,7 @@ namespace projet0.API.Controllers
                     return NotFound(ApiResponse<CommentaireDTO>.Failure("Ticket non trouvé"));
                 }
 
-                // ✅ Utiliser le service au lieu de créer directement
+                //  Utiliser le service au lieu de créer directement
                 var commentaireDto = await _commentaireService.CreateCommentaireAsync(ticketId, dto, userId);
 
                 // Ajouter les URLs des pièces jointes
@@ -158,7 +156,7 @@ namespace projet0.API.Controllers
                     {
                         Id = p.Id,
                         NomFichier = p.NomFichier,
-                        
+
                         DateAjout = p.DateAjout,
                         Url = $"{Request.Scheme}://{Request.Host}/api/pieces-jointes/{p.Id}"
                     }).ToList() ?? new()
@@ -197,7 +195,7 @@ namespace projet0.API.Controllers
                 // Vérifier que le commentaire existe
                 var commentaireExistant = await _commentaireRepository.GetByIdAsync(commentaireId);
                 if (commentaireExistant == null)
-                    return NotFound(ApiResponse<UpdateCommentaireResponseDTO>.Failure("Commentaire non trouvé"));                
+                    return NotFound(ApiResponse<UpdateCommentaireResponseDTO>.Failure("Commentaire non trouvé"));
 
                 // Appeler le service
                 var result = await _commentaireService.UpdateCommentaireAsync(commentaireId, dto, userId);
@@ -239,12 +237,6 @@ namespace projet0.API.Controllers
                 if (commentaireExistant == null)
                     return NotFound(ApiResponse<bool>.Failure("Commentaire non trouvé"));
 
-                // Vérifier les permissions (optionnel)
-                if (commentaireExistant.AuteurId != userId)
-                {
-                    // Vérifier si l'utilisateur est admin (à adapter)
-                    // return Forbidden();
-                }
 
                 var result = await _commentaireService.DeleteCommentaireAsync(commentaireId);
 
@@ -280,7 +272,7 @@ namespace projet0.API.Controllers
                 {
                     Id = p.Id,
                     NomFichier = p.NomFichier,
-                    
+
                     DateAjout = p.DateAjout,
                     Url = $"{Request.Scheme}://{Request.Host}/api/pieces-jointes/{p.Id}"
                 }).ToList() ?? new();
@@ -345,8 +337,8 @@ namespace projet0.API.Controllers
                     EstInterne = c.EstInterne,
                     AuteurId = c.AuteurId,
                     AuteurNom = c.Auteur != null ? $"{c.Auteur.Nom} {c.Auteur.Prenom}" : "Inconnu",
-                    TicketId = c.TicketId, 
-                    TicketReference = c.Ticket?.ReferenceTicket, 
+                    TicketId = c.TicketId,
+                    TicketReference = c.Ticket?.ReferenceTicket,
                     PiecesJointes = c.PiecesJointes?.Select(p => new PieceJointeDTO
                     {
                         Id = p.Id,

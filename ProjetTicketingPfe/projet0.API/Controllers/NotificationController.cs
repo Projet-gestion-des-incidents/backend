@@ -149,7 +149,7 @@ namespace projet0.API.Controllers
             return Ok(new { message = "Notification supprimée" });
         }
         /// <summary>
-        /// Marquer toutes les notifications comme consultées (dropdown ouvert)
+        /// Marquer toutes les notifications comme consultées
         /// </summary>
         [HttpPut("consulter")]
         public async Task<IActionResult> MarkAllAsConsulted()
@@ -161,7 +161,7 @@ namespace projet0.API.Controllers
             return Ok();
         }
         /// <summary>
-        /// Delete all read notifications (Admin only)
+        /// Delete all read notifications
         /// </summary>
         [HttpDelete("cleanup")]
         [Authorize] // Tous les utilisateurs authentifiés, pas seulement Admin

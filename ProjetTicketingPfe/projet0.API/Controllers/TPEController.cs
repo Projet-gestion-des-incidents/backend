@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;  
 using projet0.Application.Common.Models.Pagination;
 using projet0.Application.Commun.DTOs;
 using projet0.Application.Commun.Ressources;
@@ -91,7 +90,7 @@ namespace projet0.API.Controllers
         /// <param name="request">Paramètres de pagination et filtres</param>
         /// <returns>Liste paginée des TPEs</returns>
         [HttpGet("withFilters")]
-        [Authorize(Policy = "UserRead")] // Ajustez la politique selon vos besoins
+        [Authorize(Policy = "UserRead")] 
         public async Task<ActionResult<ApiResponse<PagedResult<TPEDto>>>> GetTPEsPaged(
             [FromQuery] TPEPagedRequest request)
         {
@@ -140,7 +139,6 @@ namespace projet0.API.Controllers
             }
         }
 
-        // API/Controllers/TPEController.cs
 
         /// <summary>
         /// Récupère les TPEs du commerçant connecté avec pagination, recherche et filtres
@@ -148,7 +146,7 @@ namespace projet0.API.Controllers
         [HttpGet("mes-tpe")]
         [Authorize(Policy = "UserRead")]
         public async Task<ActionResult<ApiResponse<PagedResult<TPEDto>>>> GetMesTPEsPaged(
-            [FromQuery] TPEPagedRequest request)  // ✅ Utiliser la même DTO
+            [FromQuery] TPEPagedRequest request)  
         {
             try
             {
@@ -157,7 +155,7 @@ namespace projet0.API.Controllers
                 _logger.LogInformation("Récupération des TPEs du commerçant {UserId} - Page: {Page}, PageSize: {PageSize}",
                     userId, request.Page, request.PageSize);
 
-                // ⚠️ Le request.CommercantId est IGNORÉ - on utilise l'userId du token
+                //  on utilise l'userId du token
                 var result = await _tpeService.GetMesTPEsPagedAsync(request, userId);
 
                 if (!result.IsSuccess)

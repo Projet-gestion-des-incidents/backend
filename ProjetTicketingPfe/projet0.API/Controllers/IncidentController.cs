@@ -25,13 +25,13 @@ namespace projet0.API.Controllers
         private readonly IIncidentTicketRepository _incidentTicketRepository;
         public IncidentController(
             IIncidentService incidentService,
-            ILogger<IncidentController> logger, ITicketService ticketService, 
+            ILogger<IncidentController> logger, ITicketService ticketService,
             IIncidentTicketRepository incidentTicketRepository)
         {
             _incidentService = incidentService;
             _logger = logger;
-            _ticketService = ticketService;  
-            _incidentTicketRepository = incidentTicketRepository;  
+            _ticketService = ticketService;
+            _incidentTicketRepository = incidentTicketRepository;
         }
 
         [HttpGet("all")]
@@ -88,7 +88,7 @@ namespace projet0.API.Controllers
             }
         }
         [HttpGet("{id}")]
-        [Authorize(Policy = "IncidentRead")]   
+        [Authorize(Policy = "IncidentRead")]
         public async Task<ActionResult<ApiResponse<IncidentDTO>>> GetById(Guid id)
         {
             try
@@ -239,7 +239,7 @@ namespace projet0.API.Controllers
                         ));
                     }
 
-                    // ✅ Seul le statut EnCours est bloqué
+                    //  Seul le statut EnCours est bloqué
                     // Les incidents Fermés (archivés) peuvent être supprimés
                     if (incident.Data.StatutIncident == StatutIncident.EnCours)
                     {
@@ -272,7 +272,7 @@ namespace projet0.API.Controllers
         #region Specific Operations
 
         [HttpGet("statut/{statut}")]
-        [Authorize(Policy = "IncidentRead")]   
+        [Authorize(Policy = "IncidentRead")]
         public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetByStatut(StatutIncident statut)
         {
             try
@@ -289,7 +289,7 @@ namespace projet0.API.Controllers
         }
 
         [HttpGet("severite/{severite}")]
-        [Authorize(Policy = "IncidentRead")]     
+        [Authorize(Policy = "IncidentRead")]
         public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetBySeverite(SeveriteIncident severite)
         {
             try
@@ -306,7 +306,7 @@ namespace projet0.API.Controllers
         }
 
         [HttpGet("created-by/{userId}")]
-        [Authorize(Policy = "IncidentRead")]  
+        [Authorize(Policy = "IncidentRead")]
         public async Task<ActionResult<ApiResponse<List<IncidentDTO>>>> GetByCreatedBy(Guid userId)
         {
             try
@@ -325,7 +325,7 @@ namespace projet0.API.Controllers
         [HttpGet("my-incidents")]
         [Authorize(Policy = "IncidentRead")]
         public async Task<ActionResult<ApiResponse<PagedResult<IncidentDTO>>>> GetMyIncidents(
-            [FromQuery] IncidentSearchRequest request) 
+            [FromQuery] IncidentSearchRequest request)
         {
             try
             {
@@ -475,7 +475,7 @@ namespace projet0.API.Controllers
         }
 
         [HttpDelete("{incidentId}/tpes/{tpeId}")]
-        [Authorize(Policy = "IncidentUpdate")]  // À adapter selon votre politique
+        [Authorize(Policy = "IncidentUpdate")]  
         public async Task<ActionResult<ApiResponse<bool>>> DelierTPE(
             Guid incidentId,
             Guid tpeId)
@@ -579,8 +579,6 @@ namespace projet0.API.Controllers
         }
 
 
-        // API/Controllers/IncidentController.cs
-
         /// <summary>
         /// Archive un incident résolu
         /// </summary>
@@ -661,7 +659,6 @@ namespace projet0.API.Controllers
         /// <summary>
         /// Récupère les incidents archivés (paginated)
         /// </summary>
-        // API/Controllers/IncidentController.cs
 
         [HttpGet("archives")]
         [Authorize(Policy = "IncidentRead")]
@@ -680,7 +677,6 @@ namespace projet0.API.Controllers
                 return StatusCode(500, ApiResponse<PagedResult<IncidentDTO>>.Failure("Erreur interne"));
             }
         }
-        //////////commmm
         #endregion
 
     }

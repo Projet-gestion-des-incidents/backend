@@ -37,7 +37,7 @@ namespace projet0.API.Controllers
             _userManager = userManager;
             _emailService = emailService;
         }
-       
+
         [HttpPost("register")]
         [AllowAnonymous]
         public async Task<IActionResult> Register([FromBody] RegisterDTO dto)
@@ -70,23 +70,25 @@ namespace projet0.API.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> SendOtp([FromBody] EmailDTO dto)
         {
+            // Vérifier que l'email est fourni
             if (string.IsNullOrEmpty(dto.Email))
                 return BadRequest(ApiResponse<string>.Failure(
-    message: "Email requis",
-    errors: null,
-    resultCode: 10
+                  message: "Email requis",
+                   errors: null,
+                   resultCode: 10
 ));
+            // Rechercher l'utilisateur pour s'assurer que le compte existe.
             var user = await _userManager.FindByEmailAsync(dto.Email);
             if (user == null)
                 return NotFound(ApiResponse<string>.Failure(
                                    message: "Utilisateur introuvable",
                                    resultCode: 20
                                ));
+            // Générer l'OTP et l'envoyer par email
             var result = await _otpService.GenerateAndSendOtpAsync(user, OtpPurpose.EmailConfirmation);
+            return Ok(result);
+        }
 
-                return Ok(result);
-            }
-        
         [HttpPost("validate-otp")]
         [AllowAnonymous]
         public async Task<IActionResult> ValidateOtp([FromBody] ValidateOtpDTO dto)
@@ -100,12 +102,13 @@ namespace projet0.API.Controllers
                 ));
             }
 
-                var result = await _otpService.ValidateOtpAsync(
-                user.Id,
-                dto.Code,
-                OtpPurpose.EmailConfirmation
-            );
+            var result = await _otpService.ValidateOtpAsync(
+            user.Id,
+            dto.Code,
+            OtpPurpose.EmailConfirmation
+        );
 
+            // ResultCode == 0 et Data == true indiquent un OTP valide et non expiré.
             if (result.ResultCode == 0 && result.Data)
             {
                 return Ok(ApiResponse<AuthResponseDTO>.Success(
@@ -144,7 +147,7 @@ namespace projet0.API.Controllers
                 user,
                 OtpPurpose.ResetPassword
             );
-
+            // ResultCode 0 = envoyé, 1 = déjà actif (renvoi accepté), autre = erreur.
             return result.ResultCode == 0 || result.ResultCode == 1
                    ? Ok(result)
                    : BadRequest(result);
@@ -226,6 +229,7 @@ namespace projet0.API.Controllers
         [Authorize]
         public async Task<IActionResult> ConfirmEmailChange([FromBody] ConfirmEmailChangeDto dto)
         {
+            // Extraire l'ID utilisateur depuis le claim JWT
             var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
                 return Unauthorized();

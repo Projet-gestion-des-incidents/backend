@@ -59,11 +59,11 @@ namespace projet0.API.Controllers
         {
             try
             {
-                var userId = GetCurrentUserId();  // AJOUTER
+                var userId = GetCurrentUserId();  
                 _logger.LogInformation("Récupération paginée des tickets - Page: {Page}, PageSize: {PageSize}",
                     request.Page, request.PageSize);
 
-                var result = await _ticketService.GetTicketsPagedAsync(request, userId);  // Passer userId
+                var result = await _ticketService.GetTicketsPagedAsync(request, userId);  
 
                 if (!result.IsSuccess)
                     return BadRequest(result);
@@ -93,7 +93,6 @@ namespace projet0.API.Controllers
                 if (!result.IsSuccess)
                     return BadRequest(result);
 
-                // Le message de succès indique comment ajouter des commentaires
                 return CreatedAtAction(
                     nameof(GetById),
                     new { id = result.Data?.Id },
@@ -144,7 +143,7 @@ namespace projet0.API.Controllers
                 if (!result.IsSuccess || result.Data == null)
                     return NotFound(result);
 
-                // Ajouter les URLs des pièces jointes
+                //  les URLs des pièces jointes
                 if (result.Data.Commentaires != null)
                 {
                     foreach (var commentaire in result.Data.Commentaires)
@@ -197,7 +196,6 @@ namespace projet0.API.Controllers
                 else if (isTechnicien)
                 {
                     // Technicien : peut supprimer ses propres tickets
-                    // ✅ Y COMPRIS les tickets résolus (archivés)
                     if (ticket.AssigneeId != userId)
                     {
                         return BadRequest(ApiResponse<bool>.Failure(
@@ -206,7 +204,7 @@ namespace projet0.API.Controllers
                         ));
                     }
 
-                    // ✅ Seul le statut EnCours est bloqué
+                    //  Seul le statut EnCours est bloqué
                     if (ticket.StatutTicket == StatutTicket.EnCours)
                     {
                         return BadRequest(ApiResponse<bool>.Failure(
@@ -314,7 +312,6 @@ namespace projet0.API.Controllers
 
                 foreach (var incident in incidents)
                 {
-                    // Utiliser GetIncidentDetailAsync qui existe déjà
                     var result = await _incidentService.GetIncidentDetailAsync(incident.Id);
                     if (result.IsSuccess && result.Data != null)
                     {
@@ -377,7 +374,7 @@ namespace projet0.API.Controllers
         }
 
         [HttpDelete("{ticketId}/incidents/{incidentId}")]
-        [Authorize(Policy = "AdminOnly")] // Ou la politique que vous voulez
+        [Authorize(Policy = "AdminOnly")] 
         public async Task<ActionResult<ApiResponse<bool>>> DelierIncident(
             Guid ticketId,
             Guid incidentId)
@@ -422,7 +419,6 @@ namespace projet0.API.Controllers
         }
 
 
-        // Dans TicketController.cs - AJOUTER
 
         /// <summary>
         /// Archive un ticket résolu

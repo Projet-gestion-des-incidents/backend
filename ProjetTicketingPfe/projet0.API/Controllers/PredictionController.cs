@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using projet0.API.Controllers.Base;
 using projet0.Application.Commun.DTOs.IncidentDTOs;
 using projet0.Application.Commun.Ressources;
-using projet0.Application.Interfaces;  // ← CHANGEMENT ICI
+using projet0.Application.Interfaces;  
 
 namespace projet0.API.Controllers
 

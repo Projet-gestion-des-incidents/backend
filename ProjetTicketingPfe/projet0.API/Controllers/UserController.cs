@@ -1,16 +1,11 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.IdentityModel.JsonWebTokens;
-using projet0.API.Filters;
 using projet0.Application.Common.Models.Pagination;
 using projet0.Application.Commun.DTOs;
 using projet0.Application.Commun.Ressources;
 using projet0.Application.Services.User;
 using projet0.Domain.Entities;
-using System;
-using System.Collections.Generic;
 using System.Security.Claims;
-using System.Threading.Tasks;
 
 namespace projet0.API.Controllers
 {
@@ -86,7 +81,7 @@ namespace projet0.API.Controllers
             if (response.ResultCode != 0)
                 return BadRequest(response);
 
-            // ✅ FIX: Return wrapped response for consistency
+            // Return wrapped response for consistency
             return Ok(ApiResponse<ApplicationUser>.Success(
                 data: response.Data,
                 message: "Profil mis à jour avec succès",
@@ -234,7 +229,7 @@ namespace projet0.API.Controllers
                         resultCode: 0));
                 }
 
-                // Ajouter les en-têtes de pagination
+                // les en-têtes de pagination
                 Response.Headers.Append("X-Pagination-TotalCount", result.Data.TotalCount.ToString());
                 Response.Headers.Append("X-Pagination-Page", result.Data.Page.ToString());
                 Response.Headers.Append("X-Pagination-PageSize", result.Data.PageSize.ToString());
@@ -327,7 +322,7 @@ namespace projet0.API.Controllers
                 if (!result.IsSuccess)
                     return BadRequest(result);
 
-                // Ajouter les en-têtes de pagination
+                // les en-têtes de pagination
                 Response.Headers.Append("X-Pagination-TotalCount", result.Data.TotalCount.ToString());
                 Response.Headers.Append("X-Pagination-Page", result.Data.Page.ToString());
                 Response.Headers.Append("X-Pagination-PageSize", result.Data.PageSize.ToString());
