@@ -1,8 +1,4 @@
 ﻿using projet0.Domain.Entities;
-using System;
-using System.Collections.Generic;
-using System.Data.SqlTypes;
-using System.Text;
 
 namespace projet0.Application.Services.User
 {
@@ -18,7 +14,7 @@ namespace projet0.Application.Services.User
         public DateTime? BirthDate { get; set; }
         public UserStatut Statut { get; set; }
         public string? Adresse { get; set; }
-        public string StatutString => Statut.ToString(); // Pour affichage simple
+        public string StatutString => Statut.ToString(); 
 
     }
 

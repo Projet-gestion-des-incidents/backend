@@ -4,9 +4,6 @@ using projet0.Application.Commun.DTOs;
 using projet0.Application.Interfaces;
 using projet0.Domain.Entities;
 using projet0.Domain.Enums;
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace projet0.Application.Services
 {
@@ -84,7 +81,7 @@ namespace projet0.Application.Services
                 Message = message,
                 DateEnvoi = DateTime.UtcNow,
                 EstLu = false,
-                TPEId = tpeId  // Ajouter cette propriété à l'entité Notification
+                TPEId = tpeId  
             };
 
             await _notificationRepository.AddAsync(notification);
@@ -124,7 +121,7 @@ namespace projet0.Application.Services
             };
 
             await _notificationRepository.AddAsync(notification);
-            await _notificationRepository.SaveChangesAsync();  // ← AJOUTER CETTE LIGNE !
+            await _notificationRepository.SaveChangesAsync();  
         }
         public async Task CreateCommentNotificationAsync(Guid userId, Guid commentId, Guid? ticketId, string titre, string message)
         {
@@ -142,7 +139,7 @@ namespace projet0.Application.Services
             };
 
             await _notificationRepository.AddAsync(notification);
-            await _notificationRepository.SaveChangesAsync();  // ← AJOUTER CETTE LIGNE !
+            await _notificationRepository.SaveChangesAsync();  
 
         }
 

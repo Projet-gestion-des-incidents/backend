@@ -3,9 +3,7 @@ using MailKit.Security;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MimeKit;
-using MimeKit.Text;
 using projet0.Application.Commun.DTOs;
-using System.Threading.Tasks;
 
 namespace projet0.Application.Services.Email
 {
@@ -13,7 +11,6 @@ namespace projet0.Application.Services.Email
     {
         private readonly EmailSettings _settings;
         private readonly ILogger<EmailService> _logger;
-        // Display name professionnel
         private const string COMPANY_NAME = "MS Solutions Group";
 
         public EmailService(IOptions<EmailSettings> settings, ILogger<EmailService> logger)
@@ -58,7 +55,7 @@ namespace projet0.Application.Services.Email
             }
         }
 
-        // Méthode d'envoi d'email de bienvenue avec mot de passe
+        //envoi d'email de bienvenue avec mot de passe
         public async Task SendWelcomeEmailAsync(string to, string nom, string prenom, string defaultPassword)
         {
             try

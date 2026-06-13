@@ -1,7 +1,5 @@
 ﻿using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using projet0.Application.Commun.DTOs;
 using projet0.Application.Commun.Ressources;
@@ -39,10 +37,7 @@ namespace projet0.Application.Services.Auth
         // ================= REGISTER =================
         public async Task<ApiResponse<AuthResponseDTO>> RegisterAsync(RegisterDTO dto)
         {
-            // 1. Valider le modèle (les annotations sont déjà vérifiées par le contrôleur)
-            // Mais on peut ajouter des validations supplémentaires
-
-            // 2. Vérifier l'unicité de l'email
+            //  Vérifier l'unicité de l'email
             var existingEmail = await _userManager.FindByEmailAsync(dto.Email);
             if (existingEmail != null)
             {
@@ -52,7 +47,7 @@ namespace projet0.Application.Services.Auth
                 );
             }
 
-            // 3. Vérifier l'unicité du nom d'utilisateur
+            //  Vérifier l'unicité du nom d'utilisateur
             var existingUserName = await _userManager.FindByNameAsync(dto.UserName);
             if (existingUserName != null)
             {
@@ -62,7 +57,7 @@ namespace projet0.Application.Services.Auth
                 );
             }
 
-            // 4. Vérifier l'unicité du numéro de téléphone (si fourni)
+            //  Vérifier l'unicité du numéro de téléphone (si fourni)
             if (!string.IsNullOrEmpty(dto.PhoneNumber))
             {
                 var users = _userManager.Users.ToList();
@@ -76,7 +71,7 @@ namespace projet0.Application.Services.Auth
                 }
             }
 
-            // 5. Vérifier la force du mot de passe (validation supplémentaire)
+            //  Vérifier la force du mot de passe 
             var passwordValidator = new PasswordValidator<ApplicationUser>();
             var passwordResult = await passwordValidator.ValidateAsync(_userManager, null, dto.Password);
             if (!passwordResult.Succeeded)
@@ -89,7 +84,7 @@ namespace projet0.Application.Services.Auth
                 );
             }
 
-            // 6. Récupérer le rôle "Technicien"
+            //  Récupérer le rôle "Technicien"
             var role = await _roleManager.FindByNameAsync("Technicien");
             if (role == null)
             {
@@ -97,7 +92,7 @@ namespace projet0.Application.Services.Auth
                 await _roleManager.CreateAsync(role);
             }
 
-            // 7. Créer l'utilisateur (EmailConfirmed forcé à false)
+            //  Créer l'utilisateur (EmailConfirmed forcé à false)
             var user = new ApplicationUser
             {
                 UserName = dto.UserName,
@@ -120,10 +115,10 @@ namespace projet0.Application.Services.Auth
                 );
             }
 
-            // 8. Assignation du rôle Technicien
+            //  Assignation du rôle Technicien
             await _userManager.AddToRoleAsync(user, role.Name);
 
-            // 9. Envoyer OTP pour confirmer l'email
+            //  Envoyer OTP pour confirmer l'email
             var otpResult = await _otpService.GenerateAndSendOtpAsync(
                 user,
                 OtpPurpose.EmailConfirmation
@@ -160,9 +155,7 @@ namespace projet0.Application.Services.Auth
             var roles = await _userManager.GetRolesAsync(user);
             var isAdmin = roles.Contains("Admin");
 
-            // ============================================
             // ADMIN : Pas de lockout
-            // ============================================
             if (isAdmin)
             {
                 // Vérifier le mot de passe
@@ -225,14 +218,11 @@ namespace projet0.Application.Services.Auth
                 );
             }
 
-            // ============================================
             // NON-ADMIN : Logique avec lockout
-            // ============================================
-
             // 1. NETTOYER LE LOCKOUT EXPIRÉ (restaure le statut si nécessaire)
             await CleanExpiredLockoutForUserAsync(user);
 
-            // 2. SYNCHRONISER LE STATUT (vérification supplémentaire)
+            // 2. SYNCHRONISER LE STATUT 
             await SyncUserStatusAsync(user);
 
             // 3. VÉRIFIER SI L'UTILISATEUR EST ENCORE LOCKOUT
@@ -364,12 +354,6 @@ namespace projet0.Application.Services.Auth
             );
         }
 
-        //// Méthode utilitaire pour détecter un lockout permanent
-        //private bool IsPermanentLockout(DateTimeOffset lockoutEnd)
-        //{
-        //    // Si lockoutEnd est très loin dans le futur (>= 1 an), considérer comme permanent
-        //    return lockoutEnd > DateTimeOffset.UtcNow.AddYears(1);
-        //}
 
         /// <summary>
         /// Synchronise le champ Statut avec LockoutEnd
@@ -418,7 +402,7 @@ namespace projet0.Application.Services.Auth
         {
             var lockoutEnd = await _userManager.GetLockoutEndDateAsync(user);
 
-            // Nettoyer seulement si lockout temporaire (pas MaxValue) et expiré
+            // Nettoyer seulement si lockout temporaire et expiré
             if (lockoutEnd.HasValue &&
                 lockoutEnd.Value != DateTimeOffset.MaxValue &&
                 lockoutEnd.Value <= DateTimeOffset.UtcNow)

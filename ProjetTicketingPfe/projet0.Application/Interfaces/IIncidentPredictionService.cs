@@ -1,5 +1,4 @@
-﻿// projet0.Application/Interfaces/IIncidentPredictionService.cs
-using projet0.Application.Commun.DTOs.IncidentDTOs;
+﻿using projet0.Application.Commun.DTOs.IncidentDTOs;
 using projet0.Application.Commun.Ressources;
 
 namespace projet0.Application.Interfaces

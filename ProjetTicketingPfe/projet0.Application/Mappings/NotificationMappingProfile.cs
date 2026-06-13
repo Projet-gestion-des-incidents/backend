@@ -1,9 +1,6 @@
 ﻿using AutoMapper;
 using projet0.Application.Commun.DTOs;
 using projet0.Domain.Entities;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace projet0.Application.Mappings
 {

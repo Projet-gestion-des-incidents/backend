@@ -1,16 +1,12 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using projet0.Domain.Entities;
 using projet0.Domain.Enums;
-using System;
-using System.Collections.Generic;
 using System.Linq.Expressions;
-using System.Text;
 
 namespace projet0.Application.Interfaces
 {
     public interface ITicketRepository : IGenericRepository<Ticket>
     {
-        // Méthodes spécifiques aux tickets
         Task<Ticket> GetByReferenceAsync(string reference);
         Task<Ticket> GetTicketWithDetailsAsync(Guid id);
         Task<List<Ticket>> GetTicketsByStatutAsync(StatutTicket statut);        

@@ -1,8 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore.Storage;
-using System;
-using System.Collections.Generic;
 using System.Linq.Expressions;
-using System.Text;
 
 namespace projet0.Application.Interfaces
 {
@@ -21,8 +18,6 @@ namespace projet0.Application.Interfaces
         Task<bool> AnyAsync(Expression<Func<T, bool>> predicate);
         Task<int> CountAsync();
         Task<int> CountAsync(Expression<Func<T, bool>> predicate);
-
-        // méthodes ajoutées pour incident
         Task UpdateAsync(T entity);
         Task UpdateRangeAsync(IEnumerable<T> entities);
         Task DeleteAsync(T entity);

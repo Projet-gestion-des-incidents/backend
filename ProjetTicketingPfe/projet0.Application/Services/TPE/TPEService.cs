@@ -7,11 +7,7 @@ using projet0.Application.Interfaces;
 using projet0.Application.Services.TPE;
 using projet0.Domain.Entities;
 using projet0.Domain.Enums;
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Threading.Tasks;
 
 using TpeEntity = projet0.Domain.Entities.TPE;
 
@@ -22,25 +18,25 @@ namespace projet0.Application.Services.TPEService
         private readonly ITPERepository _tpeRepository;
         private readonly IUserRepository _userRepository;
         private readonly IIncidentTPERepository _incidentTPERepository;
-        private readonly INotificationService _notificationService;  // Ajouter
+        private readonly INotificationService _notificationService;  
         private readonly ILogger<TPEService> _logger;
-        private readonly INotificationRepository _notificationRepository;  // ← AJOUTER
+        private readonly INotificationRepository _notificationRepository;  
 
         public TPEService(
             ITPERepository tpeRepository,
             IUserRepository userRepository,
             IIncidentTPERepository incidentTPERepository,
             INotificationService notificationService,
-                INotificationRepository notificationRepository,  // ← AJOUTER
-                                                                 // Ajouter
+                INotificationRepository notificationRepository,  
+                                                                 
             ILogger<TPEService> logger)
         {
             _tpeRepository = tpeRepository;
             _userRepository = userRepository;
-            _notificationRepository = notificationRepository;  // ← AJOUTER
+            _notificationRepository = notificationRepository;  
 
             _incidentTPERepository = incidentTPERepository;
-            _notificationService = notificationService;  // Ajouter
+            _notificationService = notificationService;  
             _logger = logger;
         }
 
@@ -122,9 +118,7 @@ namespace projet0.Application.Services.TPEService
                 await _tpeRepository.AddAsync(tpe);
                 await _tpeRepository.SaveChangesAsync();
 
-                // ======================================================
-                // 🔔 NOTIFICATION POUR LE COMMERCANT PROPRIÉTAIRE
-                // ======================================================
+           
 
                 // Notification au commerçant propriétaire
                 await _notificationService.CreateTPENotificationAsync(
@@ -180,7 +174,7 @@ namespace projet0.Application.Services.TPEService
                 var admin = await _userRepository.GetByIdAsync(userId);
                 var createdByUser = tpe.CreatedById.HasValue ? await _userRepository.GetByIdAsync(tpe.CreatedById.Value) : null;
 
-                // ✅ Sauvegarder l'ancien commerçant et l'ancien modèle
+                //  Sauvegarder l'ancien commerçant et l'ancien modèle
                 var oldCommercantId = tpe.CommercantId;
                 var oldModele = tpe.Modele;
                 var oldNumSerieComplet = tpe.NumSerieComplet;
@@ -242,17 +236,16 @@ namespace projet0.Application.Services.TPEService
                 await _tpeRepository.SaveChangesAsync();
 
                 // ======================================================
-                // 🔔 GESTION DES NOTIFICATIONS
+                //  GESTION DES NOTIFICATIONS
                 // ======================================================
 
                 string adminNom = admin != null ? $"{admin.Nom} {admin.Prenom}" : "L'administrateur";
 
-                // ======================================================
+              
                 // 1. CHANGEMENT DE MODÈLE (même propriétaire)
-                // ======================================================
                 if (modeleChanged && !commercantChanged)
                 {
-                    // ✅ Supprimer l'ancienne notification pour le commerçant actuel
+                    // Supprimer l'ancienne notification pour le commerçant actuel
                     if (tpe.CommercantId.HasValue)
                     {
                         var oldNotifications = await _notificationRepository.GetByTPEIdAsync(id);
@@ -266,7 +259,7 @@ namespace projet0.Application.Services.TPEService
                         }
                         await _notificationRepository.SaveChangesAsync();
 
-                        // ✅ Créer une nouvelle notification avec le même format que la création
+                        //  Créer une nouvelle notification avec le même format que la création
                         await _notificationService.CreateTPENotificationAsync(
                             tpe.CommercantId.Value,
                             tpe.Id,
@@ -278,12 +271,11 @@ namespace projet0.Application.Services.TPEService
                     }
                 }
 
-                // ======================================================
+                
                 // 2. CHANGEMENT DE PROPRIÉTAIRE (avec ou sans changement de modèle)
-                // ======================================================
                 if (commercantChanged)
                 {
-                    // ✅ Supprimer les anciennes notifications pour l'ANCIEN commerçant
+                    // Supprimer les anciennes notifications pour l'ANCIEN commerçant
                     if (oldCommercantId.HasValue)
                     {
                         var oldNotifications = await _notificationRepository.GetByTPEIdAsync(id);
@@ -296,7 +288,7 @@ namespace projet0.Application.Services.TPEService
                             oldCommercantId.Value, id);
                     }
 
-                    // ✅ Créer une notification pour le NOUVEAU commerçant (même format que la création)
+                    //  Créer une notification pour le NOUVEAU commerçant (même format que la création)
                     if (newCommercantId.HasValue)
                     {
                         string modeleAAfficher = modeleChanged ? dto.Modele.ToString() : oldModele.ToString();
@@ -358,7 +350,7 @@ namespace projet0.Application.Services.TPEService
                     resultCode: 0
                 );
             });
-        }        // Dans TPEService.cs - Remplacer la méthode DeleteAsync
+        }        
 
         public async Task<ApiResponse<string>> DeleteAsync(Guid id)
         {
@@ -502,7 +494,6 @@ namespace projet0.Application.Services.TPEService
                         Modele = tpe.Modele,
                         CommercantId = tpe.CommercantId,
                         CommercantNom = $"{commercant.Nom} {commercant.Prenom}",
-                        // ✅ AJOUTER LES CHAMPS D'AUDIT
                         CreatedAt = tpe.CreatedAt,
                         CreatedByNom = createdBy != null ? $"{createdBy.Nom} {createdBy.Prenom}" : "Inconnu",
                         UpdatedAt = tpe.UpdatedAt,
@@ -569,8 +560,7 @@ namespace projet0.Application.Services.TPEService
             });
         }
 
-        // MÉTHODE PAGINÉE
-        // MÉTHODE PAGINÉE CORRIGÉE
+    
         public async Task<ApiResponse<PagedResult<TPEDto>>> GetTPEsPagedAsync(TPEPagedRequest request)
         {
             return await MeasureAsync(nameof(GetTPEsPagedAsync), request, async () =>
@@ -590,8 +580,6 @@ namespace projet0.Application.Services.TPEService
                         _logger.LogInformation("Filtre appliqué: Modele = {Modele}", request.Modele.Value);
                     }
 
-                    // Remplacer la section des filtres par :
-
                     // 2. Appliquer les filtres
                     if (request.Modele.HasValue)
                     {
@@ -599,7 +587,6 @@ namespace projet0.Application.Services.TPEService
                         _logger.LogInformation("Filtre appliqué: Modele = {Modele}", request.Modele.Value);
                     }
 
-                    // ✅ GESTION CORRECTE - CommercantId reste Guid?
                     if (request.CommercantId.HasValue)
                     {
                         // Filtrer par un commerçant spécifique
@@ -607,14 +594,14 @@ namespace projet0.Application.Services.TPEService
                         _logger.LogInformation("Filtre appliqué: CommercantId = {CommercantId}", request.CommercantId.Value);
                     }
 
-                    // ✅ FILTRE "NON ASSIGNÉ" via paramètre booléen séparé
+                    //  FILTRE "NON ASSIGNÉ" via paramètre booléen séparé
                     if (request.NonAssigne == true)
                     {
                         query = query.Where(t => t.CommercantId == null);
                         _logger.LogInformation("Filtre appliqué: TPEs non assignés (CommercantId = null)");
                     }
 
-                    // ✅ CORRECTION: Filtre par date de création exacte (pas Debut/Fin)
+                    //  Filtre par date de création exacte (pas Debut/Fin)
                     if (request.CreatedAt.HasValue)
                     {
                         var date = request.CreatedAt.Value.Date;
@@ -623,7 +610,7 @@ namespace projet0.Application.Services.TPEService
                         _logger.LogInformation("Filtre appliqué: CreatedAt = {CreatedAt}", request.CreatedAt.Value);
                     }
 
-                    // ✅ CORRECTION: Filtre par date de modification exacte
+                    //  Filtre par date de modification exacte
                     if (request.UpdatedAt.HasValue)
                     {
                         var date = request.UpdatedAt.Value.Date;
@@ -632,21 +619,21 @@ namespace projet0.Application.Services.TPEService
                         _logger.LogInformation("Filtre appliqué: UpdatedAt = {UpdatedAt}", request.UpdatedAt.Value);
                     }
 
-                    // ✅ NOUVEAU: Filtre par créateur
+                    //  Filtre par créateur
                     if (request.CreatedById.HasValue)
                     {
                         query = query.Where(t => t.CreatedById == request.CreatedById.Value);
                         _logger.LogInformation("Filtre appliqué: CreatedById = {CreatedById}", request.CreatedById.Value);
                     }
 
-                    // ✅ NOUVEAU: Filtre par modificateur
+                    //  Filtre par modificateur
                     if (request.UpdatedById.HasValue)
                     {
                         query = query.Where(t => t.UpdatedById == request.UpdatedById.Value);
                         _logger.LogInformation("Filtre appliqué: UpdatedById = {UpdatedById}", request.UpdatedById.Value);
                     }
 
-                    // ✅ CORRECTION: Recherche simplifiée (sans SearchUsersByTermAsync)
+                    //  Recherche simplifiée (sans SearchUsersByTermAsync)
                     if (!string.IsNullOrWhiteSpace(request.SearchTerm))
                     {
                         
@@ -658,18 +645,18 @@ namespace projet0.Application.Services.TPEService
                             (t.Commercant != null &&
                                 (t.Commercant.Nom.ToLower().Contains(term) ||
                                  t.Commercant.Prenom.ToLower().Contains(term) ||
-                                 t.Commercant.UserName.ToLower().Contains(term) ||  // ✅ AJOUTER
+                                 t.Commercant.UserName.ToLower().Contains(term) ||  
                                  (t.Commercant.Nom + " " + t.Commercant.Prenom).ToLower().Contains(term) ||
                                  (t.Commercant.Prenom + " " + t.Commercant.Nom).ToLower().Contains(term))) ||
                             (t.CreatedBy != null &&
                                 (t.CreatedBy.Nom.ToLower().Contains(term) ||
                                  t.CreatedBy.Prenom.ToLower().Contains(term) ||
-                                 t.CreatedBy.UserName.ToLower().Contains(term) ||  // ✅ AJOUTER
+                                 t.CreatedBy.UserName.ToLower().Contains(term) ||  
                                  (t.CreatedBy.Nom + " " + t.CreatedBy.Prenom).ToLower().Contains(term))) ||
                             (t.UpdatedBy != null &&
                                 (t.UpdatedBy.Nom.ToLower().Contains(term) ||
                                  t.UpdatedBy.Prenom.ToLower().Contains(term) ||
-                                 t.UpdatedBy.UserName.ToLower().Contains(term) ||  // ✅ AJOUTER
+                                 t.UpdatedBy.UserName.ToLower().Contains(term) ||  
                                  (t.UpdatedBy.Nom + " " + t.UpdatedBy.Prenom).ToLower().Contains(term)))
                         );
                         _logger.LogInformation("Filtre appliqué: SearchTerm = {SearchTerm}", request.SearchTerm);
@@ -801,11 +788,7 @@ namespace projet0.Application.Services.TPEService
                             PannesParAdresse = new List<TPEPanneParAdresseDTO>()
                         };
                         return ApiResponse<TPEDashboardDTO>.Success(emptyDashboard);
-                    }
-
-                    // ============================================
-                    // APPROCHE PONDÉRÉE : 1 incident = 1 / (nb TPEs dans l'incident)
-                    // ============================================
+                    }                   
 
                     // Compter le nombre de TPEs par incident
                     var nbTPEsParIncident = incidentTPEs
@@ -832,10 +815,8 @@ namespace projet0.Application.Services.TPEService
                         TauxGlobalPanne = tauxGlobalPanne
                     };
 
-                    // ============================================
                     // TAUX DE PANNE PAR MODÈLE (PONDÉRÉ)
-                    // ============================================
-                    var pannesParModele = new List<TPEPanneParModeleDTO>();
+                     var pannesParModele = new List<TPEPanneParModeleDTO>();
                     var couleursParModele = new Dictionary<ModeleTPE, string>
             {
                 { ModeleTPE.Ingenico, "#17a2b8" },  // Bleu
@@ -887,9 +868,7 @@ namespace projet0.Application.Services.TPEService
 
                     pannesParModele = pannesParModele.OrderByDescending(m => m.TauxPanne).ToList();
 
-                    // ============================================
                     // TAUX DE PANNE PAR ADRESSE (PONDÉRÉ)
-                    // ============================================
                     var pannesParAdresse = new List<TPEPanneParAdresseDTO>();
 
                     var tpesParCommercant = tpesList
@@ -958,18 +937,15 @@ namespace projet0.Application.Services.TPEService
                     return ApiResponse<TPEDashboardDTO>.Failure("Erreur interne du serveur");
                 }
             });
-        }        // Méthode helper pour récupérer les liaisons IncidentTPE
+        }      
+        //  helper pour récupérer les liaisons IncidentTPE
         private async Task<List<IncidentTPE>> GetIncidentTPEsAsync()
         {
-            // Vous devez injecter IIncidentTPERepository dans le constructeur
-            // Si ce n'est pas déjà fait, ajoutez-le :
-            // private readonly IIncidentTPERepository _incidentTPERepository;
 
             var incidentTPEs = await _incidentTPERepository.GetAllAsync();
             return incidentTPEs.ToList();
         }
 
-        // Application/Services/TPEService/TPEService.cs
 
         /// <summary>
         /// Récupère les TPEs du commerçant connecté avec pagination, recherche et filtres
@@ -998,18 +974,16 @@ namespace projet0.Application.Services.TPEService
 
                     // 2. Récupérer la requête de base avec les relations
                     var query = await _tpeRepository.QueryWithDetailsAsync();
-
-                    // 3. ⚠️ IGNORER request.CommercantId - utiliser le userId du token
                     query = query.Where(t => t.CommercantId == commercantId);
 
-                    // 4. Appliquer les filtres
+                    // 3. Appliquer les filtres
                     if (request.Modele.HasValue)
                     {
                         query = query.Where(t => t.Modele == request.Modele.Value);
                         _logger.LogInformation("Filtre appliqué: Modele = {Modele}", request.Modele.Value);
                     }
 
-                    // 5. Filtre par date de création exacte
+                    // 4. Filtre par date de création exacte
                     if (request.CreatedAt.HasValue)
                     {
                         var date = request.CreatedAt.Value.Date;
@@ -1018,7 +992,7 @@ namespace projet0.Application.Services.TPEService
                         _logger.LogInformation("Filtre appliqué: CreatedAt = {CreatedAt}", request.CreatedAt.Value);
                     }
 
-                    // 6. Filtre par date de modification exacte
+                    // 5. Filtre par date de modification exacte
                     if (request.UpdatedAt.HasValue)
                     {
                         var date = request.UpdatedAt.Value.Date;
@@ -1027,7 +1001,7 @@ namespace projet0.Application.Services.TPEService
                         _logger.LogInformation("Filtre appliqué: UpdatedAt = {UpdatedAt}", request.UpdatedAt.Value);
                     }
 
-                    // 7. Recherche par SearchTerm (numéro de série ou date)
+                    // 6. Recherche par SearchTerm (numéro de série ou date)
                     if (!string.IsNullOrWhiteSpace(request.SearchTerm))
                     {
                         var term = request.SearchTerm.ToLower();
@@ -1047,14 +1021,14 @@ namespace projet0.Application.Services.TPEService
                         _logger.LogInformation("Filtre appliqué: SearchTerm = {SearchTerm}", request.SearchTerm);
                     }
 
-                    // 8. Compter le total AVANT pagination
+                    // 7. Compter le total AVANT pagination
                     var totalCount = await query.CountAsync();
                     _logger.LogInformation("Total TPEs trouvés: {TotalCount}", totalCount);
 
-                    // 9. Appliquer le tri
+                    // 8. Appliquer le tri
                     query = ApplySortingToQuery(query, request.SortBy, request.SortDescending);
 
-                    // 10. Appliquer la pagination
+                    // 9. Appliquer la pagination
                     var items = await query
                         .Skip((request.Page - 1) * request.PageSize)
                         .Take(request.PageSize)
@@ -1062,7 +1036,7 @@ namespace projet0.Application.Services.TPEService
 
                     _logger.LogInformation("{Count} TPEs récupérés pour la page {Page}", items.Count, request.Page);
 
-                    // 11. Mapper vers DTO
+                    // 10. Mapper vers DTO
                     var dtos = new List<TPEDto>();
                     foreach (var tpe in items)
                     {
@@ -1093,7 +1067,7 @@ namespace projet0.Application.Services.TPEService
                         });
                     }
 
-                    // 12. Créer le résultat paginé
+                    // 11. Créer le résultat paginé
                     var pagedResult = new PagedResult<TPEDto>
                     {
                         Items = dtos,
@@ -1114,7 +1088,6 @@ namespace projet0.Application.Services.TPEService
         }
     }
 
-    // ModeleTPEHelper - CLASSE STATIQUE SÉPARÉE
     public static class ModeleTPEHelper
     {
         private static readonly Dictionary<ModeleTPE, string> _abbreviations = new()

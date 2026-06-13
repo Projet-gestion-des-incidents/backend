@@ -1,7 +1,6 @@
 ﻿using AutoMapper;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using projet0.Application.Common.Models.Pagination;
 using projet0.Application.Commun.DTOs.Incident;
@@ -11,8 +10,6 @@ using projet0.Application.Commun.Ressources;
 using projet0.Application.Interfaces;
 using projet0.Domain.Entities;
 using projet0.Domain.Enums;
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using static projet0.Application.Commun.DTOs.Incident.IncidentDTO;
 using IncidentEntity = projet0.Domain.Entities.Incident;
@@ -37,7 +34,7 @@ namespace projet0.Application.Services.Incident
         private readonly ICommentaireRepository _commentaireRepository;
         private readonly IPieceJointeRepository _pieceJointeRepository;
         private readonly IIncidentArchiveRepository _incidentArchiveRepository;
-        private readonly INotificationRepository _notificationRepository;  // ← AJOUTER
+        private readonly INotificationRepository _notificationRepository;  
 
         public IncidentService(
             IIncidentRepository incidentRepository,
@@ -55,7 +52,7 @@ namespace projet0.Application.Services.Incident
             INotificationService notificationService,
             INotificationRepository notificationRepository,
             ICommentaireRepository commentaireRepository,
-            IIncidentArchiveRepository incidentArchiveRepository  // Ajouter ceci
+            IIncidentArchiveRepository incidentArchiveRepository  
 )
         {
             _incidentRepository = incidentRepository;
@@ -71,7 +68,7 @@ namespace projet0.Application.Services.Incident
             _environment = environment;
             _notificationService = notificationService;
             _incidentArchiveRepository = incidentArchiveRepository;
-            _notificationRepository = notificationRepository;  // ← AJOUTER
+            _notificationRepository = notificationRepository;  
 
             _pieceJointeRepository = pieceJointeRepository;
             _commentaireRepository = commentaireRepository;
@@ -134,7 +131,7 @@ namespace projet0.Application.Services.Incident
                 dto.EntitesImpactees = new List<EntiteImpacteeDTO>();
             }
 
-            // ✅ AJOUTER LE MAPPAGE DES TICKETS
+            //  LE MAPPAGE DES TICKETS
             if (incident.IncidentTickets != null && incident.IncidentTickets.Any())
             {
                 // Filtrer les tickets non archivés
@@ -559,7 +556,6 @@ namespace projet0.Application.Services.Incident
                 }
             }
 
-            // ✅ NOUVEAU: FILTRE PAR ENTITÉ IMPACTÉE
             // Filtre sur la table EntitesImpactees
             if (request.EntiteImpactee.HasValue)
             {
@@ -635,12 +631,7 @@ namespace projet0.Application.Services.Incident
             };
         }
 
-        // Application/Services/Incident/IncidentService.cs
-        /// <summary>
-        /// Archive un incident résolu
-        /// </summary>
-        // Application/Services/Incident/IncidentService.cs
-
+     
         /// <summary>
         /// Archive un incident résolu
         /// </summary>
@@ -710,18 +701,7 @@ namespace projet0.Application.Services.Incident
             });
         }
 
-        /// <summary>
-        /// Restaure un incident archivé (supprime l'archive)
-        /// </summary>
-
-
-        /// <summary>
-        /// Récupère les incidents archivés par l'utilisateur connecté
-        /// </summary>
-
-        /// <summary>
-        /// Restaure un incident archivé
-        /// </summary>
+     
         /// <summary>
         /// Restaure un incident archivé (supprime l'archive de la table IncidentArchives)
         /// </summary>
@@ -838,9 +818,7 @@ namespace projet0.Application.Services.Incident
             });
         }
 
-        /// <summary>
-        /// Récupère les incidents archivés par l'utilisateur connecté
-        /// </summary>
+       
         /// <summary>
         /// Récupère les incidents archivés par l'utilisateur connecté
         /// </summary>
@@ -855,11 +833,11 @@ namespace projet0.Application.Services.Incident
                     _logger.LogWarning("=== DÉBUT GetIncidentsArchivesPagedAsync ===");
                     _logger.LogWarning("UserId reçu: {UserId}", userId);
 
-                    // ✅ 1. Récupérer TOUTES les archives avec leurs dates
+                    //  1. Récupérer TOUTES les archives avec leurs dates
                     var archives = await _incidentArchiveRepository.GetArchivesByUserAsync(userId);
                     _logger.LogWarning("Archives trouvées: {Count}", archives.Count);
 
-                    // ✅ 2. Créer un dictionnaire IncidentId -> DateArchivage (gérer les doublons)
+                    //  2. Créer un dictionnaire IncidentId -> DateArchivage 
                     var archiveDict = archives
                         .GroupBy(a => a.IncidentId)
                         .ToDictionary(
@@ -908,7 +886,7 @@ namespace projet0.Application.Services.Incident
                     foreach (var incident in pagedIncidents)
                     {
                         var dto = await MapToDto(incident);
-                        // ✅ 3. AJOUTER LA DATE D'ARCHIVAGE
+                        //  3. AJOUTER LA DATE D'ARCHIVAGE
                         if (archiveDict.TryGetValue(incident.Id, out var dateArchivage))
                         {
                             dto.DateArchivage = dateArchivage;
@@ -982,7 +960,6 @@ namespace projet0.Application.Services.Incident
             });
         }
 
-        // Dans IncidentService.cs - UNE SEULE MÉTHODE
         public async Task<ApiResponse<List<IncidentDTO>>> GetAllIncidentsAsync(Guid? userId = null)
         {
             return await MeasureAsync(nameof(GetAllIncidentsAsync), null, async () =>
@@ -1024,7 +1001,7 @@ namespace projet0.Application.Services.Incident
 
         public async Task<ApiResponse<PagedResult<IncidentDTO>>> SearchIncidentsAsync(
     IncidentSearchRequest request,
-    Guid userId)  // AJOUTER userId en paramètre
+    Guid userId)  
         {
             _logger.LogWarning("SORT PARAM - SortBy: {SortBy}, Descending: {Descending}",
                 request.SortBy, request.SortDescending);
@@ -1178,7 +1155,7 @@ namespace projet0.Application.Services.Incident
                 await _incidentRepository.SaveChangesAsync();
 
                 // ======================================================
-                // 🔔 NOTIFICATIONS POUR CRÉATION D'INCIDENT
+                //  NOTIFICATIONS POUR CRÉATION D'INCIDENT
                 // ======================================================
 
                 // 1. Notification aux ADMINS
@@ -1319,7 +1296,7 @@ namespace projet0.Application.Services.Incident
                     }
                 }
 
-                // ⚠️ IMPORTANT: Calculer les modifications AVANT de modifier l'incident
+                //  Calculer les modifications AVANT de modifier l'incident
                 var modifications = GetModificationsList(dto, incident);
                 _logger.LogInformation("Modifications détectées: {Modifications}", string.Join(", ", modifications));
 
@@ -1378,7 +1355,7 @@ namespace projet0.Application.Services.Incident
                 await _incidentRepository.SaveChangesAsync();
 
                 // ======================================================
-                // 🔔 NOTIFICATIONS POUR MODIFICATION D'INCIDENT
+                //  NOTIFICATIONS POUR MODIFICATION D'INCIDENT
                 // ======================================================
 
                 // Si des modifications ont été faites, envoyer les notifications
@@ -1427,8 +1404,6 @@ namespace projet0.Application.Services.Incident
         /// <summary>
         /// Met à jour le statut d'un incident en fonction de ses tickets
         /// </summary>
-        // Dans IncidentService.cs - Méthode à appeler quand un ticket change de statut
-        // Dans IncidentService.cs - Remplacer MettreAJourStatutIncident
         public async Task<ApiResponse<bool>> MettreAJourStatutIncident(Guid incidentId)
         {
             try
@@ -1510,8 +1485,6 @@ namespace projet0.Application.Services.Incident
                 return ApiResponse<bool>.Failure("Erreur interne");
             }
         }
-
-        // Dans IncidentService.cs - Remplacer la méthode DeleteIncidentAsync
 
         public async Task<ApiResponse<bool>> DeleteIncidentAsync(Guid id, Guid userId)
         {
@@ -1598,7 +1571,7 @@ namespace projet0.Application.Services.Incident
                         {
                             _logger.LogInformation("Ticket {TicketId} n'a plus d'incidents liés - suppression", ticket.Id);
 
-                            // ✅ NOUVEAU : Supprimer les notifications liées au ticket AVANT de supprimer le ticket
+                            //  Supprimer les notifications liées au ticket AVANT de supprimer le ticket
                             var ticketNotifications = await _notificationRepository.GetByTicketIdAsync(ticket.Id);
                             foreach (var notif in ticketNotifications)
                             {
@@ -1656,13 +1629,13 @@ namespace projet0.Application.Services.Incident
                 {
                     _logger.LogInformation("Récupération du dashboard incidents");
 
-                    // ✅ Récupérer TOUS les incidents avec leurs relations
+                    //  Récupérer TOUS les incidents avec leurs relations
                     var allIncidents = await _incidentRepository.GetAllWithDetailsAsync();
 
-                    // ✅ Récupérer les IDs de TOUS les incidents archivés (par n'importe quel admin)
+                    //  Récupérer les IDs de TOUS les incidents archivés (par n'importe quel admin)
                     var allArchivedIncidentIds = await _incidentArchiveRepository.GetAllArchivedIncidentIdsAsync();
 
-                    // ✅ EXCLURE les incidents archivés
+                    //  EXCLURE les incidents archivés
                     var incidentsList = allIncidents
                         .Where(i => !allArchivedIncidentIds.Contains(i.Id))
                         .ToList();
@@ -1674,18 +1647,18 @@ namespace projet0.Application.Services.Incident
                     _logger.LogInformation("Dashboard incidents - Total actifs: {Actifs}, Archivés: {Archivés}",
                         incidentsList.Count, archivedIncidents.Count);
 
-                    // ✅ Statistiques UNIQUEMENT sur les incidents NON archivés
+                    //  Statistiques UNIQUEMENT sur les incidents NON archivés
                     var total = incidentsList.Count;
                     var nonTraite = incidentsList.Count(i => i.StatutIncident == null || i.StatutIncident == StatutIncident.NonTraite);
                     var enCours = incidentsList.Count(i => i.StatutIncident == StatutIncident.EnCours);
                     var ferme = incidentsList.Count(i => i.StatutIncident == StatutIncident.Ferme);
-                    // ✅ STATISTIQUES DES INCIDENTS NON TRAITÉS (sous-détails)
+                    //  STATISTIQUES DES INCIDENTS NON TRAITÉS (sous-détails)
                     // Récupérer les incidents non traités
                     var incidentsNonTraites = incidentsList
                         .Where(i => i.StatutIncident == null || i.StatutIncident == StatutIncident.NonTraite)
                         .ToList();
 
-                    // Subdiviser : liés à au moins un ticket vs sans aucun ticket
+                    // liés à au moins un ticket vs sans aucun ticket
                     // Un incident est lié à un ticket s'il a au moins une entrée dans IncidentTickets
                     var incidentsNonTraiteLiesTicket = incidentsNonTraites
                         .Count(i => i.IncidentTickets != null && i.IncidentTickets.Any());
@@ -1696,25 +1669,20 @@ namespace projet0.Application.Services.Incident
                     // Vérification de cohérence
                     if (incidentsNonTraiteLiesTicket + incidentsNonTraiteSansTicket != incidentsNonTraites.Count)
                     {
-                        _logger.LogWarning("⚠️ Incohérence dans les compteurs des incidents non traités");
+                        _logger.LogWarning(" Incohérence dans les compteurs des incidents non traités");
                     }
 
                     var overview = new IncidentDashboardOverviewDTO
                     {
                         TotalIncidents = total,
                         IncidentsNonTraite = nonTraite,
-
-                        // ✅ NOUVEAUX DÉTAILS
                         IncidentsNonTraiteLiesTicket = incidentsNonTraiteLiesTicket,
                         IncidentsNonTraiteSansTicket = incidentsNonTraiteSansTicket,
-
                         IncidentsEnCours = enCours,
                         IncidentsFerme = ferme,
                         TauxNonTraite = total > 0 ? Math.Round((double)nonTraite / total * 100, 1) : 0,
                         TauxEnCours = total > 0 ? Math.Round((double)enCours / total * 100, 1) : 0,
                         TauxFerme = total > 0 ? Math.Round((double)ferme / total * 100, 1) : 0,
-
-                        // ✅ NOUVEAUX POURCENTAGES (parmi les non traités)
                         TauxNonTraiteLiesTicket = nonTraite > 0
                             ? Math.Round((double)incidentsNonTraiteLiesTicket / nonTraite * 100, 1)
                             : 0,
@@ -1723,11 +1691,9 @@ namespace projet0.Application.Services.Incident
                             : 0
                     };
 
-                    // Log pour déboguer
-                    _logger.LogInformation("📊 Incidents non traités: {Total} | Liés à ticket: {Lies} | Sans ticket: {Sans}",
-                        nonTraite, incidentsNonTraiteLiesTicket, incidentsNonTraiteSansTicket);
+                 
                     // ============================================
-                    // 2. STATISTIQUES PAR STATUT (existantes)
+                    // 2. STATISTIQUES PAR STATUT 
                     // ============================================
                     var statsParStatut = new List<IncidentStatutStatDTO>
             {
@@ -1755,7 +1721,7 @@ namespace projet0.Application.Services.Incident
             };
 
                     // ============================================
-                    // 3. STATISTIQUES DE RÉSOLUTION GLOBALES (NOUVEAU)
+                    // 3. STATISTIQUES DE RÉSOLUTION GLOBALES 
                     // ============================================
                     var incidentsResolus = incidentsList.Where(i => i.StatutIncident == StatutIncident.Ferme && i.DateResolution.HasValue).ToList();
                     var (moyenneHeuresGlobal, moyenneJoursGlobal, nbResolus) = CalculerTempsMoyenResolution(incidentsResolus);
@@ -1770,7 +1736,7 @@ namespace projet0.Application.Services.Incident
                     };
 
                     // ============================================
-                    // 4. TEMPS MOYEN PAR SÉVÉRITÉ (NOUVEAU)
+                    // 4. TEMPS MOYEN PAR SÉVÉRITÉ 
                     // ============================================
                     var resolutionParSeverite = new List<ResolutionParSeveriteDTO>();
 
@@ -1795,7 +1761,7 @@ namespace projet0.Application.Services.Incident
                     }
 
                     // ============================================
-                    // 5. TEMPS MOYEN PAR TYPE DE PROBLÈME + POURCENTAGE (NOUVEAU)
+                    // 5. TEMPS MOYEN PAR TYPE DE PROBLÈME + POURCENTAGE 
                     // ============================================
                     var resolutionParTypeProbleme = new List<ResolutionParTypeProblemeDTO>();
 
@@ -1829,7 +1795,7 @@ namespace projet0.Application.Services.Incident
                         .ToList();
 
                     // ============================================
-                    // 6. STATISTIQUES PAR JOUR (existantes)
+                    // 6. STATISTIQUES PAR JOUR 
                     // ============================================
                     var statsParJour = new List<IncidentJournalierDTO>();
                     var today = DateTime.Today;
@@ -1864,7 +1830,7 @@ namespace projet0.Application.Services.Incident
                     var startOfFirstWeek = firstDayOfYear;
                     while (startOfFirstWeek.DayOfWeek != DayOfWeek.Monday)
                     {
-                        startOfFirstWeek = startOfFirstWeek.AddDays(1);  // ✅ CORRECTION: startOfFirstWeek au lieu de startOfYear
+                        startOfFirstWeek = startOfFirstWeek.AddDays(1);  
                     }
 
                     // Ajuster si le premier lundi est après le 7 janvier (semaine 1 de l'année ISO)
@@ -1912,7 +1878,7 @@ namespace projet0.Application.Services.Incident
                     // Ordonner par date
                     statsParSemaine = statsParSemaine.OrderBy(s => s.Date).ToList();
                     // ============================================
-                    // 8. STATISTIQUES PAR MOIS (existantes)
+                    // 8. STATISTIQUES PAR MOIS 
                     // ============================================
                     var statsParMois = new List<IncidentJournalierDTO>();
 
@@ -1943,9 +1909,9 @@ namespace projet0.Application.Services.Incident
                         StatsParJour = statsParJour,
                         StatsParSemaine = statsParSemaine,
                         StatsParMois = statsParMois,
-                        StatsResolution = statsResolution,                      // ✅ NOUVEAU
-                        ResolutionParSeverite = resolutionParSeverite,          // ✅ NOUVEAU
-                        ResolutionParTypeProbleme = resolutionParTypeProbleme   // ✅ NOUVEAU
+                        StatsResolution = statsResolution,                      
+                        ResolutionParSeverite = resolutionParSeverite,         
+                        ResolutionParTypeProbleme = resolutionParTypeProbleme   
                     };
 
                     _logger.LogInformation("Dashboard incidents généré - Total: {Total}, Résolus: {Resolus}, Temps moyen: {Moyenne}h",
@@ -2074,7 +2040,7 @@ namespace projet0.Application.Services.Incident
                 await _incidentRepository.SaveChangesAsync();
 
                 // ======================================================
-                // 🔔 NOTIFICATION POUR RÉSOLUTION D'INCIDENT
+                //  NOTIFICATION POUR RÉSOLUTION D'INCIDENT
                 // ======================================================
 
                 var technicien = await _userRepository.GetByIdAsync(userId);
@@ -2151,12 +2117,10 @@ namespace projet0.Application.Services.Incident
                     var admins = await _userRepository.GetUsersByRoleAsync("Admin");
                     var adminIds = admins.Select(a => a.Id).ToHashSet();
 
-                    // ✅ Vérifier si le créateur est aussi admin
+                    //  Vérifier si le créateur est aussi admin
                     bool isCreatorAlsoAdmin = createur != null && adminIds.Contains(createur.Id);
 
-                    // ======================================================
                     // 1. Notification au CREATEUR (seulement s'il n'est PAS admin)
-                    // ======================================================
                     if (createur != null && !isCreatorAlsoAdmin)
                     {
                         await _notificationService.CreateTicketNotificationAsync(
@@ -2169,9 +2133,7 @@ namespace projet0.Application.Services.Incident
                         _logger.LogInformation("Notification envoyée au créateur du ticket {CreateurId}", createur.Id);
                     }
 
-                    // ======================================================
                     // 2. Notification aux ADMINS (exclure le créateur s'il est admin)
-                    // ======================================================
                     foreach (var admin in admins)
                     {
                         // Ne pas notifier l'admin si c'est aussi le créateur (il a déjà sa notif)
@@ -2204,7 +2166,7 @@ namespace projet0.Application.Services.Incident
                     if (incident == null)
                         return ApiResponse<bool>.Failure($"Incident {incidentId} non trouvé");
 
-                    // ✅ CORRECTION : Autoriser la suppression si l'incident est "Non traité" (valeur 0)
+                    //  Autoriser la suppression si l'incident est "Non traité" (valeur 0)
                     // Ne bloquer que si l'incident est "En cours" ou "Fermé"
                     if (incident.StatutIncident == StatutIncident.EnCours ||
                         incident.StatutIncident == StatutIncident.Ferme)
@@ -2237,7 +2199,7 @@ namespace projet0.Application.Services.Incident
                     string tpeNom = tpe.NumSerieComplet ?? tpe.NumSerie ?? "TPE";
 
                     // ======================================================
-                    // 🔔 NOTIFICATIONS POUR DÉLIAISON DE TPE
+                    //  NOTIFICATIONS POUR DÉLIAISON DE TPE
                     // ======================================================
 
                     // 1. Notification aux ADMINS
@@ -2319,7 +2281,7 @@ namespace projet0.Application.Services.Incident
                             return ApiResponse<List<IncidentTPEDTO>>.Failure(
                                 "Vous ne pouvez modifier que vos propres incidents.", resultCode: 75);
 
-                        // ✅ Autoriser la modification si le statut est "Non traité" (valeur 0)
+                        //  Autoriser la modification si le statut est "Non traité" (valeur 0)
                         if (incident.StatutIncident.HasValue && incident.StatutIncident != StatutIncident.NonTraite)
                             return ApiResponse<List<IncidentTPEDTO>>.Failure(
                                 "Vous ne pouvez pas ajouter de TPE à un incident qui a déjà un statut (en cours ou fermé).", resultCode: 76);
@@ -2382,7 +2344,7 @@ namespace projet0.Application.Services.Incident
                     await _incidentTPERepository.SaveChangesAsync();
 
                     // ======================================================
-                    // 🔔 NOTIFICATION POUR LIAISON DE TPE
+                    //  NOTIFICATION POUR LIAISON DE TPE
                     // ======================================================
 
                     var utilisateur = await _userRepository.GetByIdAsync(userId);
@@ -2456,16 +2418,12 @@ namespace projet0.Application.Services.Incident
                 {
                     var archivedIncidentIds = await _incidentArchiveRepository
                         .GetArchivedIncidentIdsByUserAsync(userId);
-
-                    // ✅ CORRECTION : Commencer avec IQueryable, puis appliquer Include
                     var baseQuery = _incidentRepository.QueryWithDetails();
-
-                    // ✅ Appliquer les Include séparément
                     var query = baseQuery
                         .Include(i => i.IncidentTickets)
                             .ThenInclude(it => it.Ticket)
                         .Include(i => i.EntitesImpactees)
-                        .AsQueryable();  // Important pour garder le type IQueryable
+                        .AsQueryable();  
 
                     query = query.Where(i => i.CreatedById == userId);
 
@@ -2591,14 +2549,14 @@ namespace projet0.Application.Services.Incident
         {
             return type switch
             {
-                TypeProbleme.PaiementRefuse => "#dc3545",      // Rouge
-                TypeProbleme.TerminalHorsLigne => "#fd7e14",   // Orange
-                TypeProbleme.Lenteur => "#ffc107",             // Jaune
-                TypeProbleme.BugAffichage => "#20c997",        // Turquoise
-                TypeProbleme.ConnexionReseau => "#17a2b8",     // Bleu clair
-                TypeProbleme.ErreurFluxTransactionnel => "#6f42c1", // Violet
-                TypeProbleme.ProblemeLogicielTPE => "#e83e8c", // Rose
-                TypeProbleme.Autre => "#6c757d",               // Gris
+                TypeProbleme.PaiementRefuse => "#dc3545",      
+                TypeProbleme.TerminalHorsLigne => "#fd7e14",   
+                TypeProbleme.Lenteur => "#ffc107",             
+                TypeProbleme.BugAffichage => "#20c997",        
+                TypeProbleme.ConnexionReseau => "#17a2b8",     
+                TypeProbleme.ErreurFluxTransactionnel => "#6f42c1", 
+                TypeProbleme.ProblemeLogicielTPE => "#e83e8c", 
+                TypeProbleme.Autre => "#6c757d",               
                 _ => "#6c757d"
             };
         }

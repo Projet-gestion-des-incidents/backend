@@ -2,8 +2,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using projet0.Domain.Entities;
-using System;
-using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -62,7 +60,6 @@ namespace projet0.Application.Services.Token
             }
             catch
             {
-                // Invalid token format
                 return null;
             }
 
@@ -119,7 +116,7 @@ namespace projet0.Application.Services.Token
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
-       //  Fonction pour valider un refresh token manuellement
+       //  valider un refresh token manuellement
         public ClaimsPrincipal? ValidateRefreshToken(string token)
         {
             var tokenHandler = new JwtSecurityTokenHandler();
@@ -136,7 +133,7 @@ namespace projet0.Application.Services.Token
                     ValidIssuer = _config["Jwt:Issuer"],
                     ValidAudience = _config["Jwt:Audience"],
                     IssuerSigningKey = new SymmetricSecurityKey(key),
-                    ClockSkew = TimeSpan.Zero // pas de tolérance
+                    ClockSkew = TimeSpan.Zero 
                 }, out SecurityToken validatedToken);
 
                 // Vérifie que c’est bien un refresh token

@@ -1,11 +1,7 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using projet0.Application.Common.Models.Pagination;
 using projet0.Application.Commun.DTOs;
-using projet0.Application.Commun.Ressources;
 using projet0.Domain.Entities;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace projet0.Application.Interfaces
 {

@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace projet0.Application.Common.Models.Pagination
+﻿namespace projet0.Application.Common.Models.Pagination
 {
     public class PagedRequest
     {

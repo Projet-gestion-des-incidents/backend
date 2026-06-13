@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-
-namespace projet0.Application.Common.Models.Pagination
+﻿namespace projet0.Application.Common.Models.Pagination
 {
     public class PagedResult<T>
     {
@@ -15,7 +10,7 @@ namespace projet0.Application.Common.Models.Pagination
         public bool HasPreviousPage => Page > 1;
         public bool HasNextPage => Page < TotalPages;
 
-        // Méthodes statiques pour faciliter la création
+       
         public static PagedResult<T> Create(
             List<T> items,
             int totalCount,

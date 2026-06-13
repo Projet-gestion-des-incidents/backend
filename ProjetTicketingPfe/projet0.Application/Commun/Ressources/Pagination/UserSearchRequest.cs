@@ -1,12 +1,10 @@
-﻿using projet0.Application.Common.Models.Pagination;
-using projet0.Domain.Entities;
-using System;
+﻿using projet0.Domain.Entities;
 
 namespace projet0.Application.Common.Models.Pagination
 {
     public class UserSearchRequest : PagedRequest
     {
-        // Option 1: Recherche globale (cherche dans tous les champs)
+        // Option 1: Recherche globale 
         public string? SearchTerm { get; set; }
 
         // Option 2: Filtres précis par champ
@@ -21,8 +19,6 @@ namespace projet0.Application.Common.Models.Pagination
         public DateTime? BirthDate { get; set; }
 
         public int? BirthYear { get; set; }
-
-        // Tri spécifique
         public string? SortBy { get; set; } = "Nom"; // Par défaut tri par nom
         public bool SortDescending { get; set; } = false;
 

@@ -1,9 +1,5 @@
 ﻿using projet0.Application.Common.Models.Pagination;
 using projet0.Domain.Enums;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Text;
 
 namespace projet0.Application.Commun.Ressources.Pagination
 {
@@ -16,11 +12,11 @@ namespace projet0.Application.Commun.Ressources.Pagination
         public bool? NonAssigne { get; set; }
 
         public DateTime? DateFin { get; set; }
-        // ✅ NOUVEAU : Filtre par statut de date limite
+
+        // Filtre par statut de date limite
         public DateLimiteStatut? DateLimiteStatut { get; set; }
     }
 
-    // ✅ NOUVEAU ENUM
     public enum DateLimiteStatut
     {
         Expire = 1,           // Date limite dépassée et ticket non résolu

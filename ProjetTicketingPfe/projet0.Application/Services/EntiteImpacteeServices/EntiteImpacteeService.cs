@@ -4,11 +4,8 @@ using projet0.Application.Commun.DTOs.Incident;
 using projet0.Application.Commun.DTOs.IncidentDTOs;
 using projet0.Application.Commun.Ressources;
 using projet0.Application.Interfaces;
-using projet0.Domain.Enums;
 using projet0.Domain.Entities;
-using System;
-using System.Collections.Generic;
-using System.Text;
+using projet0.Domain.Enums;
 
 namespace projet0.Application.Services.EntiteImpacteeServices
 {
@@ -80,7 +77,7 @@ namespace projet0.Application.Services.EntiteImpacteeServices
         {
             try
             {
-                // ✅ CORRECTION : Vérifier si CETTE entité spécifique existe déjà
+                //  Vérifier si CETTE entité spécifique existe déjà
                 var entitesExistantes = await _repository.GetByIncidentIdAsync(dto.IncidentId);
 
                 // Vérifier si le MÊME type d'entité existe déjà

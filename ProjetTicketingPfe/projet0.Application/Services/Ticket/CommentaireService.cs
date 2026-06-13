@@ -5,10 +5,6 @@ using projet0.Application.Commun.DTOs.TicketDTOs;
 using projet0.Application.Commun.Ressources;
 using projet0.Application.Interfaces;
 using projet0.Domain.Entities;
-using projet0.Domain.Enums;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace projet0.Application.Services.Ticket
 {
@@ -25,28 +21,28 @@ namespace projet0.Application.Services.Ticket
         private readonly ICommentaireRepository _commentaireRepository;
         private readonly IPieceJointeService _pieceJointeService;
         private readonly IUserRepository _userRepository;
-        private readonly ITicketRepository _ticketRepository;  // Ajouter
-        private readonly INotificationService _notificationService;  // Ajouter
+        private readonly ITicketRepository _ticketRepository;  
+        private readonly INotificationService _notificationService;  
         private readonly ILogger<CommentaireService> _logger;
-        private readonly INotificationRepository _notificationRepository;  // ← AJOUTER
+        private readonly INotificationRepository _notificationRepository;  
 
         public CommentaireService(
             ICommentaireRepository commentaireRepository,
             IPieceJointeService pieceJointeService,
             IUserRepository userRepository,
-            ITicketRepository ticketRepository,  // Ajouter
+            ITicketRepository ticketRepository,  
             INotificationService notificationService,
-                INotificationRepository notificationRepository,  // ← AJOUTER
-                                                                 // Ajouter
+                INotificationRepository notificationRepository,  
+                                                                 
             ILogger<CommentaireService> logger)
         {
             _commentaireRepository = commentaireRepository;
             _pieceJointeService = pieceJointeService;
             _userRepository = userRepository;
-            _ticketRepository = ticketRepository;  // Ajouter
-            _notificationService = notificationService;  // Ajouter
+            _ticketRepository = ticketRepository;  
+            _notificationService = notificationService;  
             _logger = logger;
-            _notificationRepository = notificationRepository;  // ← AJOUTER
+            _notificationRepository = notificationRepository;  
 
         }
 
@@ -112,7 +108,6 @@ namespace projet0.Application.Services.Ticket
                             Fichier = fichier
                         };
 
-                        // Utiliser la méthode pour commentaires
                         var pieceJointe = await _pieceJointeService.SauvegarderFichierPourCommentaireAsync(
                             pieceDto, commentaire.Id, userId);
 
@@ -180,7 +175,6 @@ namespace projet0.Application.Services.Ticket
             }
         }
 
-        // Dans CommentaireService.cs - Remplacer DeleteCommentaireAsync
 
         public async Task<ApiResponse<bool>> DeleteCommentaireAsync(Guid id)
         {
@@ -343,7 +337,7 @@ namespace projet0.Application.Services.Ticket
             await _commentaireRepository.SaveChangesAsync();
 
             // ======================================================
-            // 🔔 NOTIFICATIONS POUR COMMENTAIRE
+            // NOTIFICATIONS POUR COMMENTAIRE
             // ======================================================
 
             string messageCourt = dto.Message?.Length > 50 ? dto.Message.Substring(0, 50) + "..." : dto.Message ?? "(pièce jointe uniquement)";
@@ -407,13 +401,7 @@ namespace projet0.Application.Services.Ticket
             var commentaireComplet = await _commentaireRepository.GetCommentaireWithPiecesJointesAsync(commentaire.Id);
             return MapToDto(commentaireComplet);
         }
-        private async Task<string> ConvertirFichierEnBase64(IFormFile fichier)
-        {
-            using var memoryStream = new MemoryStream();
-            await fichier.CopyToAsync(memoryStream);
-            var bytes = memoryStream.ToArray();
-            return Convert.ToBase64String(bytes);
-        }
+      
         #endregion
     }
 }

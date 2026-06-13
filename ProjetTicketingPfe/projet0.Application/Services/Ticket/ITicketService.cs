@@ -3,10 +3,6 @@ using projet0.Application.Commun.DTOs.Ticket;
 using projet0.Application.Commun.DTOs.TicketDTOs;
 using projet0.Application.Commun.Ressources;
 using projet0.Application.Commun.Ressources.Pagination;
-using projet0.Domain.Enums;
-using System;
-using System.Collections.Generic;
-using System.Text;
 using TicketEntity = projet0.Domain.Entities.Ticket;
 
 namespace projet0.Application.Services.Ticket
@@ -22,7 +18,7 @@ namespace projet0.Application.Services.Ticket
         // Créer un nouveau ticket
         Task<ApiResponse<TicketDTO>> CreateTicketAsync(CreateTicketDTO dto, Guid createurId);
 
-        // Dans ITicketService.cs
+
         Task<ApiResponse<TicketTechnicienDashboardDTO>> GetTechnicienDashboardAsync(Guid technicienId);
 
         Task<ApiResponse<bool>> DeleteTicketAsync(Guid id, Guid userId);
@@ -36,7 +32,6 @@ namespace projet0.Application.Services.Ticket
 
         Task<ApiResponse<List<TicketDTO>>> GetTicketsByIncidentIdAsync(Guid incidentId);
 
-        // Pour le mapping (utilisé dans les contrôleurs)
         Task<TicketDTO> MapToDto(TicketEntity ticket);
         
         Task<ApiResponse<UpdateTicketResponseDTO>> TechnicianUpdateTicketAsync(Guid id, TechnicianUpdateTicketDTO dto, Guid technicienId);
@@ -46,9 +41,6 @@ namespace projet0.Application.Services.Ticket
         Task<ApiResponse<PagedResult<TicketDTO>>> GetMesTicketsPagedAsync(TicketPagedRequest request, Guid technicienId);
 
         Task<ApiResponse<TicketDashboardDTO>> GetTicketDashboardAsync();
-
-        // Application/Services/Ticket/ITicketService.cs
-        // AJOUTER CES MÉTHODES
 
         // ARCHIVAGE
         Task<ApiResponse<TicketArchiveDTO>> ArchiverTicketAsync(Guid ticketId, Guid userId);

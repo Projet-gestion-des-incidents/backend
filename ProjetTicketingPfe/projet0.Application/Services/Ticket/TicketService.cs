@@ -1,9 +1,6 @@
 ﻿using AutoMapper;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore; 
 using Microsoft.Extensions.Logging;
 using projet0.Application.Common.Models.Pagination;
 using projet0.Application.Commun.DTOs.Ticket;
@@ -16,9 +13,7 @@ using projet0.Application.Services.Incident;
 using projet0.Domain.Entities;
 using projet0.Domain.Enums;
 using System.Diagnostics;
-using System.Linq;
 using System.Linq.Expressions;
-using IncidentEntity = projet0.Domain.Entities.Incident;
 using TicketEntity = projet0.Domain.Entities.Ticket;
 
 
@@ -40,7 +35,7 @@ namespace projet0.Application.Services.Ticket
         private readonly IIncidentService _incidentService;
         private readonly INotificationService _notificationService;
         private readonly ITicketArchiveRepository _ticketArchiveRepository;
-        private readonly INotificationRepository _notificationRepository;  // ✅ AJOUTER
+        private readonly INotificationRepository _notificationRepository; 
         
 
         public TicketService(
@@ -70,8 +65,7 @@ namespace projet0.Application.Services.Ticket
             _incidentService = incidentService;
             _notificationService = notificationService;
             _ticketArchiveRepository = ticketArchiveRepository;
-            _notificationRepository = notificationRepository;  // ✅ AJOUTER
-             // ✅ AJOUTER
+            _notificationRepository = notificationRepository;  
         }
 
         /// <summary>
@@ -87,7 +81,7 @@ namespace projet0.Application.Services.Ticket
                     if (ticket == null)
                         return ApiResponse<TicketArchiveDTO>.Failure("Ticket non trouvé");
 
-                    // ✅ Seuls les tickets RÉSOLUS peuvent être archivés
+                    //  Seuls les tickets RÉSOLUS peuvent être archivés
                     if (ticket.StatutTicket != StatutTicket.Resolu)
                     {
                         return ApiResponse<TicketArchiveDTO>.Failure(
@@ -190,7 +184,7 @@ namespace projet0.Application.Services.Ticket
          TicketPagedRequest request,
          Guid userId)
         {
-            _logger.LogCritical("🚨🚨🚨 GetMyArchivesTicketsPagedAsync ENTRY - UserId: {UserId}", userId);
+            _logger.LogCritical(" GetMyArchivesTicketsPagedAsync ENTRY - UserId: {UserId}", userId);
 
             return await MeasureAsync(nameof(GetMyArchivesTicketsPagedAsync), request, async () =>
             {
@@ -198,8 +192,6 @@ namespace projet0.Application.Services.Ticket
                 {
                     _logger.LogWarning("=== DÉBUT GetMyArchivesTicketsPagedAsync ===");
                     _logger.LogWarning("UserId reçu: {UserId}", userId);
-
-                    // ✅ UTILISER LA BONNE MÉTHODE !
                     var archives = await _ticketArchiveRepository.GetArchivesByTicketCreatorAsync(userId);
                     _logger.LogWarning("Archives trouvées: {Count}", archives.Count);
 
@@ -245,7 +237,7 @@ namespace projet0.Application.Services.Ticket
                     foreach (var ticket in items)
                     {
                         var dto = await MapToDto(ticket);
-                        // ✅ AJOUTER LA DATE D'ARCHIVAGE
+                        //  LA DATE D'ARCHIVAGE
                         if (archiveDict.TryGetValue(ticket.Id, out var dateArchivage))
                         {
                             dto.DateArchivage = dateArchivage;
@@ -315,7 +307,7 @@ namespace projet0.Application.Services.Ticket
                     dto.CreateurNom = user != null ? $"{user.Nom} {user.Prenom}" : "Utilisateur inconnu";
                 }
 
-                // Nom de l'assigné (optionnel)
+                // Nom de l'assigné 
                 if (ticket.AssigneeId.HasValue)
                 {
                     if (ticket.Assignee != null)
@@ -372,23 +364,19 @@ namespace projet0.Application.Services.Ticket
             // Commencer avec une collection de conditions
             var predicates = new List<Expression<Func<TicketEntity, bool>>>();
 
-            // ============================================
-            // ✅ NOUVEAU : Filtre pour tickets "Non assigné"
-            // ============================================
+            // : Filtre pour tickets "Non assigné"
             if (request.NonAssigne.HasValue && request.NonAssigne.Value)
             {
-                _logger.LogInformation("🎯 Filtre NonAssigne activé - recherche des tickets sans technicien assigné");
+                _logger.LogInformation(" Filtre NonAssigne activé - recherche des tickets sans technicien assigné");
                 predicates.Add(t => t.StatutTicket == null);
             }
             // Filtre par statut (uniquement si NonAssigne n'est pas actif)
             else if (request.Statut.HasValue)
             {
-                _logger.LogInformation("🎯 Filtre Statut activé - Statut: {Statut}", request.Statut.Value);
+                _logger.LogInformation(" Filtre Statut activé - Statut: {Statut}", request.Statut.Value);
                 predicates.Add(t => t.StatutTicket == request.Statut.Value);
             }
-            // ============================================
-            // ✅ NOUVEAU : Filtre par statut de date limite
-            // ============================================
+            // Filtre par statut de date limite
             if (request.DateLimiteStatut.HasValue)
             {
                 var today = DateTime.Today;
@@ -479,7 +467,7 @@ namespace projet0.Application.Services.Ticket
                         (t.Createur.Prenom.ToLower() + " " + t.Createur.Nom.ToLower()).Contains(term)
                     )) ||
 
-                    // NOUVEAU : Recherche dans le nom de l'assigné (prénom + nom)
+                    // Recherche dans le nom de l'assigné (prénom + nom)
                     (t.Assignee != null && (
                         t.Assignee.Nom.ToLower().Contains(term) ||
                         t.Assignee.Prenom.ToLower().Contains(term) ||
@@ -506,7 +494,7 @@ namespace projet0.Application.Services.Ticket
                     _logger.LogInformation("Début GetTicketsPagedAsync - Page: {Page}, PageSize: {PageSize}, SearchTerm: {SearchTerm}",
                         request.Page, request.PageSize, request.SearchTerm);
 
-                    // 🔑 Récupérer les IDs des tickets archivés par cet utilisateur
+                    //  Récupérer les IDs des tickets archivés par cet utilisateur
                     var archivedTicketIds = await _ticketArchiveRepository
                         .GetArchivedTicketIdsByUserAsync(userId);
 
@@ -568,8 +556,6 @@ namespace projet0.Application.Services.Ticket
                 }
             });
         }
-
-        // Méthode de tri améliorée
         private IQueryable<TicketEntity> ApplySorting(IQueryable<TicketEntity> query, string sortBy, bool descending)
         {
             if (string.IsNullOrWhiteSpace(sortBy))
@@ -592,7 +578,7 @@ namespace projet0.Application.Services.Ticket
                 // Valeur par défaut si aucun cas ne correspond
                 _ => descending
                     ? query.OrderByDescending(t => t.DateCreation)
-                    : query.OrderByDescending(t => t.DateCreation) // Garde le tri par défaut
+                    : query.OrderByDescending(t => t.DateCreation) 
             };
         }
 
@@ -607,7 +593,7 @@ namespace projet0.Application.Services.Ticket
                 if (string.IsNullOrWhiteSpace(dto.TitreTicket))
                     return ApiResponse<TicketDTO>.Failure("Le titre est requis");
 
-                // ✅ RÉCUPÉRER L'UTILISATEUR CREATEUR
+                //  RÉCUPÉRER L'UTILISATEUR CREATEUR
                 var createur = await _userRepository.GetByIdAsync(createurId);
                 if (createur == null)
                     return ApiResponse<TicketDTO>.Failure("Utilisateur créateur non trouvé");
@@ -659,7 +645,7 @@ namespace projet0.Application.Services.Ticket
                 _logger.LogInformation("Ticket sauvegardé avec ID: {TicketId}, Réf: {Reference}", ticket.Id, reference);
 
                 // ======================================================
-                // 🔔 NOTIFICATIONS
+                //  NOTIFICATIONS
                 // ======================================================
 
                 // 1. Notification aux AUTRES ADMINS (exclure le créateur s'il est admin)
@@ -787,8 +773,6 @@ namespace projet0.Application.Services.Ticket
             });
         }
 
-        // Dans TicketService.cs - Remplacer DeleteTicketAsync
-
         public async Task<ApiResponse<bool>> DeleteTicketAsync(Guid id, Guid userId)
         {
             return await MeasureAsync(nameof(DeleteTicketAsync), new { id }, async () =>
@@ -803,7 +787,7 @@ namespace projet0.Application.Services.Ticket
                     var userRoles = await _userRepository.GetUserRolesAsync(userId);
                     var isAdmin = userRoles.Contains("Admin");
 
-                    // ✅ Seul le statut EnCours est universellement bloqué
+                    //  Seul le statut EnCours est bloqué
                     if (ticket.StatutTicket == StatutTicket.EnCours)
                     {
                         return ApiResponse<bool>.Failure(
@@ -950,7 +934,7 @@ namespace projet0.Application.Services.Ticket
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "❌ Erreur dans MapToDetailDto pour ticket {Id}", ticket?.Id);
+                _logger.LogError(ex, " Erreur dans MapToDetailDto pour ticket {Id}", ticket?.Id);
                 throw;
             }
         }
@@ -1175,9 +1159,7 @@ namespace projet0.Application.Services.Ticket
                         }
                     }
 
-                    // ========================================================
                     // 1. CHAMPS MODIFIABLES PAR ADMIN UNIQUEMENT
-                    // ========================================================
                     if (isAdmin)
                     {
                         if (!string.IsNullOrWhiteSpace(dto.TitreTicket) && dto.TitreTicket != ticket.TitreTicket)
@@ -1199,14 +1181,12 @@ namespace projet0.Application.Services.Ticket
                         }
                     }
 
-                    // ========================================================
-                    // 2. GESTION DE L'ASSIGNATION (VERSION CORRIGÉE)
-                    // ========================================================
+                    // 2. GESTION DE L'ASSIGNATION 
                     if (dto.IsAssigneeIdSpecified && dto.AssigneeId != ticket.AssigneeId)
                     {
                         aEuAssignation = true;
 
-                        // ✅ Sauvegarder l'ancien technicien AVANT le changement
+                        //  Sauvegarder l'ancien technicien AVANT le changement
                         var oldAssigneeId = ticket.AssigneeId;
 
                         if (dto.AssigneeId.HasValue)
@@ -1251,7 +1231,7 @@ namespace projet0.Application.Services.Ticket
                                         ticket.AssigneeId = dto.AssigneeId;
                                         modifications.Add($"Assignation -> {nouveauTechnicienNom}");
 
-                                        // ✅ SUPPRIMER LES NOTIFICATIONS DE L'ANCIEN TECHNICIEN
+                                        //  SUPPRIMER LES NOTIFICATIONS DE L'ANCIEN TECHNICIEN
                                         if (oldAssigneeId.HasValue && oldAssigneeId.Value != dto.AssigneeId.Value)
                                         {
                                             await _notificationRepository.DeleteByTicketAndUserAsync(id, oldAssigneeId.Value);
@@ -1280,7 +1260,7 @@ namespace projet0.Application.Services.Ticket
                         {
                             if (isAdmin)
                             {
-                                // ✅ SUPPRIMER LES NOTIFICATIONS DE L'ANCIEN TECHNICIEN
+                                //  SUPPRIMER LES NOTIFICATIONS DE L'ANCIEN TECHNICIEN
                                 if (oldAssigneeId.HasValue)
                                 {
                                     await _notificationRepository.DeleteByTicketAndUserAsync(id, oldAssigneeId.Value);
@@ -1297,9 +1277,7 @@ namespace projet0.Application.Services.Ticket
                             }
                         }
                     }
-                    // ========================================================
                     // 3. GESTION DU STATUT (Technicien uniquement)
-                    // ========================================================
                     if (isTechnicien && dto.StatutTicket.HasValue && dto.StatutTicket.Value != ticket.StatutTicket)
                     {
                         var nouveauStatut = dto.StatutTicket.Value;
@@ -1348,9 +1326,7 @@ namespace projet0.Application.Services.Ticket
                         }
                     }
 
-                    // ========================================================
                     // 4. AJOUTER À L'HISTORIQUE
-                    // ========================================================
                     if (modifications.Any() || ancienStatut != ticket.StatutTicket || ancienAssigneeId != ticket.AssigneeId)
                     {
                         ticket.Historiques ??= new List<HistoriqueTicket>();
@@ -1366,9 +1342,7 @@ namespace projet0.Application.Services.Ticket
 
                     ticket.UpdatedAt = DateTime.UtcNow;
 
-                    // ========================================================
                     // 5. SAUVEGARDE
-                    // ========================================================
                     if (modifications.Any())
                     {
                         _ticketRepository.SetModified(ticket);
@@ -1421,9 +1395,7 @@ namespace projet0.Application.Services.Ticket
                             }
                         }
                     }
-                    // ========================================================
-                    // 6. NOTIFICATIONS (VERSION CORRIGÉE - SANS NOTIF CREATEUR POUR RÉASSIGNATION)
-                    // ========================================================
+                    // 6. NOTIFICATIONS
                     if (modifications.Any() && sauvegardeReussie)
                     {
                         var createur = await _userRepository.GetByIdAsync(ticket.CreateurId);
@@ -1449,8 +1421,6 @@ namespace projet0.Application.Services.Ticket
 
                             messagePourTechnicien = $"{actionneur} vous a réassigné le ticket '{ticket.TitreTicket}'. Modifications: {modificationsTexte}";
                             messagePourAdmins = $"{actionneur} a réassigné le ticket '{ticket.TitreTicket}'. Modifications: {modificationsTexte}";
-
-                            // ✅ PAS DE NOTIFICATION AU CREATEUR lors d'une réassignation
 
                             // Notifier les AUTRES ADMINS
                             var admins = await _userRepository.GetUsersByRoleAsync("Admin");
@@ -1480,7 +1450,7 @@ namespace projet0.Application.Services.Ticket
                                 );
                             }
 
-                            // ❌ PAS DE NOTIFICATION AU CREATEUR (l'admin qui réassigne est le créateur)
+                            // PAS DE NOTIFICATION AU CREATEUR (l'admin qui réassigne est le créateur)
                         }
                         // Cas 2: Modification sans assignation (date limite, titre, description)
                         else if (!aEuAssignation)
@@ -1519,12 +1489,10 @@ namespace projet0.Application.Services.Ticket
                                 );
                             }
 
-                            // ❌ PAS DE NOTIFICATION AU CREATEUR pour les modifications de date limite/titre/description
+                            //  PAS DE NOTIFICATION AU CREATEUR pour les modifications de date limite/titre/description
                         }
                     }
-                    // ========================================================
                     // 7. RÉPONSE
-                    // ========================================================
                     var responseDto = await MapToDetailDto(ticket);
                     var updateResponse = new UpdateTicketResponseDTO
                     {
@@ -1580,28 +1548,7 @@ namespace projet0.Application.Services.Ticket
             };
         }
 
-        //private UpdateTicketResponseDTO MapToUpdateResponse(TicketDetailDTO detailDto)
-        //{
-        //    return new UpdateTicketResponseDTO
-        //    {
-        //        Id = detailDto.Id,
-        //        ReferenceTicket = detailDto.ReferenceTicket,
-        //        TitreTicket = detailDto.TitreTicket,
-        //        DescriptionTicket = detailDto.DescriptionTicket,
-        //        StatutTicket = detailDto.StatutTicket,
-        //        StatutTicketLibelle = detailDto.StatutTicketLibelle,
-        //        DateCreation = detailDto.DateCreation,
-        //        DateLimite = detailDto.DateLimite,
-        //        DateCloture = detailDto.DateCloture,
-        //        CreateurId = detailDto.CreateurId,
-        //        CreateurNom = detailDto.CreateurNom,
-        //        AssigneeId = detailDto.AssigneeId,
-        //        AssigneeNom = detailDto.AssigneeNom,
-        //        NombreCommentaires = detailDto.NombreCommentaires,
-        //        NombrePiecesJointes = detailDto.NombrePiecesJointes,
-        //        Commentaires = detailDto.Commentaires
-        //    };
-        //}
+     
 
         public async Task<ApiResponse<UpdateTicketResponseDTO>> TechnicianUpdateTicketAsync(
             Guid id,
@@ -1667,7 +1614,7 @@ namespace projet0.Application.Services.Ticket
                                     modifications.Add($"Réassigné à {newAssignee.Nom} {newAssignee.Prenom}");
                                     modifications.Add("Statut -> Assigné");
 
-                                    // 🔔 NOTIFICATION : Réassignation
+                                    //  NOTIFICATION : Réassignation
                                     await _notificationService.CreateTicketNotificationAsync(
                                         newAssignee.Id,
                                         ticket.Id,
@@ -1713,12 +1660,12 @@ namespace projet0.Application.Services.Ticket
                             ticket.StatutTicket = nouveauStatut;
                             modifications.Add($"Statut -> {GetStatutLibelle(nouveauStatut)}");
 
-                            // 🔔 NOTIFICATION : Changement de statut
+                            //  NOTIFICATION : Changement de statut
                             string titreNotification = nouveauStatut == StatutTicket.Resolu
                                 ? $"Ticket {ticket.ReferenceTicket} - Résolu"
                                 : $"Ticket {ticket.ReferenceTicket} - {GetStatutLibelle(nouveauStatut)}";
 
-                            // ✅ Déterminer le type de notification selon le nouveau statut
+                            //  Déterminer le type de notification selon le nouveau statut
                             TypeNotification typeNotif;
                             if (nouveauStatut == StatutTicket.Resolu)
                             {
@@ -1726,16 +1673,14 @@ namespace projet0.Application.Services.Ticket
                             }
                             else if (nouveauStatut == StatutTicket.EnCours)
                             {
-                                typeNotif = TypeNotification.TicketEnCours;  // ✅ Utiliser le nouveau type
+                                typeNotif = TypeNotification.TicketEnCours;  
                             }
                             else
                             {
                                 typeNotif = TypeNotification.TicketModifie;
                             }
 
-                            // ======================================================
                             // 1. NOTIFICATION AU CREATEUR DU TICKET
-                            // ======================================================
                             if (createur != null)
                             {
                                 string messageCreateur = nouveauStatut == StatutTicket.Resolu
@@ -1745,16 +1690,14 @@ namespace projet0.Application.Services.Ticket
                                 await _notificationService.CreateTicketNotificationAsync(
                                     createur.Id,
                                     ticket.Id,
-                                    typeNotif,  // ✅ Utiliser le type dynamique
+                                    typeNotif, 
                                     titreNotification,
                                     messageCreateur
                                 );
                                 _logger.LogInformation("Notification envoyée au créateur du ticket {CreateurId}", createur.Id);
                             }
 
-                            // ======================================================
                             // 2. NOTIFICATION AUX AUTRES ADMINS
-                            // ======================================================
                             var admins = await _userRepository.GetUsersByRoleAsync("Admin");
                             foreach (var admin in admins)
                             {
@@ -1767,7 +1710,7 @@ namespace projet0.Application.Services.Ticket
                                     await _notificationService.CreateTicketNotificationAsync(
                                         admin.Id,
                                         ticket.Id,
-                                        typeNotif,  // ✅ Utiliser le type dynamique
+                                        typeNotif,  
                                         titreNotification,
                                         messageAdmin
                                     );
@@ -1775,14 +1718,12 @@ namespace projet0.Application.Services.Ticket
                             }
                             _logger.LogInformation("Notifications envoyées aux admins");
 
-// ======================================================
 // 3. NOTIFICATION AUX COMMERÇANTS (CRÉATEURS DES INCIDENTS)
-// ======================================================
 if (ticket.IncidentTickets != null && ticket.IncidentTickets.Any())
 {
     foreach (var lien in ticket.IncidentTickets)
     {
-        // ✅ Récupérer l'incident AVANT modification
+        //  Récupérer l'incident AVANT modification
         var incident = await _incidentRepository.GetByIdAsync(lien.IncidentId);
         var etaitDejaFerme = incident != null && incident.StatutIncident == StatutIncident.Ferme;
         
@@ -1794,7 +1735,7 @@ if (ticket.IncidentTickets != null && ticket.IncidentTickets.Any())
         
         if (incident != null && incident.CreatedById.HasValue)
         {
-            // ✅ NE PAS NOTIFIER SI :
+            // NE PAS NOTIFIER SI :
             // 1. L'incident était déjà fermé (déjà résolu avant)
             // 2. Ce n'est PAS une transition vers Résolu (car on est dans le cas ticket résolu)
             bool vientDEtreResolu = !etaitDejaFerme && incident.StatutIncident == StatutIncident.Ferme;
@@ -1918,14 +1859,7 @@ if (ticket.IncidentTickets != null && ticket.IncidentTickets.Any())
                 }
             });
         }
-        //private async Task ReloadTicketAsync(TicketEntity ticket)
-        //{
-        //    if (ticket == null) return;
-
-        //    var entry = _ticketRepository.GetDbContext().Entry(ticket);
-        //    await entry.ReloadAsync();
-        //}
-
+    
         public async Task<ApiResponse<bool>> DelierIncidentDuTicket(Guid ticketId, Guid incidentId, Guid userId)
         {
             return await MeasureAsync(nameof(DelierIncidentDuTicket), new { ticketId, incidentId }, async () =>
@@ -1998,7 +1932,7 @@ if (ticket.IncidentTickets != null && ticket.IncidentTickets.Any())
             });
         }
 
-        // Méthode helper pour mettre à jour le statut de l'incident
+        //  helper pour mettre à jour le statut de l'incident
         private async Task MettreAJourStatutIncidentApresDeliaison(Guid incidentId)
         {
             var incident = await _incidentRepository.GetIncidentWithDetailsAsync(incidentId);
@@ -2043,7 +1977,7 @@ if (ticket.IncidentTickets != null && ticket.IncidentTickets.Any())
             {
                 try
                 {
-                    // 🔑 Récupérer les IDs des tickets archivés par ce technicien
+                    //  Récupérer les IDs des tickets archivés par ce technicien
                     var archivedTicketIds = await _ticketArchiveRepository
                         .GetArchivedTicketIdsByUserAsync(technicienId);
 
@@ -2125,14 +2059,14 @@ if (ticket.IncidentTickets != null && ticket.IncidentTickets.Any())
                 {
                     _logger.LogInformation("Récupération du dashboard tickets");
 
-                    // ✅ Récupérer TOUS les tickets
+                    //  Récupérer TOUS les tickets
                     var allTickets = await _ticketRepository.GetAllAsync();
                     var allTicketsList = allTickets.ToList();
 
-                    // ✅ Récupérer les IDs de TOUS les tickets archivés
+                    //  Récupérer les IDs de TOUS les tickets archivés
                     var allArchivedTicketIds = await _ticketArchiveRepository.GetAllArchivedTicketIdsAsync();
 
-                    // ✅ EXCLURE les tickets archivés
+                    //  EXCLURE les tickets archivés
                     var ticketsList = allTicketsList
                         .Where(t => !allArchivedTicketIds.Contains(t.Id))
                         .ToList();
@@ -2144,7 +2078,7 @@ if (ticket.IncidentTickets != null && ticket.IncidentTickets.Any())
                     _logger.LogInformation("Dashboard tickets - Total actifs: {Actifs}, Archivés: {Archivés}",
                         ticketsList.Count, archivedTickets.Count);
 
-                    // ✅ Récupérer les tickets résolus (uniquement non archivés)
+                    //  Récupérer les tickets résolus (uniquement non archivés)
                     var ticketsResolus = ticketsList
                         .Where(t => t.StatutTicket == StatutTicket.Resolu && t.DateCloture.HasValue)
                         .ToList();
@@ -2177,7 +2111,7 @@ if (ticket.IncidentTickets != null && ticket.IncidentTickets.Any())
                     };
 
                     // ============================================
-                    // ✅ 2. STATISTIQUES DE RÉSOLUTION (NOUVEAU)
+                    //  2. STATISTIQUES DE RÉSOLUTION 
                     // ============================================
                     var (moyenneHeures, moyenneJours, avantDelai, apresDelai, sansDelai) = CalculerStatsResolution(ticketsResolus);
 
@@ -2194,7 +2128,7 @@ if (ticket.IncidentTickets != null && ticket.IncidentTickets.Any())
                     };
 
                     // ============================================
-                    // ✅ 3. STATISTIQUES DE RÉSOLUTION PAR PÉRIODE
+                    //  3. STATISTIQUES DE RÉSOLUTION PAR PÉRIODE
                     // ============================================
                     var today = DateTime.Today;
 
@@ -2358,7 +2292,7 @@ if (ticket.IncidentTickets != null && ticket.IncidentTickets.Any())
                         var ticketsResolusCount = ticketsTechnicien.Count(t => t.StatutTicket == StatutTicket.Resolu);
                         var ticketsTotalCount = ticketsTechnicien.Count;
 
-                        // ✅ Modifié : Inclure les techniciens qui ont au moins 1 ticket assigné (total > 0)
+                        // Inclure les techniciens qui ont au moins 1 ticket assigné (total > 0)
                         // Peu importe le statut (Assigné, En cours, ou Résolu)
                         if (ticketsTotalCount > 0)
                         {
@@ -2378,8 +2312,8 @@ if (ticket.IncidentTickets != null && ticket.IncidentTickets.Any())
                         }
                     }
 
-                    // ✅ Trier par nombre de tickets résolus (décroissant) - les meilleurs en premier
-                    // ✅ Plus de limite .Take(5) - on garde TOUS les techniciens actifs
+                    // Trier par nombre de tickets résolus (décroissant) - les meilleurs en premier
+                    //  Plus de limite .Take(5) - on garde TOUS les techniciens actifs
                     topTechniciens = topTechniciens
                         .OrderByDescending(t => t.TicketsResolus)  // Les plus performants d'abord
                         .ThenByDescending(t => t.TauxResolution)   // En cas d'égalité, par taux
@@ -2392,18 +2326,18 @@ if (ticket.IncidentTickets != null && ticket.IncidentTickets.Any())
                     var dashboard = new TicketDashboardDTO
                     {
                         Overview = overview,
-                        StatsResolution = statsResolution,           // ✅ NOUVEAU
+                        StatsResolution = statsResolution,           
                         StatsParStatut = statsParStatut,
                         StatsParJour = statsParJour,
                         StatsParSemaine = statsParSemaine,
                         StatsParMois = statsParMois,
                         TopTechniciens = topTechniciens,
-                        ResolutionParJour = resolutionParJour,       // ✅ NOUVEAU
-                        ResolutionParSemaine = resolutionParSemaine, // ✅ NOUVEAU
-                        ResolutionParMois = resolutionParMois        // ✅ NOUVEAU
+                        ResolutionParJour = resolutionParJour,       
+                        ResolutionParSemaine = resolutionParSemaine, 
+                        ResolutionParMois = resolutionParMois        
                     };
                     // ============================================
-                    // ✅ 10. STATISTIQUES D'ASSIGNATION PAR TECHNICIEN
+                    //  10. STATISTIQUES D'ASSIGNATION PAR TECHNICIEN
                     // ============================================
 
                     // Compter le nombre total de tickets avec assignation
@@ -2417,12 +2351,12 @@ if (ticket.IncidentTickets != null && ticket.IncidentTickets.Any())
                         var ticketsTechnicien = ticketsList.Where(t => t.AssigneeId == technicien.Id).ToList();
                         var totalTech = ticketsTechnicien.Count;
 
-                        // ✅ Compter les tickets résolus par ce technicien
+                        //  Compter les tickets résolus par ce technicien
                         var ticketsResolusParTechnicien = ticketsTechnicien
                             .Where(t => t.StatutTicket == StatutTicket.Resolu && t.DateCloture.HasValue)
                             .ToList();
 
-                        // ✅ Variables pour ce technicien spécifique
+                        //  Variables pour ce technicien spécifique
                         int avantDelaiPourCeTechnicien = 0;
                         int apresDelaiPourCeTechnicien = 0;
 
@@ -2438,7 +2372,7 @@ if (ticket.IncidentTickets != null && ticket.IncidentTickets.Any())
                             }
                         }
 
-                        // ✅ Calcul du taux de respect des délais pour ce technicien
+                        //  Calcul du taux de respect des délais pour ce technicien
                         int totalAvecDelai = avantDelaiPourCeTechnicien + apresDelaiPourCeTechnicien;
                         double tauxRespectDelaiPourCeTechnicien = totalAvecDelai > 0
                             ? Math.Round((double)avantDelaiPourCeTechnicien / totalAvecDelai * 100, 1)
@@ -2464,7 +2398,7 @@ if (ticket.IncidentTickets != null && ticket.IncidentTickets.Any())
                             TauxRespectDelai = tauxRespectDelaiPourCeTechnicien
                         });
 
-                        // ✅ Log pour déboguer
+                        //  Log pour déboguer
                         _logger.LogDebug("Technicien {Nom} {Prenom} - Avant délai: {Avant}, Après délai: {Apres}, Taux: {Taux}%",
                             technicien.Nom, technicien.Prenom, avantDelaiPourCeTechnicien, apresDelaiPourCeTechnicien, tauxRespectDelaiPourCeTechnicien);
                     }
@@ -2484,7 +2418,6 @@ if (ticket.IncidentTickets != null && ticket.IncidentTickets.Any())
                             : 0
                     };
 
-                    // Ajouter au dashboard
                     dashboard.AssignationParTechnicien = assignationParTechnicien;
                     dashboard.AssignationGlobale = assignationGlobale;
                     _logger.LogInformation("Dashboard tickets généré - Résolu: {Resolus}, Temps moyen: {Moyenne}h, Respect délai: {Taux}%",
@@ -2721,7 +2654,6 @@ if (ticket.IncidentTickets != null && ticket.IncidentTickets.Any())
         }
 
 
-        // Ajouter cette méthode dans TicketService.cs
         private (double moyenneHeures, double moyenneJours, int avantDelai, int apresDelai, int sansDelai) CalculerStatsResolution(List<TicketEntity> ticketsResolus)
         {
             var tempsResolution = new List<double>();

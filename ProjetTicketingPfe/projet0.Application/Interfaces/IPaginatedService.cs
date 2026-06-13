@@ -1,7 +1,4 @@
 ﻿using projet0.Application.Common.Models.Pagination;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 
 namespace projet0.Application.Common.Interfaces

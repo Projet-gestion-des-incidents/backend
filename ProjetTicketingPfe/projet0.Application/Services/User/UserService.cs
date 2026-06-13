@@ -498,85 +498,6 @@ namespace projet0.Application.Services.User
             });
         }
 
-        // Méthode pour supprimer l'ancienne image
-        //private async Task DeleteOldImageAsync(string imageUrl)
-        //{
-        //    try
-        //    {
-        //        if (string.IsNullOrEmpty(imageUrl) || imageUrl.Contains("default-avatar"))
-        //            return;
-
-        //        var webRootPath = _webHostEnvironment.ContentRootPath;
-        //        var imagePath = Path.Combine(webRootPath, imageUrl.TrimStart('/'));
-
-        //        if (File.Exists(imagePath))
-        //        {
-        //            File.Delete(imagePath);
-        //            _logger.LogDebug("Old profile image deleted: {ImagePath}", imagePath);
-        //        }
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        _logger.LogError(ex, "Error deleting old profile image: {ImageUrl}", imageUrl);
-        //    }
-        //}
-
-        //private async Task<string> SaveBase64ImageAsync(string base64String)
-        //{
-        //    try
-        //    {
-        //        Console.WriteLine($"Sauvegarde image Base64, longueur: {base64String.Length}");
-
-        //        if (string.IsNullOrEmpty(base64String))
-        //            return null;
-
-        //        // Vérifier si c'est un Base64 valide
-        //        if (!base64String.Contains(","))
-        //        {
-        //            // Si le frontend envoie déjà le Base64 propre (sans préfixe)
-        //            base64String = "data:image/jpeg;base64," + base64String;
-        //        }
-
-        //        var base64Data = base64String.Split(',')[1];
-
-        //        // Déterminer l'extension
-        //        string extension = ".jpg";
-        //        if (base64String.Contains("data:image/png"))
-        //            extension = ".png";
-        //        else if (base64String.Contains("data:image/gif"))
-        //            extension = ".gif";
-        //        else if (base64String.Contains("data:image/webp"))
-        //            extension = ".webp";
-
-        //        // Créer un nom unique
-        //        var fileName = $"{Guid.NewGuid()}{extension}";
-
-        //        // Chemin de sauvegarde
-        //        var webRootPath = _webHostEnvironment.ContentRootPath;
-        //        var uploadsFolder = Path.Combine(webRootPath, "uploads", "users");
-
-        //        // Créer le dossier s'il n'existe pas
-        //        if (!Directory.Exists(uploadsFolder))
-        //        {
-        //            Console.WriteLine($"Création du dossier: {uploadsFolder}");
-        //            Directory.CreateDirectory(uploadsFolder);
-        //        }
-
-        //        var filePath = Path.Combine(uploadsFolder, fileName);
-
-        //        // Convertir Base64 en bytes et sauvegarder
-        //        var imageBytes = Convert.FromBase64String(base64Data);
-        //        await System.IO.File.WriteAllBytesAsync(filePath, imageBytes);
-
-        //        // Retourner l'URL relative
-        //        return $"/uploads/users/{fileName}";
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        Console.WriteLine($"Erreur sauvegarde image: {ex.Message}");
-        //        throw;
-        //    }
-        //}
 
         public async Task<UserProfileDto> GetMyProfileAsync(Guid userId)
         {
@@ -630,7 +551,6 @@ namespace projet0.Application.Services.User
 
                     try
                     {
-                        // UTILISER LA MÉTHODE DU REPOSITORY AU LIEU DE _context DIRECTEMENT
                         var result = await _userRepository.DeleteUserWithCascadeAsync(user);
 
                         if (!result.Succeeded)
@@ -680,10 +600,8 @@ namespace projet0.Application.Services.User
                 {
                     try
                     {
-                        // Utilisez directement le repository
                         var (users, totalCount) = await _userRepository.SearchUsersAsync(request);
 
-                        // Utilisez la méthode statique Create
                         var pagedResult = PagedResult<UserWithRoleDto>.Create(
                             items: users.ToList(),
                             totalCount: totalCount,
@@ -717,42 +635,7 @@ namespace projet0.Application.Services.User
                 });
         }
 
-        // Méthode helper pour le tri
-        //private IQueryable<ApplicationUser> ApplySorting(
-        //    IQueryable<ApplicationUser> query,
-        //    string sortBy,
-        //    bool sortDescending)
-        //{
-        //    if (string.IsNullOrWhiteSpace(sortBy))
-        //        return query.OrderBy(u => u.Nom); // Tri par défaut
-
-        //    // Normaliser le nom du champ
-        //    var normalizedSortBy = sortBy.ToLower().Trim();
-
-        //    return normalizedSortBy switch
-        //    {
-        //        "username" or "user_name" or "username" =>
-        //            sortDescending ? query.OrderByDescending(u => u.UserName) : query.OrderBy(u => u.UserName),
-
-        //        "email" =>
-        //            sortDescending ? query.OrderByDescending(u => u.Email) : query.OrderBy(u => u.Email),
-
-        //        "nom" or "name" or "lastname" =>
-        //            sortDescending ? query.OrderByDescending(u => u.Nom) : query.OrderBy(u => u.Nom),
-
-        //        "prenom" or "firstname" or "prenom" =>
-        //            sortDescending ? query.OrderByDescending(u => u.Prenom) : query.OrderBy(u => u.Prenom),
-
-        //        "birthdate" or "birth_date" or "date" =>
-        //            sortDescending ? query.OrderByDescending(u => u.BirthDate) : query.OrderBy(u => u.BirthDate),
-
-        //        "statut" or "status" =>
-        //            sortDescending ? query.OrderByDescending(u => u.Statut) : query.OrderBy(u => u.Statut),
-
-        //        _ => query.OrderBy(u => u.Nom) // Tri par défaut
-        //    };
-        //}
-
+      
         public async Task<IList<string>> GetUserRolesAsync(Guid userId)
         {
             return await _userRepository.GetUserRolesAsync(userId);
@@ -854,12 +737,11 @@ namespace projet0.Application.Services.User
                         defaultPassword
                     );
 
-                    _logger.LogInformation("✅ Email de bienvenue envoyé à {Email}", user.Email);
+                    _logger.LogInformation(" Email de bienvenue envoyé à {Email}", user.Email);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "❌ Échec envoi email de bienvenue à {Email}", user.Email);
-                    // On continue même si l'email échoue - on retourne quand même le mot de passe dans la réponse
+                    _logger.LogError(ex, " Échec envoi email de bienvenue à {Email}", user.Email);
                 }
 
                 _logger.LogInformation("Technicien créé avec succès | Email: {Email} | Mot de passe: {Password}",
@@ -872,7 +754,7 @@ namespace projet0.Application.Services.User
             });
         }
 
-        // Méthode pour générer un mot de passe temporaire sécurisé
+        //  générer un mot de passe temporaire sécurisé
         private string GenerateRandomPassword(int length = 10)
         {
             const string upperCase = "ABCDEFGHJKLMNOPQRSTUVWXYZ";
@@ -938,7 +820,6 @@ namespace projet0.Application.Services.User
                 }
 
                 // 4. Générer un UserName unique pour Identity (obligatoire)
-                // Solution : Ajouter un suffixe numérique si nécessaire
                 var baseUserName = dto.NomMagasin.Replace(" ", "_");
                 var userName = baseUserName;
                 var counter = 1;
@@ -1070,7 +951,7 @@ namespace projet0.Application.Services.User
                         .Take(pageSize)
                         .ToList();
 
-                    // 7. Mapper vers DTO (CORRIGÉ - TOUS LES CHAMPS)
+                    // 7. Mapper vers DTO 
                     var dtos = paginatedTechniciens.Select(t => new TechnicienDto
                     {
                         Id = t.Id,
@@ -1112,7 +993,7 @@ namespace projet0.Application.Services.User
             });
         }
 
-        // Méthode helper pour le tri des techniciens
+        //  helper pour le tri des techniciens
         private IQueryable<ApplicationUser> ApplySortingToTechniciens(
             IQueryable<ApplicationUser> query,
             string? sortBy,
@@ -1248,7 +1129,7 @@ namespace projet0.Application.Services.User
             });
         }
 
-        // Méthode helper pour le tri des commerçants
+        //  helper pour le tri des commerçants
         private IQueryable<ApplicationUser> ApplySortingToCommercants(
             IQueryable<ApplicationUser> query,
             string? sortBy,
@@ -1903,20 +1784,7 @@ namespace projet0.Application.Services.User
             });
         }
 
-        // Méthode utilitaire pour valider l'email
-        //private bool IsValidEmail(string email)
-        //{
-        //    try
-        //    {
-        //        var addr = new System.Net.Mail.MailAddress(email);
-        //        return addr.Address == email;
-        //    }
-        //    catch
-        //    {
-        //        return false;
-        //    }
-        //}
-
+       
         // ================= ADMIN UPDATE COMMERCANT =================
  
         public async Task<ApiResponse<ApplicationUser>> AdminUpdateCommercantAsync(Guid userId, AdminUpdateCommercantDto dto)
@@ -1970,8 +1838,6 @@ namespace projet0.Application.Services.User
                 }
 
                 // 2. VALIDATION DE L'EMAIL (si fourni)
-                // UserService.cs - Dans AdminUpdateTechnicienAsync
-
                 if (!string.IsNullOrEmpty(dto.Email) && dto.Email != user.Email)
                 {
                     // Vérifier l'unicité

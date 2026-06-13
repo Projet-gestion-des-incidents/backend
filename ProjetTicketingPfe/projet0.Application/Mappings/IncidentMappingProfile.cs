@@ -1,10 +1,6 @@
-﻿using projet0.Application.Commun.DTOs.Incident;
+﻿using AutoMapper;
+using projet0.Application.Commun.DTOs.Incident;
 using projet0.Domain.Entities;
-using AutoMapper;
-using System;
-using System.Collections.Generic;
-using System.Text;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace projet0.Application.Mappings
 {

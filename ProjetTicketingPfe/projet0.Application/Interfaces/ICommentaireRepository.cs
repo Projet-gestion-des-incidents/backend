@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using projet0.Domain.Entities;
+﻿using projet0.Domain.Entities;
 
 namespace projet0.Application.Interfaces
 {

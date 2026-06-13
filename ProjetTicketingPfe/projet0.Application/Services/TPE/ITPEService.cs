@@ -1,9 +1,6 @@
 ﻿using projet0.Application.Common.Models.Pagination;
 using projet0.Application.Commun.DTOs;
 using projet0.Application.Commun.Ressources;
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace projet0.Application.Services.TPE
 {
@@ -16,9 +13,9 @@ namespace projet0.Application.Services.TPE
         Task<ApiResponse<IEnumerable<TPEDto>>> GetByCommercantIdAsync(Guid commercantId);
         Task<ApiResponse<IEnumerable<TPEDto>>> GetAllAsync();
         Task<ApiResponse<PagedResult<TPEDto>>> GetTPEsPagedAsync(TPEPagedRequest request);
-        // ✅ Pour commerçant : voir ses propres TPEs
+        //  Pour commerçant : voir ses propres TPEs
         Task<ApiResponse<PagedResult<TPEDto>>> GetMesTPEsPagedAsync(TPEPagedRequest request, Guid commercantId);
-        // ✅ NOUVEAU : Dashboard TPE
+        //  Dashboard TPE
         Task<ApiResponse<TPEDashboardDTO>> GetTPEDashboardAsync();
     }
 }
