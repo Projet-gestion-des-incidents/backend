@@ -3,9 +3,6 @@ using projet0.Application.Interfaces;
 using projet0.Domain.Entities;
 using projet0.Domain.Enums;
 using projet0.Infrastructure.Data;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace projet0.Infrastructure.Repositories
 {
@@ -113,14 +110,12 @@ namespace projet0.Infrastructure.Repositories
             return await _dbSet.Where(n => n.TPEId == tpeId).ToListAsync();
         }
 
-        // NotificationRepository.cs - Ajouter ces méthodes
         public async Task<IEnumerable<Notification>> GetByIncidentIdAsync(Guid incidentId)
         {
             return await _dbSet
                 .Where(n => n.IncidentId == incidentId)
                 .ToListAsync();
         }
-        // Dans NotificationRepository.cs
         public async Task DeleteByTicketAndUserAsync(Guid ticketId, Guid userId)
         {
             var notifications = await _dbSet

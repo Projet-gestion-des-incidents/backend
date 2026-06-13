@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using projet0.Application.Common.Models.Pagination;
 using projet0.Application.Commun.DTOs;
@@ -9,10 +8,6 @@ using projet0.Application.Interfaces;
 using projet0.Domain.Entities;
 using projet0.Domain.Enums;
 using projet0.Infrastructure.Data;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace projet0.Infrastructure.Repositories
 {
@@ -228,14 +223,14 @@ namespace projet0.Infrastructure.Repositories
             if (!string.IsNullOrWhiteSpace(request.PhoneNumber))
                 query = query.Where(u => u.PhoneNumber != null && u.PhoneNumber.Contains(request.PhoneNumber));
 
-            // 4. MODIFICATION : Filtrer par année de naissance (NOUVEAU)
+            // 4. Filtrer par année de naissance 
             if (request.BirthYear.HasValue)
             {
                 query = query.Where(u => u.BirthDate.HasValue &&
                                          u.BirthDate.Value.Year == request.BirthYear.Value);
             }
 
-            // CONSERVER : Filtrer par date complète (pour compatibilité)
+            // Filtrer par date complète (pour compatibilité)
             if (request.BirthDate.HasValue)
             {
                 query = query.Where(u => u.BirthDate.HasValue &&
@@ -302,7 +297,7 @@ namespace projet0.Infrastructure.Repositories
             return (usersWithRoles, totalCount);
         }
 
-        // Méthode helper pour le tri (identique à celle de UserService)
+        //  helper pour le tri 
         private IQueryable<ApplicationUser> ApplySorting(
             IQueryable<ApplicationUser> query,
             string sortBy,
@@ -596,7 +591,7 @@ namespace projet0.Infrastructure.Repositories
                                 }
                             }
 
-                            // *** CORRECTION : collecter les historiques séparément ***
+                            //  collecter les historiques séparément ***
                             historiques.Add(new HistoriqueTicket
                             {
                                 Id = Guid.NewGuid(),
@@ -621,8 +616,7 @@ namespace projet0.Infrastructure.Repositories
                     // 2.2 Supprimer les tickets créés par le technicien
                     _context.ChangeTracker.Clear();
 
-                    // Recharger l'utilisateur car ChangeTracker.Clear() l'a détaché,
-                    // ce qui invaliderait le ConcurrencyStamp pour _userManager.DeleteAsync
+              
                     user = await _userManager.FindByIdAsync(user.Id.ToString());
                     if (user == null)
                     {

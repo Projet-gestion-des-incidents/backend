@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using projet0.Application.Interfaces;
 using projet0.Domain.Entities;
 using projet0.Infrastructure.Data;
@@ -59,7 +56,6 @@ namespace projet0.Infrastructure.Repositories
             if (commentaire != null)
             {
                 _context.CommentairesTicket.Remove(commentaire);
-                // Les pièces jointes seront supprimées en cascade par EF Core
             }
         }
         #region Nouvelles méthodes pour les commentaires du technicien

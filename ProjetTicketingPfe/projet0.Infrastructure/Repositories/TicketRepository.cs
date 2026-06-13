@@ -4,11 +4,7 @@ using projet0.Application.Interfaces;
 using projet0.Domain.Entities;
 using projet0.Domain.Enums;
 using projet0.Infrastructure.Data;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Linq.Expressions;
-using System.Text;
 
 namespace projet0.Infrastructure.Repositories
 {
@@ -287,7 +283,7 @@ namespace projet0.Infrastructure.Repositories
 
         public DbContext GetDbContext()
         {
-            return _context; // où _context est votre DbContext
+            return _context; 
         }
 
         public async Task<bool> ExistsAsync(Guid id)

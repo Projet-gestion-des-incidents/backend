@@ -1,10 +1,4 @@
-﻿// projet0.Infrastructure/Repositories/IncidentPredictionRepository.cs
-//
-// CORRECTION PRINCIPALE :
-//   ModelOutput utilisait "ConfidenceLowerBound" / "ConfidenceUpperBound"
-//   mais ForecastBySsa déclare les colonnes "LowerBound" / "UpperBound".
-//   Le nom de la propriété C# doit correspondre EXACTEMENT au columnName déclaré.
-//
+﻿
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.ML;
@@ -14,10 +8,6 @@ using projet0.Application.Commun.Ressources;
 using projet0.Application.Interfaces;
 using projet0.Domain.Enums;
 using projet0.Infrastructure.Data;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace projet0.Infrastructure.Repositories
 {
@@ -41,7 +31,7 @@ namespace projet0.Infrastructure.Repositories
         }
 
         // ------------------------------------------------------------------ //
-        //  GetHistoricalDataAsync                                              //
+        //  GetHistoricalDataAsync                                           //
         // ------------------------------------------------------------------ //
         public async Task<ApiResponse<List<DailyIncidentCountDTO>>> GetHistoricalDataAsync(
             int monthsBack = 4)
@@ -91,7 +81,7 @@ namespace projet0.Infrastructure.Repositories
         }
 
         // ------------------------------------------------------------------ //
-        //  PredictNextWeekAndMonthAsync                                        //
+        //  PredictNextWeekAndMonthAsync                                      //
         // ------------------------------------------------------------------ //
         public async Task<ApiResponse<IncidentPredictionResponseDTO>> PredictNextWeekAndMonthAsync()
         {
@@ -141,7 +131,7 @@ namespace projet0.Infrastructure.Repositories
         }
 
         // ------------------------------------------------------------------ //
-        //  PredictForType  — méthode principale                               //
+        //  PredictForType  — méthode principale                              //
         // ------------------------------------------------------------------ //
         private List<PredictionResultDTO> PredictForType(
             List<DailyIncidentCountDTO> historicalData, string type)
@@ -201,10 +191,7 @@ namespace projet0.Infrastructure.Repositories
 
                 var transformer = forecastingPipeline.Fit(dataView);
 
-                // *** CORRECTION DU BUG ***
                 // CreateTimeSeriesEngine<TIn, TOut> mappe les colonnes par nom.
-                // ModelOutput DOIT avoir des propriétés nommées exactement
-                // "Forecast", "LowerBound", "UpperBound".
                 var forecastEngine = transformer.CreateTimeSeriesEngine<ModelInput, ModelOutput>(_mlContext);
                 var forecast = forecastEngine.Predict();
 
@@ -273,7 +260,7 @@ namespace projet0.Infrastructure.Repositories
         }
 
         // ------------------------------------------------------------------ //
-        //  Helpers                                                             //
+        //  Helpers                                                           //
         // ------------------------------------------------------------------ //
 
         /// <summary>
@@ -335,7 +322,7 @@ namespace projet0.Infrastructure.Repositories
                         .GroupBy(kv => kv.Key)
                         .ToDictionary(g2 => g2.Key, g2 => g2.Sum(kv => kv.Value));
 
-                    // ✅ Total = somme des types individuels UNIQUEMENT (exclut "TotalIncidents")
+                    //  Total = somme des types individuels UNIQUEMENT 
                     int totalReel = mergedTypes
                         .Where(kv => kv.Key != "TotalIncidents")
                         .Sum(kv => kv.Value);
@@ -359,7 +346,7 @@ namespace projet0.Infrastructure.Repositories
         }
 
         // ------------------------------------------------------------------ //
-        //  Classes internes ML.NET                                             //
+        //  Classes internes ML.NET                                          //
         // ------------------------------------------------------------------ //
         private class ModelInput
         {
@@ -368,21 +355,15 @@ namespace projet0.Infrastructure.Repositories
         }
 
         /// <summary>
-        /// CORRECTION : les noms des propriétés doivent correspondre EXACTEMENT
-        /// aux columnNames déclarés dans ForecastBySsa :
         ///   outputColumnName              → "Forecast"
         ///   confidenceLowerBoundColumn    → "LowerBound"
         ///   confidenceUpperBoundColumn    → "UpperBound"
-        ///
-        /// L'ancienne version utilisait "ConfidenceLowerBound" / "ConfidenceUpperBound"
-        /// ce qui causait :
-        ///   ArgumentOutOfRangeException: Could not find column 'ConfidenceLowerBound'
         /// </summary>
         private class ModelOutput
         {
             public float[]? Forecast { get; set; } = Array.Empty<float>();
-            public float[]? LowerBound { get; set; }  // ← était "ConfidenceLowerBound"
-            public float[]? UpperBound { get; set; }  // ← était "ConfidenceUpperBound"
+            public float[]? LowerBound { get; set; }  
+            public float[]? UpperBound { get; set; }  
         }
     }
 }

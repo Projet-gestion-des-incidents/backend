@@ -5,10 +5,6 @@ using projet0.Application.Interfaces;
 using projet0.Domain.Entities;
 using projet0.Domain.Enums;
 using projet0.Infrastructure.Data;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace projet0.Infrastructure.Repositories
 {
@@ -39,7 +35,7 @@ namespace projet0.Infrastructure.Repositories
         {
             return _context.TPEs
                 .Include(t => t.Commercant)
-                .Include(t => t.CreatedBy)   // ✅ AJOUTER OBLIGATOIREMENT
+                .Include(t => t.CreatedBy)   
                 .Include(t => t.UpdatedBy)
                 .AsQueryable();
         }
@@ -58,7 +54,7 @@ namespace projet0.Infrastructure.Repositories
 
             if (request.CommercantId.HasValue)
                 query = query.Where(t => t.CommercantId == request.CommercantId.Value);
-            // ✅ NOUVEAU: Filtre par date de création exacte
+            //  Filtre par date de création exacte
             if (request.CreatedAt.HasValue)
             {
                 var date = request.CreatedAt.Value.Date;
@@ -66,7 +62,7 @@ namespace projet0.Infrastructure.Repositories
                 query = query.Where(t => t.CreatedAt >= date && t.CreatedAt < nextDay);
             }
 
-            // ✅ NOUVEAU: Filtre par date de modification exacte
+            //  Filtre par date de modification exacte
             if (request.UpdatedAt.HasValue)
             {
                 var date = request.UpdatedAt.Value.Date;
@@ -74,11 +70,11 @@ namespace projet0.Infrastructure.Repositories
                 query = query.Where(t => t.UpdatedAt >= date && t.UpdatedAt < nextDay);
             }
 
-            // ✅ NOUVEAU: Filtre par créateur
+            //  Filtre par créateur
             if (request.CreatedById.HasValue)
                 query = query.Where(t => t.CreatedById == request.CreatedById.Value);
 
-            // ✅ NOUVEAU: Filtre par modificateur
+            //  Filtre par modificateur
             if (request.UpdatedById.HasValue)
                 query = query.Where(t => t.UpdatedById == request.UpdatedById.Value);
 
@@ -92,12 +88,12 @@ namespace projet0.Infrastructure.Repositories
                         (t.Commercant.Nom.ToLower().Contains(term) ||
                          t.Commercant.Prenom.ToLower().Contains(term) ||
                          (t.Commercant.Nom + " " + t.Commercant.Prenom).ToLower().Contains(term))) ||
-                    // ✅ RECHERCHE SUR CRÉATEUR
+                    // RECHERCHE SUR CRÉATEUR
                     (t.CreatedBy != null &&
                         (t.CreatedBy.Nom.ToLower().Contains(term) ||
                          t.CreatedBy.Prenom.ToLower().Contains(term) ||
                          (t.CreatedBy.Nom + " " + t.CreatedBy.Prenom).ToLower().Contains(term))) ||
-                    // ✅ RECHERCHE SUR MODIFICATEUR
+                    // RECHERCHE SUR MODIFICATEUR
                     (t.UpdatedBy != null &&
                         (t.UpdatedBy.Nom.ToLower().Contains(term) ||
                          t.UpdatedBy.Prenom.ToLower().Contains(term) ||
@@ -174,7 +170,7 @@ namespace projet0.Infrastructure.Repositories
         public async Task<string> GenerateNumSerieAsync(ModeleTPE modele)
         {
             var nextNumber = await GetNextSequenceNumberAsync(modele);
-            // Formater avec 6 chiffres (ex: 000001, 000002, ...)
+            // Formater avec 6 chiffres 
             return nextNumber.ToString("D6");
         }
     }

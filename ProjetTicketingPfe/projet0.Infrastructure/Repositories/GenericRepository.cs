@@ -2,10 +2,7 @@
 using Microsoft.EntityFrameworkCore.Storage;
 using projet0.Application.Interfaces;
 using projet0.Infrastructure.Data;
-using System;
-using System.Collections.Generic;
 using System.Linq.Expressions;
-using System.Text;
 
 namespace projet0.Infrastructure.Repositories
 {

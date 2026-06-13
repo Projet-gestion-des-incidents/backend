@@ -1,10 +1,7 @@
-﻿using projet0.Application.Interfaces;
+﻿using Microsoft.EntityFrameworkCore;  
+using projet0.Application.Interfaces;
 using projet0.Domain.Entities;
 using projet0.Infrastructure.Data;
-using System;
-using System.Collections.Generic;
-using System.Text;
-using Microsoft.EntityFrameworkCore;  // AJOUTER CETTE LIGNE EN HAUT
 
 
 namespace projet0.Infrastructure.Repositories
@@ -38,11 +35,10 @@ namespace projet0.Infrastructure.Repositories
                 .Distinct()
                 .ToListAsync();
         }
-        // Dans TicketArchiveRepository
-        // Dans TicketArchiveRepository
+      
         public async Task<List<TicketArchive>> GetArchivesByTicketCreatorAsync(Guid userId)
         {
-            // ✅ Pour les tickets, on utilise ArchiveParId
+            //  Pour les tickets, on utilise ArchiveParId
             // (peu importe qui a créé le ticket)
             return await _context.TicketArchives
                 .Where(a => a.ArchiveParId == userId)

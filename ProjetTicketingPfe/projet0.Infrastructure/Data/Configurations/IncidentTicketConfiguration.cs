@@ -1,9 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using projet0.Domain.Entities;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace projet0.Infrastructure.Data.Configurations
 {

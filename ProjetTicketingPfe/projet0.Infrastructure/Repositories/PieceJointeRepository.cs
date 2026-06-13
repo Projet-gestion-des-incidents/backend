@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using projet0.Application.Interfaces;
 using projet0.Domain.Entities;
 using projet0.Infrastructure.Data;

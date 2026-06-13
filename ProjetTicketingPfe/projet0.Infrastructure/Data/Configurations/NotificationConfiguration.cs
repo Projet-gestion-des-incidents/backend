@@ -1,9 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using projet0.Domain.Entities;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace projet0.Infrastructure.Data.Configurations
 {
@@ -42,7 +39,7 @@ namespace projet0.Infrastructure.Data.Configurations
                 .OnDelete(DeleteBehavior.Restrict);
 
             builder.HasOne(n => n.TPE)
-          .WithMany(t => t.Notifications) // ✅ OBLIGATOIRE
+          .WithMany(t => t.Notifications) 
           .HasForeignKey(n => n.TPEId)
           .OnDelete(DeleteBehavior.Restrict);
         }

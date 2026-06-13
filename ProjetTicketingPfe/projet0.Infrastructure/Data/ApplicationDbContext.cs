@@ -2,8 +2,7 @@
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using projet0.Domain.Entities;
-using System.Linq;  // AJOUTER CETTE LIGNE
-using Microsoft.EntityFrameworkCore;  // AJOUTER CETTE LIGNE
+
 
 
 namespace projet0.Infrastructure.Data
@@ -16,15 +15,12 @@ namespace projet0.Infrastructure.Data
         {
         }
 
-        // Ajouter le DbSet ici, en dehors de OnModelCreating
         public DbSet<OtpCode> OtpCodes { get; set; }
 
         public DbSet<ApplicationUser> Users { get; set; }
-
-        // NOUVEAUX DbSets
         public DbSet<Incident> Incidents { get; set; }
         public DbSet<Ticket> Tickets { get; set; }
-        public DbSet<TicketArchive> TicketArchives { get; set; }  // AJOUTER CETTE LIGNE
+        public DbSet<TicketArchive> TicketArchives { get; set; }  
 
         public DbSet<IncidentTicket> IncidentTickets { get; set; }
         public DbSet<CommentaireTicket> CommentairesTicket { get; set; }
@@ -34,17 +30,17 @@ namespace projet0.Infrastructure.Data
         public DbSet<EntiteImpactee> EntitesImpactees { get; set; }
         public DbSet<TPE> TPEs { get; set; }
         public DbSet<IncidentTPE> IncidentTPEs { get; set; }
-        public DbSet<IncidentArchive> IncidentArchives { get; set; }  // AJOUTER CETTE LIGNE
+        public DbSet<IncidentArchive> IncidentArchives { get; set; } 
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
 
             builder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);            
 
-            // Configuration Fluent API pour OtpCode
+            // Configuration pour OtpCode
             builder.Entity<OtpCode>()
                 .HasOne(o => o.User)
-                .WithMany() // si tu n'as pas de collection d'OtpCode dans ApplicationUser
+                .WithMany() 
                 .HasForeignKey(o => o.UserId);                  
 
         }

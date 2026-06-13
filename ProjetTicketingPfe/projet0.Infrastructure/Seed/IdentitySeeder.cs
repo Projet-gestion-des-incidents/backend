@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.Identity;
-using projet0.Domain.Entities;
 
 namespace projet0.Infrastructure.Seed
 {

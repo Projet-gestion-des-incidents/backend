@@ -1,9 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using projet0.Domain.Entities;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace projet0.Infrastructure.Data.Configurations
 {
@@ -28,7 +25,7 @@ namespace projet0.Infrastructure.Data.Configurations
                 .HasForeignKey(p => p.UploadedById)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Relation avec Incident (optionnelle)
+            // Relation avec Incident 
             builder.HasOne(p => p.Incident)
                 .WithMany(i => i.PiecesJointes)
                 .HasForeignKey(p => p.IncidentId)
