@@ -13,6 +13,7 @@ namespace projet0.Application.Commun.DTOs.IncidentDTOs
         public int IncidentsFerme { get; set; }
         public int IncidentsNonTraiteLiesTicket { get; set; }     // Non traités + liés à au moins un ticket
         public int IncidentsNonTraiteSansTicket { get; set; }
+
         // Pourcentages
         public double TauxNonTraite { get; set; }
         public double TauxEnCours { get; set; }
@@ -21,12 +22,12 @@ namespace projet0.Application.Commun.DTOs.IncidentDTOs
         public double TauxNonTraiteSansTicket { get; set; }       // % des non traités sans ticket
     }
 
-    // Statistiques par statut (pour graphique camembert)
+    // Statistiques par statut 
     public class IncidentStatutStatDTO
     {
         public string Statut { get; set; }  // "Non traité", "En cours", "Fermé"
         public int Count { get; set; }
-        public string Color { get; set; }   // Couleur pour le frontend
+        public string Color { get; set; }   
         public double Pourcentage { get; set; }
     }
 
@@ -46,7 +47,6 @@ namespace projet0.Application.Commun.DTOs.IncidentDTOs
         public int Ferme { get; set; }
     }
 
-    // Dashboard complet
     public class IncidentDashboardDTO
     {
         public IncidentDashboardOverviewDTO Overview { get; set; }
@@ -55,19 +55,15 @@ namespace projet0.Application.Commun.DTOs.IncidentDTOs
         public List<IncidentJournalierDTO> StatsParSemaine { get; set; }
         public List<IncidentJournalierDTO> StatsParMois { get; set; }
 
-        // ✅ NOUVEAU : Statistiques de résolution globales
+        //  Statistiques de résolution globales
         public ResolutionIncidentStatsDTO StatsResolution { get; set; }
 
-        // ✅ NOUVEAU : Temps moyen par sévérité
+        //  Temps moyen par sévérité
         public List<ResolutionParSeveriteDTO> ResolutionParSeverite { get; set; }
 
-        // ✅ NOUVEAU : Temps moyen par type de problème + pourcentage
+        //  Temps moyen par type de problème 
         public List<ResolutionParTypeProblemeDTO> ResolutionParTypeProbleme { get; set; }
     }
-
-    // ============================================
-    // ✅ NOUVEAU : Statistiques de résolution
-    // ============================================
 
     // Statistiques de résolution globales
     public class ResolutionIncidentStatsDTO

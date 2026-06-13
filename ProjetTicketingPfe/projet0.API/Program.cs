@@ -103,9 +103,6 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
 #endregion
 
 #region 🔹 JWT Authentication
-// --------------------
-// JWT Authentication
-// --------------------
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -147,7 +144,7 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("IncidentRead", policy =>
     {
         policy.RequireAuthenticatedUser();
-        policy.RequireRole("Admin", "Technicien", "Commercant"); // Ajustez selon vos besoins
+        policy.RequireRole("Admin", "Technicien", "Commercant"); 
     });
 
     options.AddPolicy("IncidentCreate", policy =>
@@ -268,14 +265,13 @@ builder.Services.AddScoped<IIncidentTicketRepository, IncidentTicketRepository>(
 builder.Services.AddScoped<IIncidentTPERepository, IncidentTPERepository>();
 builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
-// Program.cs ou Startup.cs
 builder.Services.AddScoped<IIncidentPredictionService, IncidentPredictionRepository>();
 builder.Services.AddScoped<ITicketArchiveRepository, TicketArchiveRepository>();
 builder.Services.AddScoped<IIncidentArchiveRepository, IncidentArchiveRepository>();
 builder.Services.Configure<FormOptions>(options =>
 {
     options.ValueLengthLimit = int.MaxValue;
-    options.MultipartBodyLengthLimit = int.MaxValue; // Limite de taille de fichier
+    options.MultipartBodyLengthLimit = int.MaxValue; 
     options.MemoryBufferThreshold = int.MaxValue;
 });
 #endregion

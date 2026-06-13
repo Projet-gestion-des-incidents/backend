@@ -1,10 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿
 
 namespace projet0.Application.Commun.DTOs.IncidentDTOs
 {
-    // Dans IncidentDashboardDTO.cs - Ajouter ces classes
 
     public class CommercantIncidentDashboardDTO
     {
